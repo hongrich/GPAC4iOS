@@ -124,9 +124,9 @@
 #define GPAC_64_BITS
 #endif
 
-#define GPAC_HAS_SPIDERMONKEY
-#define GPAC_HAS_JPEG
-#define GPAC_HAS_PNG
+//#define GPAC_HAS_SPIDERMONKEY
+//#define GPAC_HAS_JPEG
+//#define GPAC_HAS_PNG
 
 /*don't use fixed-point version on iOS, not needed*/
 //#define GPAC_FIXED_POINT
