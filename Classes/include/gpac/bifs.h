@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -30,6 +30,20 @@
 extern "C" {
 #endif
 
+/*!
+ *	\file <gpac/bifs.h>
+ *	\brief MPEG-4 BIFS encoding and decoding.
+ */
+	
+/*!
+ *	\addtogroup bifs_grp MPEG-4 BIFS
+ *	\ingroup mpeg4sys_grp
+ *	\brief MPEG-4 BIFS  encoding and decoding
+ *
+ *This section documents the BIFS encoding and decoding of the GPAC framework. For scene graph documentation, check scenegraph.h
+ *	@{
+ */
+	
 
 #include <gpac/nodes_mpeg4.h>
 /*for BIFSConfig*/
@@ -40,7 +54,7 @@ extern "C" {
 
 typedef struct __tag_bifs_dec GF_BifsDecoder;
 
-/*BIFS decoder constructor - 
+/*BIFS decoder constructor -
  @command_dec: if set, the decoder will only work in memory mode (creating commands for the graph)
  otherwise the decoder will always apply commands while decoding them*/
 GF_BifsDecoder *gf_bifs_decoder_new(GF_SceneGraph *scenegraph, Bool command_dec);
@@ -93,9 +107,14 @@ u8 gf_bifs_encoder_get_version(GF_BifsEncoder *codec, u16 ESID);
 /*Encodes current graph as a scene replace*/
 GF_Err gf_bifs_encoder_get_rap(GF_BifsEncoder *codec, char **out_data, u32 *out_data_length);
 
+GF_Err gf_bifs_encoder_set_source_url(GF_BifsEncoder *codec, const char *src_url);
+
 #endif /*GPAC_DISABLE_BIFS_ENC*/
 
 #endif /*GPAC_DISABLE_BIFS*/
+
+
+/*! @} */
 
 #ifdef __cplusplus
 }

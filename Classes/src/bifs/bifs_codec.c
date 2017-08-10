@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -39,19 +39,19 @@ static GF_Err ParseConfig(GF_BitStream *bs, BIFSStreamInfo *info, u32 version)
 	info->config.elementaryMasks = NULL	;
 
 	if (version==2) {
-		info->config.Use3DMeshCoding = gf_bs_read_int(bs, 1);
-		info->config.UsePredictiveMFField = gf_bs_read_int(bs, 1);
+		info->config.Use3DMeshCoding = (Bool)gf_bs_read_int(bs, 1);
+		info->config.UsePredictiveMFField = (Bool)gf_bs_read_int(bs, 1);
 	}
 	info->config.NodeIDBits = gf_bs_read_int(bs, 5);
 	info->config.RouteIDBits = gf_bs_read_int(bs, 5);
 	if (version==2) {
 		info->config.ProtoIDBits = gf_bs_read_int(bs, 5);
 	}
-	cmd_stream = gf_bs_read_int(bs, 1);
+	cmd_stream = (Bool)gf_bs_read_int(bs, 1);
 
 	if (cmd_stream) {
-		info->config.PixelMetrics = gf_bs_read_int(bs, 1);
-		hasSize = gf_bs_read_int(bs, 1);
+		info->config.PixelMetrics = (Bool)gf_bs_read_int(bs, 1);
+		hasSize = (Bool)gf_bs_read_int(bs, 1);
 		if (hasSize) {
 			info->config.Width = gf_bs_read_int(bs, 16);
 			info->config.Height = gf_bs_read_int(bs, 16);
@@ -61,10 +61,10 @@ static GF_Err ParseConfig(GF_BitStream *bs, BIFSStreamInfo *info, u32 version)
 		if (gf_bs_get_size(bs) != gf_bs_get_position(bs)) return GF_ODF_INVALID_DESCRIPTOR;
 		return GF_OK;
 	} else {
-		info->config.BAnimRAP = gf_bs_read_int(bs, 1);
+		info->config.BAnimRAP = (Bool)gf_bs_read_int(bs, 1);
 		info->config.elementaryMasks = gf_list_new();
 		while (1) {
-		  /*u32 node_id = */gf_bs_read_int(bs, info->config.NodeIDBits);
+			/*u32 node_id = */gf_bs_read_int(bs, info->config.NodeIDBits);
 			/*this assumes only FDP, BDP and IFS2D (no elem mask)*/
 			if (gf_bs_read_int(bs, 1) == 0) break;
 		}
@@ -90,17 +90,18 @@ GF_BifsDecoder *gf_bifs_decoder_new(GF_SceneGraph *scenegraph, Bool command_dec)
 {
 	GF_BifsDecoder *tmp;
 	GF_SAFEALLOC(tmp, GF_BifsDecoder);
-
+	if (!tmp) return NULL;
+	
 	tmp->QPs = gf_list_new();
 	tmp->streamInfo = gf_list_new();
-	tmp->info = NULL;	
+	tmp->info = NULL;
 
 	tmp->pCurrentProto = NULL;
 	tmp->scenegraph = scenegraph;
 	tmp->command_buffers = gf_list_new();
 	if (command_dec) {
-		tmp->dec_memory_mode = 1;
-		tmp->force_keep_qp = 1;
+		tmp->dec_memory_mode = GF_TRUE;
+		tmp->force_keep_qp = GF_TRUE;
 	}
 	tmp->current_graph = NULL;
 	return tmp;
@@ -127,12 +128,13 @@ GF_Err gf_bifs_decoder_configure_stream(GF_BifsDecoder * codec, u16 ESID, char *
 	GF_BitStream *bs;
 	BIFSStreamInfo *pInfo;
 	GF_Err e;
-	
+
 	if (!DecoderSpecificInfo) {
 		/* Hack for T-DMB non compliant streams */
 		GF_SAFEALLOC(pInfo, BIFSStreamInfo);
+		if (!pInfo) return GF_OUT_OF_MEM;
 		pInfo->ESID = ESID;
-		pInfo->config.PixelMetrics = 1;
+		pInfo->config.PixelMetrics = GF_TRUE;
 		pInfo->config.version = (objectTypeIndication==2) ? 1 : 2;
 		assert( codec );
 		assert( codec->streamInfo );
@@ -146,6 +148,7 @@ GF_Err gf_bifs_decoder_configure_stream(GF_BifsDecoder * codec, u16 ESID, char *
 	}
 	bs = gf_bs_new(DecoderSpecificInfo, DecoderSpecificInfoLength, GF_BITSTREAM_READ);
 	GF_SAFEALLOC(pInfo, BIFSStreamInfo);
+	if (!pInfo) return GF_OUT_OF_MEM;
 	pInfo->ESID = ESID;
 
 	pInfo->config.version = objectTypeIndication;
@@ -181,7 +184,7 @@ GF_Err gf_bifs_decoder_configure_stream(GF_BifsDecoder * codec, u16 ESID, char *
 GF_EXPORT
 void gf_bifs_decoder_ignore_size_info(GF_BifsDecoder *codec)
 {
-	if (codec) codec->ignore_size = 1;
+	if (codec) codec->ignore_size = GF_TRUE;
 }
 
 
@@ -204,7 +207,7 @@ GF_Err gf_bifs_decoder_remove_stream(GF_BifsDecoder *codec, u16 ESID)
 
 GF_EXPORT
 void gf_bifs_decoder_del(GF_BifsDecoder *codec)
-{	
+{
 	assert(gf_list_count(codec->QPs)==0);
 	gf_list_del(codec->QPs);
 
@@ -270,7 +273,7 @@ GF_Err gf_bifs_decode_au(GF_BifsDecoder *codec, u16 ESID, const char *data, u32 
 //	gf_mx_v(codec->mx);
 	return e;
 }
-	
+
 
 void gf_bifs_decoder_set_time_offset(GF_BifsDecoder *codec, Double ts)
 {
@@ -296,7 +299,7 @@ GF_BifsEncoder *gf_bifs_encoder_new(GF_SceneGraph *graph)
 	if (!tmp) return NULL;
 	tmp->QPs = gf_list_new();
 	tmp->streamInfo = gf_list_new();
-	tmp->info = NULL;	
+	tmp->info = NULL;
 	tmp->encoded_nodes = gf_list_new();
 	tmp->scene_graph = graph;
 	return tmp;
@@ -316,7 +319,7 @@ static BIFSStreamInfo *BE_GetStream(GF_BifsEncoder * codec, u16 ESID)
 
 GF_EXPORT
 void gf_bifs_encoder_del(GF_BifsEncoder *codec)
-{	
+{
 	assert(gf_list_count(codec->QPs)==0);
 	gf_list_del(codec->QPs);
 	/*destroy all config*/
@@ -327,6 +330,7 @@ void gf_bifs_encoder_del(GF_BifsEncoder *codec)
 	}
 	gf_list_del(codec->streamInfo);
 	gf_list_del(codec->encoded_nodes);
+	if (codec->src_url) gf_free(codec->src_url);
 //	gf_mx_del(codec->mx);
 	gf_free(codec);
 }
@@ -334,16 +338,17 @@ void gf_bifs_encoder_del(GF_BifsEncoder *codec)
 GF_EXPORT
 GF_Err gf_bifs_encoder_new_stream(GF_BifsEncoder *codec, u16 ESID, GF_BIFSConfig *cfg, Bool encodeNames, Bool has_predictive)
 {
-	u32 i, count; 
+	u32 i, count;
 	BIFSStreamInfo *pInfo;
-	
+
 //	gf_mx_p(codec->mx);
 	if (BE_GetStream(codec, ESID) != NULL) {
 //		gf_mx_v(codec->mx);
 		return GF_BAD_PARAM;
 	}
-	
+
 	GF_SAFEALLOC(pInfo, BIFSStreamInfo);
+	if (!pInfo) return GF_OUT_OF_MEM;
 	pInfo->ESID = ESID;
 	codec->UseName = encodeNames;
 	pInfo->config.Height = cfg->pixelHeight;
@@ -362,13 +367,17 @@ GF_Err gf_bifs_encoder_new_stream(GF_BifsEncoder *codec, u16 ESID, GF_BIFSConfig
 			BIFSElementaryMask *bem;
 			GF_ElementaryMask *em = (GF_ElementaryMask *)gf_list_get(cfg->elementaryMasks, i);
 			GF_SAFEALLOC(bem, BIFSElementaryMask);
+			if (!bem) {
+				GF_LOG(GF_LOG_ERROR, GF_LOG_CODEC, ("[BIFS] Fail to allocate elementary mask"));
+				continue;
+			}
 			if (em->node_id) bem->node = gf_sg_find_node(codec->scene_graph, em->node_id);
 			else if (em->node_name) bem->node = gf_sg_find_node_by_name(codec->scene_graph, em->node_name);
 			bem->node_id = em->node_id;
 			gf_list_add(pInfo->config.elementaryMasks, bem);
 		}
 	}
-	
+
 	gf_list_add(codec->streamInfo, pInfo);
 //	gf_mx_v(codec->mx);
 	return GF_OK;
@@ -450,7 +459,7 @@ GF_Err gf_bifs_encoder_get_config(GF_BifsEncoder *codec, u16 ESID, char **out_da
 			gf_bs_write_int(bs, 0, 1);
 		}
 	}
-	
+
 	gf_bs_align(bs);
 	gf_bs_get_content(bs, out_data, out_data_length);
 	gf_bs_del(bs);
@@ -468,6 +477,17 @@ u8 gf_bifs_encoder_get_version(GF_BifsEncoder *codec, u16 ESID)
 //	gf_mx_v(codec->mx);
 	return ret;
 }
+
+GF_EXPORT
+GF_Err gf_bifs_encoder_set_source_url(GF_BifsEncoder *codec, const char *src_url)
+{
+	if (!codec) return GF_BAD_PARAM;
+	if (codec->src_url) gf_free(codec->src_url);
+	codec->src_url = gf_strdup(src_url);
+	return GF_OK;
+}
+
+
 #endif /*GPAC_DISABLE_BIFS_ENC*/
 
 
@@ -484,12 +504,12 @@ GF_Err gf_bifs_get_field_index(GF_Node *Node, u32 inField, u8 IndexMode, u32 *al
 	switch (Node->sgprivate->tag) {
 	case TAG_ProtoNode:
 		return gf_sg_proto_get_field_ind_static(Node, inField, IndexMode, allField);
-	case TAG_MPEG4_Script: 
+	case TAG_MPEG4_Script:
 #ifndef GPAC_DISABLE_X3D
-	case TAG_X3D_Script: 
+	case TAG_X3D_Script:
 #endif
 		return gf_sg_script_get_field_index(Node, inField, IndexMode, allField);
-	default: 
+	default:
 		return gf_sg_mpeg4_node_get_field_index(Node, inField, IndexMode, allField);
 	}
 }
@@ -500,8 +520,10 @@ GF_EXPORT
 Bool gf_bifs_get_aq_info(GF_Node *Node, u32 FieldIndex, u8 *QType, u8 *AType, Fixed *b_min, Fixed *b_max, u32 *QT13_bits)
 {
 	switch (Node->sgprivate->tag) {
-	case TAG_ProtoNode: return gf_sg_proto_get_aq_info(Node, FieldIndex, QType, AType, b_min, b_max, QT13_bits);
-	default: return gf_sg_mpeg4_node_get_aq_info(Node, FieldIndex, QType, AType, b_min, b_max, QT13_bits);
+	case TAG_ProtoNode:
+		return gf_sg_proto_get_aq_info(Node, FieldIndex, QType, AType, b_min, b_max, QT13_bits);
+	default:
+		return gf_sg_mpeg4_node_get_aq_info(Node, FieldIndex, QType, AType, b_min, b_max, QT13_bits);
 	}
 }
 
@@ -513,7 +535,7 @@ void gf_bifs_decoder_set_extraction_path(GF_BifsDecoder *codec, const char *path
 	codec->extraction_path = path ? gf_strdup(path) : NULL;
 	if (codec->service_url) gf_free(codec->service_url);
 	codec->service_url = service_url ? gf_strdup(service_url) : NULL;
-	
+
 }
 
 #endif /*GPAC_DISABLE_BIFS*/

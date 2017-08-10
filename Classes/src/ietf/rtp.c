@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -67,7 +67,6 @@ void gf_rtp_del(GF_RTPChannel *ch)
 }
 
 
-
 GF_EXPORT
 GF_Err gf_rtp_setup_transport(GF_RTPChannel *ch, GF_RTSPTransport *trans_info, const char *remote_address)
 {
@@ -83,10 +82,10 @@ GF_Err gf_rtp_setup_transport(GF_RTPChannel *ch, GF_RTSPTransport *trans_info, c
 	ch->net_info.source = NULL;
 	memcpy(&ch->net_info, trans_info, sizeof(GF_RTSPTransport));
 
-	if (trans_info->destination) 
+	if (trans_info->destination)
 		ch->net_info.destination = gf_strdup(trans_info->destination);
 
-	if (trans_info->Profile) 
+	if (trans_info->Profile)
 		ch->net_info.Profile = gf_strdup(trans_info->Profile);
 
 	if (!ch->net_info.IsUnicast && trans_info->destination) {
@@ -167,7 +166,7 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 	u16 port;
 	GF_Err e;
 
-	if (IsSource && !PathMTU) return GF_BAD_PARAM;
+	if (!ch || (IsSource && !PathMTU)) return GF_BAD_PARAM;
 
 	if (ch->rtp) gf_sk_del(ch->rtp);
 	ch->rtp = NULL;
@@ -180,27 +179,27 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 	ch->rtp_time = 0;
 
 	//create sockets for RTP/AVP profile only
-	if (ch->net_info.Profile && 
-		( !stricmp(ch->net_info.Profile, GF_RTSP_PROFILE_RTP_AVP) 
-		|| !stricmp(ch->net_info.Profile, "RTP/AVP/UDP")
-		|| !stricmp(ch->net_info.Profile, "RTP/SAVP")
-		)
-		) {
+	if (ch->net_info.Profile &&
+	        ( !stricmp(ch->net_info.Profile, GF_RTSP_PROFILE_RTP_AVP)
+	          || !stricmp(ch->net_info.Profile, "RTP/AVP/UDP")
+	          || !stricmp(ch->net_info.Profile, "RTP/SAVP")
+	        )
+	   ) {
 		//destination MUST be specified for unicast
 		if (IsSource && ch->net_info.IsUnicast && !ch->net_info.destination) return GF_BAD_PARAM;
 
-        /* forcing unicast when the address is not a multicast */
-        if (!ch->net_info.IsUnicast) {
-            if (IsSource){
-                if (ch->net_info.destination && !gf_sk_is_multicast_address(ch->net_info.destination)) {
-                    ch->net_info.IsUnicast = 1;
-                }
-            } else {
-                if (ch->net_info.source && !gf_sk_is_multicast_address(ch->net_info.source)) {
-                    ch->net_info.IsUnicast = 1;
-                }
-            } 
-        }
+		/* forcing unicast when the address is not a multicast */
+		if (!ch->net_info.IsUnicast) {
+			if (IsSource) {
+				if (ch->net_info.destination && !gf_sk_is_multicast_address(ch->net_info.destination)) {
+					ch->net_info.IsUnicast = GF_TRUE;
+				}
+			} else {
+				if (ch->net_info.source && !gf_sk_is_multicast_address(ch->net_info.source)) {
+					ch->net_info.IsUnicast = GF_TRUE;
+				}
+			}
+		}
 		//
 		//	RTP
 		//
@@ -211,7 +210,7 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 			if (!IsSource) {
 				port = ch->net_info.port_first;
 				if (!port) port = ch->net_info.client_port_first;
-				/*if a destination adress was given (rtsd) use it*/
+				/*if a destination address was given (rtsd) use it*/
 				if (!local_ip && ch->net_info.destination) local_ip = ch->net_info.destination;
 
 				e = gf_sk_bind(ch->rtp, local_ip, ch->net_info.client_port_first, ch->net_info.source, port, GF_SOCK_REUSE_PORT);
@@ -224,10 +223,10 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 				if (e) return e;
 			}
 		} else {
-			//Bind to multicast (auto-join the group). 
+			//Bind to multicast (auto-join the group).
 			//we do not bind the socket if this is a source-only channel because some servers
 			//don't like that on local loop ...
-			e = gf_sk_setup_multicast(ch->rtp, ch->net_info.source, ch->net_info.port_first, ch->net_info.TTL, 0, local_ip);
+			e = gf_sk_setup_multicast(ch->rtp, ch->net_info.source, ch->net_info.port_first, ch->net_info.TTL, GF_FALSE, local_ip);
 			if (e) return e;
 		}
 		if (UDPBufferSize) gf_sk_set_buffer_size(ch->rtp, IsSource, UDPBufferSize);
@@ -237,7 +236,7 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 			ch->send_buffer = (char *) gf_malloc(sizeof(char) * PathMTU);
 			ch->send_buffer_size = PathMTU;
 		}
-		
+
 
 		//create re-ordering queue for UDP only, and receive
 		if (ReorederingSize && !IsSource) {
@@ -254,7 +253,7 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 			if (!IsSource) {
 				port = ch->net_info.port_last;
 				if (!port) port = ch->net_info.client_port_last;
-				/*if a destination adress was given (rtsd) use it*/
+				/*if a destination address was given (rtsd) use it*/
 				if (!local_ip && ch->net_info.destination) local_ip = ch->net_info.destination;
 
 				e = gf_sk_bind(ch->rtcp, local_ip, ch->net_info.client_port_last, ch->net_info.source, port, GF_SOCK_REUSE_PORT);
@@ -266,11 +265,11 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 		} else {
 			if (!ch->net_info.port_last) ch->net_info.port_last = ch->net_info.client_port_last;
 			//Bind to multicast (auto-join the group)
-			e = gf_sk_setup_multicast(ch->rtcp, ch->net_info.source, ch->net_info.port_last, ch->net_info.TTL, 0, local_ip);
+			e = gf_sk_setup_multicast(ch->rtcp, ch->net_info.source, ch->net_info.port_last, ch->net_info.TTL, GF_FALSE, local_ip);
 			if (e) return e;
 		}
 	}
-		
+
 	//format CNAME if not done yet
 	if (!ch->CName) {
 		//this is the real CName setup
@@ -288,14 +287,14 @@ GF_Err gf_rtp_initialize(GF_RTPChannel *ch, u32 UDPBufferSize, Bool IsSource, u3
 			ch->CName = gf_strdup(name);
 		}
 	}
-	
+
 
 #ifndef GPAC_DISABLE_LOG
 	if (gf_log_tool_level_on(GF_LOG_RTP, GF_LOG_DEBUG))  {
 		GF_LOG(GF_LOG_DEBUG, GF_LOG_RTP, ("[RTP] Packet Log Format: SSRC SequenceNumber TimeStamp NTP@recvTime deviance, Jiter, PckLost PckTotal BytesTotal\n"));
 	}
 #endif
-	
+
 	return GF_OK;
 }
 
@@ -343,10 +342,10 @@ u32 gf_rtp_read_rtp(GF_RTPChannel *ch, char *buffer, u32 buffer_size)
 
 	e = gf_sk_receive(ch->rtp, buffer, buffer_size, 0, &res);
 	if (!res || e || (res < 12)) res = 0;
-    if (res){
-        ch->total_bytes+=res;
-        ch->total_pck++;
-    }
+	if (res) {
+		ch->total_bytes+=res;
+		ch->total_pck++;
+	}
 	//add the packet to our Queue if any
 	if (ch->po) {
 		if (res) {
@@ -365,7 +364,7 @@ u32 gf_rtp_read_rtp(GF_RTPChannel *ch, char *buffer, u32 buffer_size)
 	if (ch->nat_keepalive_time_period) {
 		u32 now = gf_sys_clock();
 		if (res) {
-			ch->last_nat_keepalive_time = now; 
+			ch->last_nat_keepalive_time = now;
 		} else {
 			if (now - ch->last_nat_keepalive_time >= ch->nat_keepalive_time_period) {
 #if 0
@@ -438,7 +437,7 @@ GF_Err gf_rtp_decode_rtp(GF_RTPChannel *ch, char *pck, u32 pck_size, GF_RTPHeade
 	}
 	if (ch->first_SR && !ch->SenderSSRC && rtp_hdr->SSRC) {
 		ch->SenderSSRC = rtp_hdr->SSRC;
-		GF_LOG(GF_LOG_WARNING, GF_LOG_RTP, ("[RTP] Assigning SSRC %d because none has been signaled\n", ch->SenderSSRC));
+		GF_LOG(GF_LOG_INFO, GF_LOG_RTP, ("[RTP] Assigning SSRC to %d because none was specified through SDP/RTSP\n", ch->SenderSSRC));
 	}
 
 
@@ -454,11 +453,30 @@ GF_Err gf_rtp_decode_rtp(GF_RTPChannel *ch, char *pck, u32 pck_size, GF_RTPHeade
 		ch->last_pck_sn = (u32) rtp_hdr->SequenceNumber-1;
 	}
 	/*this is a loop in SN - add it*/
-	if ( (ch->last_pck_sn + 1 > rtp_hdr->SequenceNumber) 
-		&& (rtp_hdr->SequenceNumber >= ch->last_pck_sn + MAX_RTP_SN/2)) {
+	if ( (ch->last_pck_sn + 1 > rtp_hdr->SequenceNumber)
+	        && (rtp_hdr->SequenceNumber >= ch->last_pck_sn + MAX_RTP_SN/2)) {
 		ch->num_sn_loops += 1;
 	}
-	
+
+	if (ch->last_SR_rtp_time) {
+		s32 diff_sec = ((s32) rtp_hdr->TimeStamp - (s32) ch->last_SR_rtp_time) / (s32) ch->TimeScale;
+		u32 sec = ch->last_SR_NTP_sec;
+		s64 frac;
+		//frac = ch->last_SR_NTP_frac;
+
+		frac = (s32) rtp_hdr->TimeStamp - (s32) ch->last_SR_rtp_time - diff_sec*(s32)ch->TimeScale;
+		frac *= 0xFFFFFFFF;
+		frac /= ch->TimeScale;
+		frac += ch->last_SR_NTP_frac;
+		if (frac>0xFFFFFFFF) {
+			sec += 1;
+			frac -= 0xFFFFFFFF;
+		}
+		rtp_hdr->recomputed_ntp_ts = sec + diff_sec;
+		rtp_hdr->recomputed_ntp_ts <<= 32;
+		rtp_hdr->recomputed_ntp_ts |= frac;
+	}
+
 	ntp = gf_rtp_channel_time(ch);
 	deviance = ntp - rtp_hdr->TimeStamp;
 	delta = deviance - ch->last_deviance;
@@ -470,9 +488,9 @@ GF_Err gf_rtp_decode_rtp(GF_RTPChannel *ch, char *pck, u32 pck_size, GF_RTPHeade
 	lost = 0;
 	LastSeq = ch->last_pck_sn;
 	CurrSeq = (u32) rtp_hdr->SequenceNumber;
-	ch->packet_loss = 0;
+	ch->packet_loss = GF_FALSE;
 	/*next sequential pck*/
-	if ( ( (LastSeq + 1) & 0xffff ) == CurrSeq ) {	
+	if ( ( (LastSeq + 1) & 0xffff ) == CurrSeq ) {
 		ch->last_num_pck_rcv += 1;
 		ch->last_num_pck_expected += 1;
 	}
@@ -491,7 +509,7 @@ GF_Err gf_rtp_decode_rtp(GF_RTPChannel *ch, char *pck, u32 pck_size, GF_RTPHeade
 		ch->last_num_pck_expected += lost;
 		ch->last_num_pck_rcv += 1;
 		ch->last_num_pck_loss += lost;
-		ch->packet_loss = 1;
+		ch->packet_loss = GF_TRUE;
 	}
 	ch->last_pck_sn = CurrSeq;
 
@@ -500,22 +518,31 @@ GF_Err gf_rtp_decode_rtp(GF_RTPChannel *ch, char *pck, u32 pck_size, GF_RTPHeade
 		ch->total_pck++;
 		ch->total_bytes += pck_size-12;
 
-		GF_LOG(GF_LOG_DEBUG, GF_LOG_RTP, ("[RTP]\t%d\t%d\t%u\t%d\t%d\t%d\t%d\t%d\t%d\n", 
-									ch->SenderSSRC,
-									rtp_hdr->SequenceNumber,
-									rtp_hdr->TimeStamp,
-									ntp,
-									delta,
-									ch->Jitter >> 4,
-									lost,
-									ch->total_pck,
-									ch->total_bytes
-				));
+		GF_LOG(GF_LOG_DEBUG, GF_LOG_RTP, ("[RTP]\t%d\t%d\t%u\t%d\t%d\t%d\t%d\t%d\t%d\n",
+		                                  ch->SenderSSRC,
+		                                  rtp_hdr->SequenceNumber,
+		                                  rtp_hdr->TimeStamp,
+		                                  ntp,
+		                                  delta,
+		                                  ch->Jitter >> 4,
+		                                  lost,
+		                                  ch->total_pck,
+		                                  ch->total_bytes
+		                                 ));
 	}
 #endif
 
 	//we work with no CSRC so payload offset is always 12
 	*PayloadStart = 12;
+
+	if (rtp_hdr->Extension) {
+		u16 ext_size;
+		char *payl = pck + *PayloadStart;
+		ext_size = payl[2];
+		ext_size <<= 8;
+		ext_size |= payl[3];
+		*PayloadStart += 4 + (ext_size * 4);
+	}
 
 	//store the time
 	ch->CurrentTime = rtp_hdr->TimeStamp;
@@ -548,15 +575,14 @@ GF_Err gf_rtp_send_packet(GF_RTPChannel *ch, GF_RTPHeader *rtp_hdr, char *pck, u
 
 	GF_BitStream *bs;
 
-	if (!ch || !rtp_hdr 
-		|| !ch->send_buffer 
-		|| !pck 
-		|| (rtp_hdr->CSRCCount && !rtp_hdr->CSRC) 
-		|| (rtp_hdr->CSRCCount > 15)) return GF_BAD_PARAM;
-	
-	if (rtp_hdr->CSRCCount) fast_send=0;
+	if (!ch || !rtp_hdr
+	        || !ch->send_buffer
+	        || !pck
+	        || (rtp_hdr->CSRCCount > 15)) return GF_BAD_PARAM;
 
-	if (12 + pck_size + 4*rtp_hdr->CSRCCount > ch->send_buffer_size) return GF_IO_ERR; 
+	if (rtp_hdr->CSRCCount) fast_send = GF_FALSE;
+
+	if (12 + pck_size + 4*rtp_hdr->CSRCCount > ch->send_buffer_size) return GF_IO_ERR;
 
 	if (fast_send) {
 		hdr = pck - 12;
@@ -586,7 +612,7 @@ GF_Err gf_rtp_send_packet(GF_RTPChannel *ch, GF_RTPHeader *rtp_hdr, char *pck, u
 	if (fast_send) {
 		e = gf_sk_send(ch->rtp, hdr, pck_size+12);
 	} else {
-		memcpy(ch->send_buffer + Start, pck, pck_size);		
+		memcpy(ch->send_buffer + Start, pck, pck_size);
 		e = gf_sk_send(ch->rtp, ch->send_buffer, Start + pck_size);
 	}
 	if (e) return e;
@@ -719,12 +745,12 @@ u32 gf_rtp_get_local_ssrc(GF_RTPChannel *ch)
 
 
 #if 0
-	"#RTP log format:\n"
-	"#RTP SenderSSRC RTP_TimeStamp RTP_SeqNum NTP@Recv Deviance Jitter NbLost NbTotPck NbTotBytes\n"
-	"#RTCP Sender reports log format:\n"
-	"#RTCP-SR SenderSSRC RTP_TimeStamp@NTP NbTotPck NbTotBytes NTP\n"
-	"#RTCP Receiver reports log format:\n"
-	"#RTCP-RR StreamSSRC Jitter ExtendedSeqNum ExpectDiff LossDiff NTP\n"
+"#RTP log format:\n"
+"#RTP SenderSSRC RTP_TimeStamp RTP_SeqNum NTP@Recv Deviance Jitter NbLost NbTotPck NbTotBytes\n"
+"#RTCP Sender reports log format:\n"
+"#RTCP-SR SenderSSRC RTP_TimeStamp@NTP NbTotPck NbTotBytes NTP\n"
+"#RTCP Receiver reports log format:\n"
+"#RTCP-RR StreamSSRC Jitter ExtendedSeqNum ExpectDiff LossDiff NTP\n"
 #endif
 
 GF_EXPORT
@@ -763,10 +789,11 @@ GF_EXPORT
 GF_RTPReorder *gf_rtp_reorderer_new(u32 MaxCount, u32 MaxDelay)
 {
 	GF_RTPReorder *tmp;
-	
+
 	if (MaxCount <= 1 || !MaxDelay) return NULL;
 
 	GF_SAFEALLOC(tmp , GF_RTPReorder);
+	if (!tmp) return NULL;
 	tmp->MaxCount = MaxCount;
 	tmp->MaxDelay = MaxDelay;
 	return tmp;
@@ -869,7 +896,7 @@ GF_Err gf_rtp_reorderer_add(GF_RTPReorder *po, const void * pck, u32 pck_size, u
 
 		//are we in the bounds ??
 		if ( ( (u16) (cur->pck_seq_num + bounds) < (u16) (pck_seqnum + bounds) )
-			&& ( (u16) (pck_seqnum + bounds) < (u16) (cur->next->pck_seq_num + bounds)) ) {
+		        && ( (u16) (pck_seqnum + bounds) < (u16) (cur->next->pck_seq_num + bounds)) ) {
 
 			//insert
 			it->next = cur->next;
@@ -882,7 +909,7 @@ GF_Err gf_rtp_reorderer_add(GF_RTPReorder *po, const void * pck, u32 pck_size, u
 		}
 		cur = cur->next;
 	}
-	
+
 
 discard:
 	gf_free(it->pck);
@@ -910,8 +937,8 @@ void *gf_rtp_reorderer_get(GF_RTPReorder *po, u32 *pck_size)
 
 	//check we have received the first packet
 	if ( po->head_seqnum && po->MaxCount
-		&& (po->MaxCount > po->Count) 
-		&& (po->in->pck_seq_num != po->head_seqnum)) 
+	        && (po->MaxCount > po->Count)
+	        && (po->in->pck_seq_num != po->head_seqnum))
 		return NULL;
 
 	//no entry
@@ -921,11 +948,11 @@ void *gf_rtp_reorderer_get(GF_RTPReorder *po, u32 *pck_size)
 	if ( (po->head_seqnum >= 0xf000 ) || (po->head_seqnum <= 0x1000) ) bounds = 0x2000;
 
 	//release the output if SN in order or maxCount reached
-	if (( (u16) (po->in->pck_seq_num + bounds + 1) == (u16) (po->in->next->pck_seq_num + bounds)) 
-		|| (po->MaxCount && (po->Count >= po->MaxCount)) ) {
+	if (( (u16) (po->in->pck_seq_num + bounds + 1) == (u16) (po->in->next->pck_seq_num + bounds))
+	        || (po->MaxCount && (po->Count >= po->MaxCount)) ) {
 
 #ifndef GPAC_DISABLE_LOG
-		if (po->in->pck_seq_num + 1 != po->in->next->pck_seq_num) 
+		if (po->in->pck_seq_num + 1 != po->in->next->pck_seq_num)
 			GF_LOG(GF_LOG_INFO, GF_LOG_RTP, ("[rtp] WARNING Packet Loss: Sending %d out of the queue but next is %d\n", po->in->pck_seq_num, po->in->next->pck_seq_num ));
 #endif
 		goto send_it;

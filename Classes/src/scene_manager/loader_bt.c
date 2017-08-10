@@ -26,12 +26,14 @@
 #include <gpac/scene_manager.h>
 #include <gpac/utf.h>
 #include <gpac/constants.h>
+#include <gpac/network.h>
 #include <gpac/internal/bifs_dev.h>
 #include <gpac/internal/scenegraph_dev.h>
 
 #include <gpac/nodes_x3d.h>
 /*for key codes...*/
 #include <gpac/user.h>
+#include <gpac/color.h>
 
 
 #if !defined(GPAC_DISABLE_LOADER_BT) && !defined(GPAC_DISABLE_ZLIB)
@@ -164,7 +166,7 @@ void gf_bt_check_line(GF_BTParser *parser)
 		}
 
 next_line:
-		parser->line_start_pos = gztell(parser->gz_in);
+		parser->line_start_pos = (s32) gztell(parser->gz_in);
 		parser->line_buffer[0] = 0;
 		if (parser->unicode_type) {
 			u8 c1, c2;
@@ -180,11 +182,18 @@ next_line:
 				c2 = gzgetc(parser->gz_in);
 				/*Little-endian order*/
 				if (parser->unicode_type==2) {
-					if (c2) { wchar = c2; wchar <<=8; wchar |= c1; }
+					if (c2) {
+						wchar = c2;
+						wchar <<=8;
+						wchar |= c1;
+					}
 					else wchar = c1;
 				} else {
 					wchar = c1;
-					if (c2) { wchar <<= 8; wchar |= c2;}
+					if (c2) {
+						wchar <<= 8;
+						wchar |= c2;
+					}
 				}
 				*dst = wchar;
 				if (wchar=='\r') is_ret = 1;
@@ -193,13 +202,12 @@ next_line:
 					break;
 				}
 				else if (is_ret && wchar!='\n') {
-					u32 fpos = gztell(parser->gz_in);
+					u32 fpos = (u32) gztell(parser->gz_in);
 					gzseek(parser->gz_in, fpos-2, SEEK_SET);
-					is_ret = 1;
 					break;
 				}
 				if (wchar==' ') {
-					last_space_pos_stream = gztell(parser->gz_in);
+					//last_space_pos_stream = (u32) gztell(parser->gz_in);
 					last_space_pos = (u32) (dst - l);
 				}
 				dst++;
@@ -228,7 +236,7 @@ next_line:
 			}
 		} else {
 			if ((gzgets(parser->gz_in, parser->line_buffer, BT_LINE_SIZE) == NULL)
-				|| (!strlen(parser->line_buffer) && gzeof(parser->gz_in))) {
+			        || (!strlen(parser->line_buffer) && gzeof(parser->gz_in))) {
 				parser->done = 1;
 				return;
 			}
@@ -251,7 +259,7 @@ next_line:
 						break;
 					}
 				}
-				pos = gztell(parser->gz_in);
+				pos = (u32) gztell(parser->gz_in);
 				gzseek(parser->gz_in, pos-rew, SEEK_SET);
 			}
 		}
@@ -272,7 +280,7 @@ next_line:
 		parser->line++;
 
 		{
-			u32 pos = gztell(parser->gz_in);
+			u32 pos = (u32) gztell(parser->gz_in);
 			if (pos>=parser->file_pos) {
 				parser->file_pos = pos;
 				if (parser->line>1) gf_set_progress("BT Parsing", pos, parser->file_size);
@@ -282,7 +290,7 @@ next_line:
 		while ((parser->line_buffer[parser->line_pos]==' ') || (parser->line_buffer[parser->line_pos]=='\t'))
 			parser->line_pos++;
 		if ( (parser->line_buffer[parser->line_pos]=='#')
-			|| ( (parser->line_buffer[parser->line_pos]=='/') && (parser->line_buffer[parser->line_pos+1]=='/')) ) {
+		        || ( (parser->line_buffer[parser->line_pos]=='/') && (parser->line_buffer[parser->line_pos+1]=='/')) ) {
 
 			if (parser->line==1) {
 				if (strstr(parser->line_buffer, "VRML")) {
@@ -310,6 +318,10 @@ next_line:
 				if (sep && (sep[1]!='\n') ) {
 					BTDefSymbol *def;
 					GF_SAFEALLOC(def, BTDefSymbol);
+					if (!def) {
+						GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("Fail to allocate DEF node\n"));
+						return;
+					}
 					sep[0] = 0;
 					def->name = gf_strdup(buf);
 					sep[0] = ' ';
@@ -467,7 +479,7 @@ char *gf_bt_get_string(GF_BTParser *parser, u8 string_delim)
 			res = (char*)gf_realloc(res, sizeof(char) * (size+500+1));	\
 			size += 500;	\
 		}	\
-
+ 
 	res = (char*)gf_malloc(sizeof(char) * 500);
 	size = 500;
 	while (parser->line_buffer[parser->line_pos]==' ') parser->line_pos++;
@@ -505,23 +517,35 @@ char *gf_bt_get_string(GF_BTParser *parser, u8 string_delim)
 				}
 				/*UTF8 2 bytes char*/
 				else if ( (c & 0xe0) == 0xc0) {
-					res[i] = parser->line_buffer[parser->line_pos]; parser->line_pos++; i++;
+					res[i] = parser->line_buffer[parser->line_pos];
+					parser->line_pos++;
+					i++;
 					BT_STR_CHECK_ALLOC
 				}
 				/*UTF8 3 bytes char*/
 				else if ( (c & 0xf0) == 0xe0) {
-					res[i] = parser->line_buffer[parser->line_pos]; parser->line_pos++; i++;
+					res[i] = parser->line_buffer[parser->line_pos];
+					parser->line_pos++;
+					i++;
 					BT_STR_CHECK_ALLOC
-					res[i] = parser->line_buffer[parser->line_pos]; parser->line_pos++; i++;
+					res[i] = parser->line_buffer[parser->line_pos];
+					parser->line_pos++;
+					i++;
 					BT_STR_CHECK_ALLOC
 				}
 				/*UTF8 4 bytes char*/
 				else if ( (c & 0xf8) == 0xf0) {
-					res[i] = parser->line_buffer[parser->line_pos]; parser->line_pos++; i++;
+					res[i] = parser->line_buffer[parser->line_pos];
+					parser->line_pos++;
+					i++;
 					BT_STR_CHECK_ALLOC
-					res[i] = parser->line_buffer[parser->line_pos]; parser->line_pos++; i++;
+					res[i] = parser->line_buffer[parser->line_pos];
+					parser->line_pos++;
+					i++;
 					BT_STR_CHECK_ALLOC
-					res[i] = parser->line_buffer[parser->line_pos]; parser->line_pos++; i++;
+					res[i] = parser->line_buffer[parser->line_pos];
+					parser->line_pos++;
+					i++;
 					BT_STR_CHECK_ALLOC
 				}
 			}
@@ -658,28 +682,27 @@ GF_Err gf_bt_parse_bool(GF_BTParser *parser, const char *name, SFBool *val)
 GF_Err gf_bt_parse_color(GF_BTParser *parser, const char *name, SFColor *col)
 {
 	Float f;
+	u32 val;
 	char *str = gf_bt_get_next(parser, 0);
 	if (!str) return parser->last_error = GF_IO_ERR;
 	if (gf_bt_check_externproto_field(parser, str)) return GF_OK;
 
-	/*HTML code*/
-	if (str[0]=='$') {
-		u32 val;
-		sscanf(str+1, "%x", &val);
-		col->red = INT2FIX((val>>16) & 0xFF) / 255;
-		col->green = INT2FIX((val>>8) & 0xFF) / 255;
-		col->blue = INT2FIX(val & 0xFF) / 255;
+	if (sscanf(str, "%f", &f) == 1) {
+		col->red = FLT2FIX(f);
+		/*many VRML files use ',' separator*/
+		gf_bt_check_code(parser, ',');
+		gf_bt_parse_float(parser, name, & col->green);
+		gf_bt_check_code(parser, ',');
+		gf_bt_parse_float(parser, name, & col->blue);
 		return parser->last_error;
 	}
-	if (sscanf(str, "%f", &f) != 1) {
-		return gf_bt_report(parser, GF_BAD_PARAM, "%s: Number expected", name);
+	val = gf_color_parse(str);
+	if (!val) {
+		return gf_bt_report(parser, GF_BAD_PARAM, "%s: Number or name expected", name);
 	}
-	col->red = FLT2FIX(f);
-	/*many VRML files use ',' separator*/
-	gf_bt_check_code(parser, ',');
-	gf_bt_parse_float(parser, name, & col->green);
-	gf_bt_check_code(parser, ',');
-	gf_bt_parse_float(parser, name, & col->blue);
+	col->red = INT2FIX((val>>16) & 0xFF) / 255;
+	col->green = INT2FIX((val>>8) & 0xFF) / 255;
+	col->blue = INT2FIX(val & 0xFF) / 255;
 	return parser->last_error;
 }
 
@@ -773,7 +796,7 @@ static void gf_bt_update_timenode(GF_BTParser *parser, GF_Node *node)
 			gf_bt_check_time_offset(parser, node, &inf);
 		}
 	}
-		break;
+	break;
 	}
 }
 
@@ -881,7 +904,7 @@ void gf_bt_sffield(GF_BTParser *parser, GF_FieldInfo *info, GF_Node *n)
 			goto err;
 		}
 	}
-		break;
+	break;
 	case GF_SG_VRML_SFURL:
 	{
 		u8 delim = 0;
@@ -921,7 +944,7 @@ void gf_bt_sffield(GF_BTParser *parser, GF_FieldInfo *info, GF_Node *n)
 			((SFURL *)info->far_ptr)->OD_ID = val;
 		}
 	}
-		break;
+	break;
 	case GF_SG_VRML_SFCOMMANDBUFFER:
 	{
 		SFCommandBuffer *cb = (SFCommandBuffer *)info->far_ptr;
@@ -934,7 +957,7 @@ void gf_bt_sffield(GF_BTParser *parser, GF_FieldInfo *info, GF_Node *n)
 			parser->cur_com = prev_com;
 		}
 	}
-		break;
+	break;
 	case GF_SG_VRML_SFIMAGE:
 	{
 		u32 i, size, v;
@@ -979,7 +1002,7 @@ void gf_bt_sffield(GF_BTParser *parser, GF_FieldInfo *info, GF_Node *n)
 			}
 		}
 	}
-		break;
+	break;
 	case GF_SG_VRML_SFSCRIPT:
 	{
 		SFScript *sc = (SFScript *) info->far_ptr;
@@ -988,7 +1011,7 @@ void gf_bt_sffield(GF_BTParser *parser, GF_FieldInfo *info, GF_Node *n)
 		}
 		sc->script_text = (char*)gf_bt_get_string(parser, '\"');
 	}
-		break;
+	break;
 	case GF_SG_VRML_SFATTRREF:
 	{
 		SFAttrRef *ar = (SFAttrRef*) info->far_ptr;
@@ -1007,7 +1030,7 @@ void gf_bt_sffield(GF_BTParser *parser, GF_FieldInfo *info, GF_Node *n)
 		}
 
 	}
-		break;
+	break;
 	default:
 		parser->last_error = GF_NOT_SUPPORTED;
 		break;
@@ -1113,12 +1136,12 @@ u32 gf_bt_get_def_id(GF_BTParser *parser, char *defName)
 				return ID;
 			}
 		}
-	} 
+	}
 
 	ID = gf_bt_get_next_node_id(parser);
 	if (n) {
 		GF_LOG(GF_LOG_DEBUG, GF_LOG_PARSER, ("[BT Parsing] (line %d) Binary ID %d already assigned to %s - keeping internal ID %d", parser->line, gf_node_get_name(n), ID));
-	} 
+	}
 	return ID;
 }
 
@@ -1134,7 +1157,7 @@ Bool gf_bt_set_field_is(GF_BTParser *parser, GF_FieldInfo *info, GF_Node *n)
 	while ((parser->line_buffer[parser->line_pos + i] == ' ') || (parser->line_buffer[parser->line_pos + i] == '\t')) i++;
 	if (strnicmp(&parser->line_buffer[parser->line_pos + i] , "IS", 2)) return 0;
 
-	str = gf_bt_get_next(parser, 0);
+	gf_bt_get_next(parser, 0);
 	str = gf_bt_get_next(parser, 0);
 
 	/*that's an ISed field*/
@@ -1180,7 +1203,7 @@ u32 gf_bt_get_node_tag(GF_BTParser *parser, char *node_name)
 	if (parser->is_wrl && !(parser->load->flags & GF_SM_LOAD_MPEG4_STRICT)) {
 #ifndef GPAC_DISABLE_X3D
 		tag = gf_node_x3d_type_by_class_name(node_name);
-		if (!tag) 
+		if (!tag)
 #endif
 			tag = gf_node_mpeg4_type_by_class_name(node_name);
 		if (tag) return tag;
@@ -1293,11 +1316,11 @@ GF_Node *gf_bt_sf_node(GF_BTParser *parser, char *node_name, GF_Node *parent, ch
 		if (!parser->parsing_proto) init_node = 1;
 	}
 	is_script = 0;
-	if ((tag==TAG_MPEG4_Script) 
+	if ((tag==TAG_MPEG4_Script)
 #ifndef GPAC_DISABLE_X3D
-		|| (tag==TAG_X3D_Script)
+	        || (tag==TAG_X3D_Script)
 #endif
-		)
+	   )
 		is_script = 1;
 
 	if (!node) {
@@ -1394,20 +1417,20 @@ GF_Node *gf_bt_sf_node(GF_BTParser *parser, char *node_name, GF_Node *parent, ch
 						str = "children";
 						parser->last_error = gf_node_get_field_by_name(node, str, &info);
 					}
-					else 
+					else
 #endif
-					if (!strcmp(str, "collide")) {
-						SFBool b;
-						gf_bt_parse_bool(parser, "enabled", &b);
-						parser->last_error = GF_OK;
-						continue;
-					}
+						if (!strcmp(str, "collide")) {
+							SFBool b;
+							gf_bt_parse_bool(parser, "enabled", &b);
+							parser->last_error = GF_OK;
+							continue;
+						}
 				}
 			}
 
 			if (is_script && parser->last_error) {
 				u32 eType, fType;
-				eType = 0;
+
 				if (!strcmp(str, "eventIn") || !strcmp(str, "inputOnly")) eType = GF_SG_SCRIPT_TYPE_EVENT_IN;
 				else if (!strcmp(str, "eventOut") || !strcmp(str, "outputOnly")) eType = GF_SG_SCRIPT_TYPE_EVENT_OUT;
 				else if (!strcmp(str, "field") || !strcmp(str, "initializeOnly")) eType = GF_SG_SCRIPT_TYPE_FIELD;
@@ -1481,7 +1504,7 @@ GF_Node *gf_bt_sf_node(GF_BTParser *parser, char *node_name, GF_Node *parent, ch
 					if (single_child) break;
 				}
 			}
-				break;
+			break;
 			default:
 				if (gf_sg_vrml_is_sf_field(info.fieldType)) {
 					gf_bt_sffield(parser, &info, node);
@@ -1669,7 +1692,7 @@ static u32 get_evt_type(char *eventName)
 GF_Err gf_bt_parse_proto(GF_BTParser *parser, char *proto_code, GF_List *proto_list)
 {
 	GF_FieldInfo info;
-	u32 fType, eType, QPType, pID;
+	u32 fType, eType, QPType=0, pID;
 	Bool externProto;
 	GF_Proto *proto, *prevproto;
 	GF_ProtoFieldInterface *pfield;
@@ -2035,7 +2058,7 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 	com = NULL;
 	pos = -2;
 	/*REPLACE commands*/
- 	if (!strcmp(str, "REPLACE")) {
+	if (!strcmp(str, "REPLACE")) {
 		str = gf_bt_get_next(parser, 1);
 		if (!strcmp(str, "ROUTE")) {
 			str = gf_bt_get_next(parser, 0);
@@ -2147,7 +2170,7 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 					gf_node_list_add_child_last(& inf->node_list, newnode, &last);
 				}
 			}
-				break;
+			break;
 			default:
 				inf->field_ptr = gf_sg_vrml_field_pointer_new(info.fieldType);
 				info.far_ptr = inf->field_ptr;
@@ -2181,7 +2204,7 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 			if (!gf_bt_check_ndt(parser, &info, newnode, n)) goto err;
 			inf->new_node = newnode;
 			inf->field_ptr = &inf->new_node;
- 			break;
+			break;
 		default:
 			info.fieldType = inf->fieldType;
 			info.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(inf->fieldType);
@@ -2194,13 +2217,13 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 		return parser->last_error;
 	}
 	/*XREPLACE commands*/
- 	if (!strcmp(str, "XREPLACE")) {
+	if (!strcmp(str, "XREPLACE")) {
 		u32 j;
 		Bool force_sf=0;
 		char csep;
 		GF_Node *targetNode, *idxNode, *childNode, *fromNode;
 		GF_FieldInfo targetField, idxField, childField, fromField;
-		
+
 		targetNode = idxNode = childNode = fromNode = NULL;
 		str = gf_bt_get_next(parser, 1);
 		/*get source node*/
@@ -2230,7 +2253,7 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 					/*get idx node*/
 					idxNode = gf_bt_peek_node(parser, str);
 					if (!idxNode) return gf_bt_report(parser, GF_BAD_PARAM, "%s: unknown node", field);
-					if (!gf_bt_check_code(parser, '.')) 
+					if (!gf_bt_check_code(parser, '.'))
 						return gf_bt_report(parser, GF_BAD_PARAM, "XREPLACE: '.' expected");
 
 					/*get idx field*/
@@ -2242,7 +2265,7 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 				}
 			}
 			gf_bt_check_code(parser, ']');
-		
+
 			/*check if we have a child node*/
 			if (gf_bt_check_code(parser, '.')) {
 				s32 apos = pos;
@@ -2365,7 +2388,7 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 					gf_node_list_add_child_last(& inf->node_list, newnode, &last);
 				}
 			}
-				break;
+			break;
 			default:
 				inf->field_ptr = gf_sg_vrml_field_pointer_new(inf->fieldType);
 				info.far_ptr = inf->field_ptr;
@@ -2597,7 +2620,7 @@ GF_Err gf_bt_parse_bifs_command(GF_BTParser *parser, char *name, GF_List *cmdLis
 					gf_node_list_add_child_last( & inf->node_list, newnode, &last);
 				}
 			}
-				break;
+			break;
 			default:
 				info.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(inf->fieldType);
 				if (gf_sg_vrml_is_sf_field(info.fieldType)) {
@@ -2936,7 +2959,7 @@ GF_Descriptor *gf_bt_parse_descriptor(GF_BTParser *parser, char *name)
 				}
 			}
 			break;
-			/*IPMPX*/
+		/*IPMPX*/
 		case GF_ODF_FT_IPMPX:
 			if(desc->tag!=GF_ODF_IPMP_TOOL_TAG) {
 				gf_bt_report(parser, GF_BAD_PARAM, "IPMPX_Data only allowed in GF_IPMP_Tool");
@@ -3042,12 +3065,8 @@ GF_Descriptor *gf_bt_parse_descriptor(GF_BTParser *parser, char *name)
 		}
 	} else if (desc->tag==GF_ODF_MUXINFO_TAG) {
 		GF_MuxInfo *mi = (GF_MuxInfo *)desc;
-		if (mi->file_name) {
-			char *res_name = gf_url_concatenate(parser->load->fileName, mi->file_name);
-			if (res_name) {
-				gf_free(mi->file_name);
-				mi->file_name = res_name;
-			}
+		if (! mi->src_url) {
+			mi->src_url = gf_strdup(parser->load->src_url ? parser->load->src_url : parser->load->fileName);
 		}
 	}
 	return desc;
@@ -3055,7 +3074,7 @@ GF_Descriptor *gf_bt_parse_descriptor(GF_BTParser *parser, char *name)
 
 void gf_bt_parse_od_command(GF_BTParser *parser, char *name)
 {
-	u32 val;
+	u32 val=0;
 	char *str;
 	GF_Descriptor *desc;
 
@@ -3066,7 +3085,7 @@ void gf_bt_parse_od_command(GF_BTParser *parser, char *name)
 			GF_ODUpdate *odU;
 			if (!gf_bt_check_code(parser, '[')) {
 				gf_bt_report(parser, GF_BAD_PARAM, "[ expected");
- 				return;
+				return;
 			}
 			odU = (GF_ODUpdate *) gf_odf_com_new(GF_ODF_OD_UPDATE_TAG);
 			gf_list_add(parser->od_au->commands, odU);
@@ -3089,7 +3108,7 @@ void gf_bt_parse_od_command(GF_BTParser *parser, char *name)
 			str = gf_bt_get_next(parser, 0);
 			if (strcmp(str, "IN")) {
 				gf_bt_report(parser, GF_BAD_PARAM, "IN expected got %s", str);
- 				return;
+				return;
 			}
 			esdU = (GF_ESDUpdate *) gf_odf_com_new(GF_ODF_ESD_UPDATE_TAG);
 			parser->last_error = gf_bt_parse_int(parser, "OD_ID", (SFInt32*)&val);
@@ -3101,11 +3120,11 @@ void gf_bt_parse_od_command(GF_BTParser *parser, char *name)
 				str = gf_bt_get_next(parser, 0);
 				if (strcmp(str, "esDescr")) {
 					gf_bt_report(parser, GF_BAD_PARAM, "esDescr expected got %s", str);
- 					return;
+					return;
 				}
 				if (!gf_bt_check_code(parser, '[')) {
 					gf_bt_report(parser, GF_BAD_PARAM, "[ expected");
- 					return;
+					return;
 				}
 			}
 
@@ -3127,7 +3146,7 @@ void gf_bt_parse_od_command(GF_BTParser *parser, char *name)
 			GF_IPMPUpdate *ipU;
 			if (!gf_bt_check_code(parser, '[')) {
 				gf_bt_report(parser, GF_BAD_PARAM, "[ expected");
- 				return;
+				return;
 			}
 			ipU = (GF_IPMPUpdate *) gf_odf_com_new(GF_ODF_IPMP_UPDATE_TAG);
 			gf_list_add(parser->od_au->commands, ipU);
@@ -3154,7 +3173,7 @@ void gf_bt_parse_od_command(GF_BTParser *parser, char *name)
 			GF_ODRemove *odR;
 			if (!gf_bt_check_code(parser, '[')) {
 				gf_bt_report(parser, GF_BAD_PARAM, "[ expected");
- 				return;
+				return;
 			}
 			odR = (GF_ODRemove *) gf_odf_com_new(GF_ODF_OD_REMOVE_TAG);
 			gf_list_add(parser->od_au->commands, odR);
@@ -3176,14 +3195,14 @@ void gf_bt_parse_od_command(GF_BTParser *parser, char *name)
 			str = gf_bt_get_next(parser, 0);
 			if (strcmp(str, "FROM")) {
 				gf_bt_report(parser, GF_BAD_PARAM, "FROM expected got %s", str);
- 				return;
+				return;
 			}
 			gf_bt_parse_int(parser, "ODID", (SFInt32*)&odid);
 			if (parser->last_error) return;
 
 			if (!gf_bt_check_code(parser, '[')) {
 				gf_bt_report(parser, GF_BAD_PARAM, "[ expected");
- 				return;
+				return;
 			}
 			esdR = (GF_ESDRemove *) gf_odf_com_new(GF_ODF_ESD_REMOVE_TAG);
 			esdR->ODID = odid;
@@ -3217,7 +3236,7 @@ GF_Err gf_bt_loader_run_intern(GF_BTParser *parser, GF_Command *init_com, Bool i
 
 	vrml_root_node = NULL;
 	has_id = 0;
-	
+
 	if (init_com)
 		parser->in_com = 0 ;
 
@@ -3369,10 +3388,10 @@ GF_Err gf_bt_loader_run_intern(GF_BTParser *parser, GF_Command *init_com, Bool i
 		}
 		/*BIFS commands*/
 		else if (!strcmp(str, "REPLACE") || !strcmp(str, "INSERT") || !strcmp(str, "APPEND") || !strcmp(str, "DELETE")
-			/*BIFS extended commands*/
-			|| !strcmp(str, "GLOBALQP") || !strcmp(str, "MULTIPLEREPLACE") || !strcmp(str, "MULTIPLEINDREPLACE") || !strcmp(str, "XDELETE") || !strcmp(str, "DELETEPROTO") || !strcmp(str, "INSERTPROTO") 
-			|| !strcmp(str, "XREPLACE") 
-			) {
+		         /*BIFS extended commands*/
+		         || !strcmp(str, "GLOBALQP") || !strcmp(str, "MULTIPLEREPLACE") || !strcmp(str, "MULTIPLEINDREPLACE") || !strcmp(str, "XDELETE") || !strcmp(str, "DELETEPROTO") || !strcmp(str, "INSERTPROTO")
+		         || !strcmp(str, "XREPLACE")
+		        ) {
 			Bool is_base_stream = parser->stream_id ? 0 : 1;
 
 			if (!parser->stream_id) parser->stream_id = parser->base_bifs_id;
@@ -3400,12 +3419,12 @@ GF_Err gf_bt_loader_run_intern(GF_BTParser *parser, GF_Command *init_com, Bool i
 		}
 		/*implicit BIFS command on SFTopNodes only*/
 		else if (!strcmp(str, "OrderedGroup")
-			|| !strcmp(str, "Group")
-			|| !strcmp(str, "Layer2D")
-			|| !strcmp(str, "Layer3D")
-			 /* VRML parsing: all nodes are allowed*/
-			|| parser->is_wrl
-			)
+		         || !strcmp(str, "Group")
+		         || !strcmp(str, "Layer2D")
+		         || !strcmp(str, "Layer3D")
+		         /* VRML parsing: all nodes are allowed*/
+		         || parser->is_wrl
+		        )
 		{
 
 			node = gf_bt_sf_node(parser, str, vrml_root_node, has_id ? szDEFName : NULL);
@@ -3465,15 +3484,15 @@ static GF_Err gf_sm_load_bt_initialize(GF_SceneLoader *load, const char *str, Bo
 	GF_Err e;
 	unsigned char BOM[5];
 	GF_BTParser *parser = load->loader_priv;
-	
+
 	parser->last_error = GF_OK;
-	
+
 	if (load->fileName) {
-		FILE *test = gf_f64_open(load->fileName, "rb");
+		FILE *test = gf_fopen(load->fileName, "rb");
 		if (!test) return GF_URL_ERROR;
-		gf_f64_seek(test, 0, SEEK_END);
-		size = (u32) gf_f64_tell(test);
-		fclose(test);
+		gf_fseek(test, 0, SEEK_END);
+		size = (u32) gf_ftell(test);
+		gf_fclose(test);
 
 		gzInput = gzopen(load->fileName, "rb");
 		if (!gzInput) return GF_IO_ERR;
@@ -3493,7 +3512,7 @@ static GF_Err gf_sm_load_bt_initialize(GF_SceneLoader *load, const char *str, Bo
 			parser->initialized = 0;
 			return GF_OK;
 		}
-		strncpy(BOM, str, 5); 
+		strncpy((char *) BOM, str, 5);
 	}
 
 	/*0: no unicode, 1: UTF-16BE, 2: UTF-16LE*/
@@ -3519,13 +3538,13 @@ static GF_Err gf_sm_load_bt_initialize(GF_SceneLoader *load, const char *str, Bo
 		if (parser->gz_in) gzseek(parser->gz_in, 3, SEEK_CUR);
 	}
 	parser->initialized = 1;
-	
+
 	if ( load->fileName )
 	{
 		sep = strrchr(load->fileName, '.');
 		if (sep && !strnicmp(sep, ".wrl", 4)) parser->is_wrl = 1;
 	}
-	
+
 	if (input_only) return GF_OK;
 
 	/*initalize default streams in the context*/
@@ -3540,9 +3559,14 @@ static GF_Err gf_sm_load_bt_initialize(GF_SceneLoader *load, const char *str, Bo
 		i=0;
 		while ((sc = (GF_StreamContext*)gf_list_enum(load->ctx->streams, &i))) {
 			switch (sc->streamType) {
-			case GF_STREAM_SCENE: if (!parser->bifs_es) parser->bifs_es = sc; break;
-			case GF_STREAM_OD: if (!parser->od_es) parser->od_es = sc; break;
-			default: break;
+			case GF_STREAM_SCENE:
+				if (!parser->bifs_es) parser->bifs_es = sc;
+				break;
+			case GF_STREAM_OD:
+				if (!parser->od_es) parser->od_es = sc;
+				break;
+			default:
+				break;
 			}
 		}
 		/*need at least one scene stream*/
@@ -3686,6 +3710,7 @@ GF_Err gf_sm_load_init_bt(GF_SceneLoader *load)
 	if (!load->scene_graph) load->scene_graph = load->ctx->scene_graph;
 
 	GF_SAFEALLOC(parser, GF_BTParser);
+	if (!parser) return GF_OUT_OF_MEM;
 	parser->load = load;
 	load->loader_priv = parser;
 	parser->def_symbols = gf_list_new();

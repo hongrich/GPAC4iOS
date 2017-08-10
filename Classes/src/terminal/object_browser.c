@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -103,12 +103,37 @@ u32 gf_term_object_subscene_type(GF_Terminal *term, GF_ObjectManager *odm)
 }
 
 /*select given object when stream selection is available*/
+GF_EXPORT
 void gf_term_select_object(GF_Terminal *term, GF_ObjectManager *odm)
 {
 	if (!term || !odm) return;
 	if (!gf_term_check_odm(term, odm)) return;
 
 	gf_scene_select_object(term->root_scene, odm);
+}
+
+
+/*select given object when stream selection is available*/
+GF_EXPORT
+void gf_term_select_service(GF_Terminal *term, GF_ObjectManager *odm, u32 service_id)
+{
+	if (!term || !odm || !odm->subscene) return;
+	if (!gf_term_check_odm(term, odm)) return;
+
+#ifndef GPAC_DISABLE_VRML
+	gf_scene_set_service_id(odm->subscene, service_id);
+#endif
+}
+
+
+/*select given object when stream selection is available*/
+GF_EXPORT
+void gf_term_toggle_addons(GF_Terminal *term, Bool show_addons)
+{
+	if (!term || !term->root_scene || !term->root_scene->is_dynamic_scene) return;
+#ifndef GPAC_DISABLE_VRML
+	gf_scene_toggle_addons(term->root_scene, show_addons);
+#endif
 }
 
 GF_EXPORT
@@ -130,45 +155,80 @@ u32 gf_term_get_current_service_id(GF_Terminal *term)
 
 static void get_codec_stats(GF_Codec *dec, GF_MediaInfo *info)
 {
+	info->instant_bitrate = dec->avg_bit_rate;
 	info->avg_bitrate = dec->avg_bit_rate;
 	info->max_bitrate = dec->max_bit_rate;
 	info->nb_dec_frames = dec->nb_dec_frames;
 	info->max_dec_time = dec->max_dec_time;
 	info->total_dec_time = dec->total_dec_time;
+	info->first_frame_time = dec->first_frame_time;
+	info->last_frame_time = dec->last_frame_time;
+	info->raw_media = dec->flags & GF_ESM_CODEC_IS_RAW_MEDIA;
+	info->au_duration = dec->min_frame_dur;
+	info->nb_iraps = dec->nb_iframes;
+	info->irap_max_dec_time = dec->max_iframes_time;
+	info->irap_total_dec_time = dec->total_iframes_time;
+
+
 }
 
 GF_EXPORT
 GF_Err gf_term_get_object_info(GF_Terminal *term, GF_ObjectManager *odm, GF_MediaInfo *info)
 {
+	GF_ObjectManager *an_odm;
 	GF_Channel *ch;
-
-	if (!term || !odm || !odm->OD || !info) return GF_BAD_PARAM;
-	if (!gf_term_check_odm(term, odm)) return GF_BAD_PARAM;
+	GF_Codec *codec;
 
 	memset(info, 0, sizeof(GF_MediaInfo));
+
+	if (!term || !odm || !info) return GF_BAD_PARAM;
+	if (!gf_term_check_odm(term, odm)) return GF_BAD_PARAM;
+
 	info->od = odm->OD;
 
 	info->duration = (Double) (s64)odm->duration;
 	info->duration /= 1000;
-	if (odm->codec) {
+
+	codec = odm->codec;
+	an_odm = odm;
+	while (!codec) {
+		if (!an_odm->lower_layer_odm) break;
+		an_odm = an_odm->lower_layer_odm;
+		codec = an_odm->codec;
+	}
+
+	if (codec) {
 		/*since we don't remove ODs that failed setup, check for clock*/
-		if (odm->codec->ck) info->current_time = odm->codec->CB ? odm->current_time : gf_clock_time(odm->codec->ck);
+		if (codec->ck) {
+			if (codec->CB) {
+				info->current_time = odm->media_current_time ? odm->media_current_time : codec->last_unit_cts;
+				info->ntp_diff = codec->CB->LastRenderedNTPDiff;
+			} else {
+				info->current_time = gf_clock_media_time(codec->ck);
+			}
+		}
 		info->current_time /= 1000;
-		info->nb_droped = odm->codec->nb_droped;
+		info->nb_dropped = codec->nb_dropped;
 	} else if (odm->subscene) {
 		if (odm->subscene->scene_codec) {
 			if (odm->subscene->scene_codec->ck) {
-				info->current_time = gf_clock_time(odm->subscene->scene_codec->ck);
+				info->current_time = gf_clock_media_time(odm->subscene->scene_codec->ck);
 				info->current_time /= 1000;
 			}
 			info->duration = (Double) (s64)odm->subscene->duration;
 			info->duration /= 1000;
-			info->nb_droped = odm->subscene->scene_codec->nb_droped;
-		} else if (odm->subscene->is_dynamic_scene && odm->subscene->dyn_ck) {
-			info->current_time = gf_clock_time(odm->subscene->dyn_ck);
-			info->current_time /= 1000;
+			info->nb_dropped = odm->subscene->scene_codec->nb_dropped;
+			codec = odm->subscene->scene_codec;
+		} else if (odm->subscene->is_dynamic_scene) {
+			if (odm->subscene->dyn_ck) {
+				info->current_time = gf_clock_media_time(odm->subscene->dyn_ck);
+				info->current_time /= 1000;
+			}
+			info->generated_scene = 1;
 		}
 	}
+	if (info->duration && info->current_time>info->duration)
+		info->current_time = info->duration;
 
 	info->buffer = -2;
 	info->db_unit_count = 0;
@@ -182,7 +242,7 @@ GF_Err gf_term_get_object_info(GF_Terminal *term, GF_ObjectManager *odm, GF_Medi
 	} else if (odm->state) {
 		u32 i, buf;
 		GF_Clock *ck;
-		
+
 		ck = gf_odm_get_media_clock(odm);
 		/*no clock means setup failed*/
 		if (!ck) {
@@ -192,13 +252,19 @@ GF_Err gf_term_get_object_info(GF_Terminal *term, GF_ObjectManager *odm, GF_Medi
 			info->clock_drift = ck->drift;
 
 			info->buffer = -1;
+			info->min_buffer = -1;
+			info->max_buffer = 0;
 			buf = 0;
 			i=0;
 			while ((ch = (GF_Channel*)gf_list_enum(odm->channels, &i))) {
 				info->db_unit_count += ch->AU_Count;
-				if (!ch->is_pulling) {
+				if (!ch->is_pulling || ch->MaxBuffer) {
 					if (ch->MaxBuffer) info->buffer = 0;
 					buf += ch->BufferTime;
+
+					if (ch->MaxBuffer> info->max_buffer) info->max_buffer = ch->MaxBuffer;
+					if (ch->MinBuffer < info->min_buffer) info->min_buffer = ch->MinBuffer;
+
 				}
 				if (ch->is_protected) info->protection = ch->ipmp_tool ? 1 : 2;
 
@@ -210,12 +276,12 @@ GF_Err gf_term_get_object_info(GF_Terminal *term, GF_ObjectManager *odm, GF_Medi
 	info->has_profiles = (odm->flags & GF_ODM_HAS_PROFILES) ? 1 : 0;
 	if (info->has_profiles) {
 		info->inline_pl = (odm->flags & GF_ODM_INLINE_PROFILES) ? 1 : 0;
-		info->OD_pl = odm->OD_PL; 
+		info->OD_pl = odm->OD_PL;
 		info->scene_pl = odm->Scene_PL;
 		info->audio_pl = odm->Audio_PL;
 		info->visual_pl = odm->Visual_PL;
 		info->graphics_pl = odm->Graphics_PL;
-	}	
+	}
 
 	if (odm->net_service) {
 		info->service_handler = odm->net_service->ifce->module_name;
@@ -227,28 +293,25 @@ GF_Err gf_term_get_object_info(GF_Terminal *term, GF_ObjectManager *odm, GF_Medi
 		info->service_url = "Service not found or error";
 	}
 
-	if (odm->codec && odm->codec->decio) {
-		if (!odm->codec->decio->GetName) {
-			info->codec_name = odm->codec->decio->module_name;
+	if (codec) {
+		if (codec->decio && codec->decio->GetName) {
+			info->codec_name = codec->decio->GetName(codec->decio);
 		} else {
-			info->codec_name = odm->codec->decio->GetName(odm->codec->decio);
+			info->codec_name = codec->decio ? codec->decio->module_name : "internal decoder";
 		}
-		info->od_type = odm->codec->type;
-		if (odm->codec->CB) {
-			info->cb_max_count = odm->codec->CB->Capacity;
-			info->cb_unit_count = odm->codec->CB->UnitCount;
+		info->od_type = codec->type;
+
+		if (codec->CB) {
+			info->cb_max_count = codec->CB->Capacity;
+			info->cb_unit_count = codec->CB->UnitCount;
+			if (codec->direct_vout) {
+				info->direct_video_memory = 1;
+			}
 		}
-	} 
-	
-	if (odm->subscene && odm->subscene->scene_codec) {
-		GF_BaseDecoder *dec = odm->subscene->scene_codec->decio;
-		assert(odm->subscene->root_od==odm) ;
-		info->od_type = odm->subscene->scene_codec->type;
-		if (!dec->GetName) {
-			info->codec_name = dec->module_name;
-		} else {
-			info->codec_name = dec->GetName(dec);
-		}
+		get_codec_stats(codec, info);
+	}
+
+	if (odm->subscene) {
 		gf_sg_get_scene_size_info(odm->subscene->graph, &info->width, &info->height);
 	} else if (odm->mo) {
 		switch (info->od_type) {
@@ -264,11 +327,12 @@ GF_Err gf_term_get_object_info(GF_Terminal *term, GF_ObjectManager *odm, GF_Medi
 			break;
 		}
 	}
-	if (odm->subscene && odm->subscene->scene_codec) get_codec_stats(odm->subscene->scene_codec, info);
-	else if (odm->codec) get_codec_stats(odm->codec, info);
 
 	ch = (GF_Channel*)gf_list_get(odm->channels, 0);
-	if (ch && ch->esd->langDesc) info->lang = ch->esd->langDesc->langCode;
+	if (ch && ch->esd->langDesc) {
+		info->lang = ch->esd->langDesc->langCode;
+		info->lang_code = ch->esd->langDesc->full_lang_code;
+	}
 
 	if (odm->mo && odm->mo->URLs.count)
 		info->media_url = odm->mo->URLs.vals[0].url;
@@ -340,7 +404,7 @@ const char *gf_term_get_world_info(GF_Terminal *term, GF_ObjectManager *scene_od
 		info = (GF_Node*) (scene_od->subscene ? scene_od->subscene->world_info : scene_od->parentscene->world_info);
 	}
 	if (!info) return NULL;
-	
+
 	if (gf_node_get_tag(info) == TAG_SVG_title) {
 		/*FIXME*/
 		//return ((SVG_titleElement *) info)->textContent;
@@ -379,7 +443,7 @@ GF_Err gf_term_dump_scene(GF_Terminal *term, char *rad_name, char **filename, Bo
 		odm = term->root_scene->root_od;
 	} else {
 		odm = scene_od;
-		if (!gf_term_check_odm(term, scene_od)) 
+		if (!gf_term_check_odm(term, scene_od))
 			odm = term->root_scene->root_od;
 	}
 
@@ -404,7 +468,7 @@ GF_Err gf_term_dump_scene(GF_Terminal *term, char *rad_name, char **filename, Bo
 		else if(!strncmp(szExt, ".bt", 3) || !strncmp(szExt, ".xmt", 4) || !strncmp(szExt, ".mp4", 4) ) mode = xml_dump ? GF_SM_DUMP_XMTA : GF_SM_DUMP_BT;
 	}
 
-	dumper = gf_sm_dumper_new(sg, rad_name, ' ', mode);
+	dumper = gf_sm_dumper_new(sg, rad_name, GF_FALSE, ' ', mode);
 
 	if (!dumper) return GF_IO_ERR;
 	e = gf_sm_dump_graph(dumper, skip_protos, 0);
@@ -421,4 +485,5 @@ GF_Err gf_term_dump_scene(GF_Terminal *term, char *rad_name, char **filename, Bo
 	return GF_NOT_SUPPORTED;
 #endif
 }
+
 

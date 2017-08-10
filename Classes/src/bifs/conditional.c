@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -77,7 +77,7 @@ static void Conditional_execute(M_Conditional *node)
 
 	/*set isActive - to clarify in the specs*/
 	node->isActive = 1;
-	gf_node_event_out_str((GF_Node *)node, "isActive");
+	gf_node_event_out((GF_Node *)node, 3/*"isActive"*/);
 	if (!node->buffer.bufferSize) return;
 
 	/*we may replace ourselves*/
@@ -173,7 +173,7 @@ void BIFS_SetupConditionalClone(GF_Node *node, GF_Node *orig)
 		/*and clone all commands*/
 		i=0;
 		while ((ori_com = (GF_Command*)gf_list_enum(c_orig->buffer.commandList, &i))) {
-			GF_Command *dest_com = gf_sg_vrml_command_clone(ori_com, gf_node_get_graph(node), 1);
+			GF_Command *dest_com = gf_sg_vrml_command_clone(ori_com, gf_node_get_graph(node), GF_TRUE);
 			if (dest_com) gf_list_add(c_dest->buffer.commandList, dest_com);
 		}
 #endif

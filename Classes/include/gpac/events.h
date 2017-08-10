@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -32,8 +32,21 @@
 extern "C" {
 #endif
 
+/*!
+ *	\file <gpac/events.h>
+ *	\brief Event system used by GPAC playback.
+ */
+	
+/*!
+ *	\addtogroup evt_grp Event System
+ *	\ingroup playback_grp
+ *	\brief Event system used by GPAC playback.
+ *
+ *This section documents the event structures used by the terminal, the compositor, input modules and output rendering modules for communication.
+ *	@{
+ */
 
-#include <gpac/gpac_math.h>
+#include <gpac/maths.h>
 #include <gpac/tools.h>
 #include <gpac/events_constants.h>
 
@@ -110,6 +123,9 @@ typedef struct
 			if not supported, mix of 2D (raster) and 3D (openGL) will be disabled
 	*/
 	u32 opengl_mode;
+
+	// resources must be resetup before next render step (this is mainly due to discard all openGL textures and cached objects) - inly used when sent from plugin to term
+	Bool hw_reset;
 } GF_EventVideoSetup;
 
 /*event proc return value: ignored
@@ -147,7 +163,7 @@ typedef struct
 	u8 type;
 	s32 x, y;
 	/*0: absolute positionning, 1: relative move, 2: use alignment constraints*/
-	Bool relative;
+	u32 relative;
 	/*0: left/top, 1: middle, 2: right/bottom*/
 	u8 align_x, align_y;
 } GF_EventMove;
@@ -220,6 +236,15 @@ typedef struct
 	Bool is_connected;
 } GF_EventConnect;
 
+/*event proc return value: 1 to indicate the terminal should attempt a default layout for this addon, 0: nothing will be done*/
+typedef struct
+{
+	/*GF_EVENT_ADDON_DETECTED*/
+	u8 type;
+	const char *addon_url;
+	const char *mime_type;
+} GF_EventAddonConnect;
+
 /*event proc return value: 1 if info has been completed, 0 otherwise (and operation this request was for
 will then fail)*/
 typedef struct
@@ -262,22 +287,53 @@ typedef struct {
 
 
 typedef struct {
-	/* GF_EVENT_OPENFILE*/
+	/* GF_EVENT_DROPFILE*/
 	u8 type;
 	u32 nb_files;
 	char **files;
 } GF_EventOpenFile;
 
 typedef struct {
-	/* GF_EVENT_FORWARDED*/
+	/*GF_EVENT_FROM_SERVICE*/
 	u8 type;
-	/*one of te above event*/
+	//cf GF_EVT_FORWARDED_ *
 	u8 forward_type;
 	/*original type of event as forwarded by the service*/
 	u32 service_event_type;
 	/*parameter of event as forwarded by the service - creation/deletion is handled by the service*/
 	void *param;
-} GF_EventForwarded;
+} GF_EventFromService;
+
+
+
+/*event proc return value: ignored*/
+typedef struct
+{
+	/*GF_EVENT_SENSOR_ORIENTATION*/
+	u8 type;
+	/*device orientation as quaternion*/
+	Float x, y, z, w;
+} GF_EventSensor;
+
+
+/*event proc return value: ignored*/
+typedef struct
+{
+	/*GF_EVENT_SENSOR_REQUEST*/
+	u8 type;
+	/*device evt type to activate (eg GF_EVENT_SENSOR_ORIENTATION)*/
+	u32 sensor_type;
+	Bool activate;
+} GF_EventSensorRequest;
+
+
+/*event proc return value: ignored*/
+typedef struct
+{
+	/*GF_EVENT_SENSOR_REQUEST*/
+	u8 type;
+	u32 sync_loss_ms;
+} GF_EventSyncLoss;
 
 typedef union
 {
@@ -285,6 +341,7 @@ typedef union
 	GF_EventMouse mouse;
 	GF_EventKey key;
 	GF_EventChar character;
+	GF_EventSensor sensor;
 	GF_EventSize size;
 	GF_EventShow show;
 	GF_EventDuration duration;
@@ -299,10 +356,14 @@ typedef union
 	GF_EventMove move;
 	GF_EventVideoSetup setup;
 	GF_EventMutation mutation;
-	GF_EventForwarded forwarded_event;
 	GF_EventOpenFile open_file;
+	GF_EventAddonConnect addon_connect;
+	GF_EventFromService from_service;
+	GF_EventSensorRequest activate_sensor;
+	GF_EventSyncLoss sync_loss;
 } GF_Event;
 
+/*! @} */
 
 #ifdef __cplusplus
 }

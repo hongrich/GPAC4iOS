@@ -1,1 +1,1 @@
-#define GPAC_SVN_REVISION	"4989"
+#define GPAC_GIT_REVISION	"226-g674ed4674-master"

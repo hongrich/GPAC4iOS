@@ -181,7 +181,7 @@ static JSBool SMJS_FUNCTION(svg_parse_xml)
 
 static void svg_script_error(JSContext *c, const char *msg, JSErrorReport *jserr)
 {
-	GF_LOG(GF_LOG_ERROR, GF_LOG_SCRIPT, ("[JavaScript] Error: %s - line %d (%s)", msg, jserr->lineno, jserr->linebuf));
+	GF_LOG(GF_LOG_ERROR, GF_LOG_SCRIPT, ("[JavaScript] %s in file %s:%d (%s)\n", msg, jserr->filename, jserr->lineno+1, jserr->linebuf));
 }
 
 static JSBool SMJS_FUNCTION(svg_echo)
@@ -193,7 +193,7 @@ static JSBool SMJS_FUNCTION(svg_echo)
 	sg = (GF_SceneGraph *)SMJS_GET_PRIVATE(c, obj);
 	if (!sg) return JS_TRUE;
 
-	if (JSVAL_IS_STRING(argv[0])) {
+	{
 		char *str = SMJS_CHARS_FROM_STRING(c, JS_ValueToString(c, argv[0]) );
 		_ScriptMessage(sg, str);
 		SMJS_FREE(c, str);
@@ -230,26 +230,26 @@ static void svg_define_udom_exception(JSContext *c, JSObject *global)
 
 static SMJS_FUNC_PROP_GET( global_getProperty)
 
-	GF_SceneGraph *sg;
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->globalClass, NULL) )
-		return JS_TRUE;
-
-	sg = (GF_SceneGraph *)SMJS_GET_PRIVATE(c, obj);
-	if (SMJS_ID_IS_INT(id)) {
-		switch (SMJS_ID_TO_INT(id)) {
-		/*namespaceURI*/
-		case 0:
-			return JS_TRUE;
-		/*parent*/
-		case 1:
-			*vp = JSVAL_VOID;
-			if (sg->parent_scene && sg->parent_scene->svg_js) *vp = OBJECT_TO_JSVAL(sg->parent_scene->svg_js->global);
-			return JS_TRUE;
-		default:
-			return JS_TRUE;
-		}
-	}
+GF_SceneGraph *sg;
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->globalClass, NULL) )
 	return JS_TRUE;
+
+sg = (GF_SceneGraph *)SMJS_GET_PRIVATE(c, obj);
+if (SMJS_ID_IS_INT(id)) {
+	switch (SMJS_ID_TO_INT(id)) {
+	/*namespaceURI*/
+	case 0:
+		return JS_TRUE;
+	/*parent*/
+	case 1:
+		*vp = JSVAL_VOID;
+		if (sg->parent_scene && sg->parent_scene->svg_js) *vp = OBJECT_TO_JSVAL(sg->parent_scene->svg_js->global);
+		return JS_TRUE;
+	default:
+		return JS_TRUE;
+	}
+}
+return JS_TRUE;
 }
 
 /*TODO - try to be more precise...*/
@@ -302,184 +302,184 @@ static GF_Node *get_corresponding_use(GF_Node *n)
 }
 static SMJS_FUNC_PROP_GET( svg_doc_getProperty)
 
-	u32 prop_id;
-	GF_SceneGraph *sg = dom_get_doc(c, obj);
-	if (!sg) return JS_TRUE;
+u32 prop_id;
+GF_SceneGraph *sg = dom_get_doc(c, obj);
+if (!sg) return JS_TRUE;
 
-	if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
-	prop_id = SMJS_ID_TO_INT(id);
-	switch (prop_id) {
-	case 0:/*global*/
-		*vp = OBJECT_TO_JSVAL( JS_GetGlobalObject(c) );
-		return JS_TRUE;
-	}
+if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
+prop_id = SMJS_ID_TO_INT(id);
+switch (prop_id) {
+case 0:/*global*/
+	*vp = OBJECT_TO_JSVAL( JS_GetGlobalObject(c) );
 	return JS_TRUE;
+}
+return JS_TRUE;
 }
 
 static SMJS_FUNC_PROP_GET(svg_element_getProperty)
 
-	u32 prop_id;
-	GF_JSAPIParam par;
-	JSString *s;
-	GF_Node *n = dom_get_element(c, obj);
-	if (!n) return JS_TRUE;
+u32 prop_id;
+GF_JSAPIParam par;
+JSString *s;
+GF_Node *n = dom_get_element(c, obj);
+if (!n) return JS_TRUE;
 
-	if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
-	prop_id = SMJS_ID_TO_INT(id);
+if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
+prop_id = SMJS_ID_TO_INT(id);
 
-	switch (prop_id) {
-	case 0: /*id*/
-	{
-		const char *node_name = gf_node_get_name((GF_Node*)n);
-		if (node_name) {
-			s = JS_NewStringCopyZ(c, node_name);
-			*vp = STRING_TO_JSVAL( s );
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	}
-	case 5:/*currentScale*/
-		if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
-		if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_SCALE, (GF_Node *)n, &par)) {
-			*vp = JS_MAKE_DOUBLE(c, FIX2FLT(par.val) );
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	case 6:/*currentRotate*/
-		if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
-		if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_ROTATION, (GF_Node *)n, &par)) {
-			*vp = JS_MAKE_DOUBLE(c, FIX2FLT(par.val) );
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	case 7:/*currentTranslate*/
-		if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
-		if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_TRANSLATE, (GF_Node *)n, &par)) {
-			JSObject *r = JS_NewObject(c, &svg_rt->pointClass._class, 0, 0);
-			pointCI *rc = (pointCI *)gf_malloc(sizeof(pointCI));
-			rc->x = FIX2FLT(par.pt.x);
-			rc->y = FIX2FLT(par.pt.y);
-			rc->sg = n->sgprivate->scenegraph;
-			SMJS_SET_PRIVATE(c, r, rc);
-			*vp = OBJECT_TO_JSVAL(r);
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	case 8:/*viewport*/
-		if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
-		if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_VIEWPORT, (GF_Node *)n, &par)) {
-			JSObject *r = JS_NewObject(c, &svg_rt->rectClass._class, 0, 0);
-			rectCI *rc = (rectCI *)gf_malloc(sizeof(rectCI));
-			rc->x = FIX2FLT(par.rc.x);
-			rc->y = FIX2FLT(par.rc.y);
-			rc->w = FIX2FLT(par.rc.width);
-			rc->h = FIX2FLT(par.rc.height);
-			rc->sg = n->sgprivate->scenegraph;
-			SMJS_SET_PRIVATE(c, r, rc);
-			*vp = OBJECT_TO_JSVAL(r);
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	case 9:/*currentTime*/
-		*vp = JS_MAKE_DOUBLE(c, gf_node_get_scene_time((GF_Node *)n) );
-		return JS_TRUE;
-	case 10:/*isPaused*/
-		*vp = BOOLEAN_TO_JSVAL(JS_FALSE);
-		return JS_TRUE;
-	case 11:/*ownerSVGElement*/
-		while (1) {
-			GF_Node *par = gf_node_get_parent(n, 0);
-			if (!par) return JS_TRUE;
-			if (par->sgprivate->tag==TAG_SVG_svg) {
-				*vp = dom_element_construct(c, par);
-				return JS_TRUE;
-			}
-			n = par;
-		}
-		return JS_TRUE;
-	case 12:/*correspondingElement*/
-		/*if we can find a corresponding element for this node, then this is an SVGElementInstance*/
-		if (get_corresponding_use(n)) {
-			*vp = dom_element_construct(c, n);
-		} else {
-			*vp = dom_element_construct(c, NULL);
-		}
-		return JS_TRUE;
-	case 13:/*correspondingUseElement*/
-		*vp = dom_element_construct(c, get_corresponding_use(n));
-		return JS_TRUE;
-	default:
+switch (prop_id) {
+case 0: /*id*/
+{
+	const char *node_name = gf_node_get_name((GF_Node*)n);
+	if (node_name) {
+		s = JS_NewStringCopyZ(c, node_name);
+		*vp = STRING_TO_JSVAL( s );
 		return JS_TRUE;
 	}
 	return JS_TRUE;
 }
-
-static SMJS_FUNC_PROP_SET( svg_element_setProperty)
-
-	GF_JSAPIParam par;
-	jsdouble d;
-	u32 prop_id;
-	GF_Node *n = dom_get_element(c, obj);
-	if (!n) return JS_TRUE;
-
-	if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
-	prop_id = SMJS_ID_TO_INT(id);
-
-	switch (prop_id) {
-	case 0:/*id*/
-		if (JSVAL_CHECK_STRING(*vp)) {
-			char *id = SMJS_CHARS(c, *vp);
-			if (id) {
-				GF_FieldInfo info;
-				u32 nid = gf_node_get_id(n);
-				if (!nid) nid = gf_sg_get_next_available_node_id(n->sgprivate->scenegraph);
-				gf_node_set_id(n, nid, id);
-				if (gf_node_get_attribute_by_tag(n, TAG_XML_ATT_id, GF_TRUE, GF_FALSE, &info)==GF_OK) {
-					if (*(DOM_String *)info.far_ptr) gf_free(*(DOM_String *)info.far_ptr);
-					*(DOM_String *)info.far_ptr = gf_strdup(id);
-				}
-				if (gf_node_get_attribute_by_tag(n, TAG_SVG_ATT_id, GF_TRUE, GF_FALSE, &info)==GF_OK) {
-					if (*(DOM_String *)info.far_ptr) gf_free(*(DOM_String *)info.far_ptr);
-					*(DOM_String *)info.far_ptr = gf_strdup(id);
-				}
-				SMJS_FREE(c, id);
-			}
-		}
-		return JS_TRUE;
-	/*currentScale*/
-	case 5:
-		if (!JSVAL_IS_NUMBER(*vp) || (n->sgprivate->tag!=TAG_SVG_svg)) return JS_TRUE;
-		JS_ValueToNumber(c, *vp, &d);
-		par.val = FLT2FIX(d);
-		if (!par.val) {
-			return dom_throw_exception(c, GF_DOM_EXC_INVALID_ACCESS_ERR);
-		}
-		if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_SET_SCALE, (GF_Node *)n, &par)) {
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	/*currentRotate*/
-	case 6:
-		if (!JSVAL_IS_NUMBER(*vp) || (n->sgprivate->tag!=TAG_SVG_svg)) return JS_TRUE;
-		JS_ValueToNumber(c, *vp, &d);
-		par.val = FLT2FIX(d);
-		if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_SET_ROTATION, (GF_Node *)n, &par)) {
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	/*currentTime*/
-	case 9:
-		if (!JSVAL_IS_NUMBER(*vp) || (n->sgprivate->tag!=TAG_SVG_svg)) return JS_TRUE;
-		JS_ValueToNumber(c, *vp, &d);
-		par.time = d;
-		if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_SET_TIME, (GF_Node *)n, &par)) {
-			return JS_TRUE;
-		}
-		return JS_TRUE;
-	default:
+case 5:/*currentScale*/
+	if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
+	if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_SCALE, (GF_Node *)n, &par)) {
+		*vp = JS_MAKE_DOUBLE(c, FIX2FLT(par.val) );
 		return JS_TRUE;
 	}
 	return JS_TRUE;
+case 6:/*currentRotate*/
+	if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
+	if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_ROTATION, (GF_Node *)n, &par)) {
+		*vp = JS_MAKE_DOUBLE(c, FIX2FLT(par.val) );
+		return JS_TRUE;
+	}
+	return JS_TRUE;
+case 7:/*currentTranslate*/
+	if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
+	if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_TRANSLATE, (GF_Node *)n, &par)) {
+		JSObject *r = JS_NewObject(c, &svg_rt->pointClass._class, 0, 0);
+		pointCI *rc = (pointCI *)gf_malloc(sizeof(pointCI));
+		rc->x = FIX2FLT(par.pt.x);
+		rc->y = FIX2FLT(par.pt.y);
+		rc->sg = n->sgprivate->scenegraph;
+		SMJS_SET_PRIVATE(c, r, rc);
+		*vp = OBJECT_TO_JSVAL(r);
+		return JS_TRUE;
+	}
+	return JS_TRUE;
+case 8:/*viewport*/
+	if (n->sgprivate->tag!=TAG_SVG_svg) return JS_TRUE;
+	if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_GET_VIEWPORT, (GF_Node *)n, &par)) {
+		JSObject *r = JS_NewObject(c, &svg_rt->rectClass._class, 0, 0);
+		rectCI *rc = (rectCI *)gf_malloc(sizeof(rectCI));
+		rc->x = FIX2FLT(par.rc.x);
+		rc->y = FIX2FLT(par.rc.y);
+		rc->w = FIX2FLT(par.rc.width);
+		rc->h = FIX2FLT(par.rc.height);
+		rc->sg = n->sgprivate->scenegraph;
+		SMJS_SET_PRIVATE(c, r, rc);
+		*vp = OBJECT_TO_JSVAL(r);
+		return JS_TRUE;
+	}
+	return JS_TRUE;
+case 9:/*currentTime*/
+	*vp = JS_MAKE_DOUBLE(c, gf_node_get_scene_time((GF_Node *)n) );
+	return JS_TRUE;
+case 10:/*isPaused*/
+	*vp = BOOLEAN_TO_JSVAL(JS_FALSE);
+	return JS_TRUE;
+case 11:/*ownerSVGElement*/
+	while (1) {
+		GF_Node *par = gf_node_get_parent(n, 0);
+		if (!par) return JS_TRUE;
+		if (par->sgprivate->tag==TAG_SVG_svg) {
+			*vp = dom_element_construct(c, par);
+			return JS_TRUE;
+		}
+		n = par;
+	}
+	return JS_TRUE;
+case 12:/*correspondingElement*/
+	/*if we can find a corresponding element for this node, then this is an SVGElementInstance*/
+	if (get_corresponding_use(n)) {
+		*vp = dom_element_construct(c, n);
+	} else {
+		*vp = dom_element_construct(c, NULL);
+	}
+	return JS_TRUE;
+case 13:/*correspondingUseElement*/
+	*vp = dom_element_construct(c, get_corresponding_use(n));
+	return JS_TRUE;
+default:
+	return JS_TRUE;
+}
+return JS_TRUE;
+}
+
+static SMJS_FUNC_PROP_SET( svg_element_setProperty)
+
+GF_JSAPIParam par;
+jsdouble d;
+u32 prop_id;
+GF_Node *n = dom_get_element(c, obj);
+if (!n) return JS_TRUE;
+
+if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
+prop_id = SMJS_ID_TO_INT(id);
+
+switch (prop_id) {
+case 0:/*id*/
+	if (JSVAL_CHECK_STRING(*vp)) {
+		char *id = SMJS_CHARS(c, *vp);
+		if (id) {
+			GF_FieldInfo info;
+			u32 nid = gf_node_get_id(n);
+			if (!nid) nid = gf_sg_get_next_available_node_id(n->sgprivate->scenegraph);
+			gf_node_set_id(n, nid, id);
+			if (gf_node_get_attribute_by_tag(n, TAG_XML_ATT_id, GF_TRUE, GF_FALSE, &info)==GF_OK) {
+				if (*(DOM_String *)info.far_ptr) gf_free(*(DOM_String *)info.far_ptr);
+				*(DOM_String *)info.far_ptr = gf_strdup(id);
+			}
+			if (gf_node_get_attribute_by_tag(n, TAG_SVG_ATT_id, GF_TRUE, GF_FALSE, &info)==GF_OK) {
+				if (*(DOM_String *)info.far_ptr) gf_free(*(DOM_String *)info.far_ptr);
+				*(DOM_String *)info.far_ptr = gf_strdup(id);
+			}
+			SMJS_FREE(c, id);
+		}
+	}
+	return JS_TRUE;
+	/*currentScale*/
+case 5:
+	if (!JSVAL_IS_NUMBER(*vp) || (n->sgprivate->tag!=TAG_SVG_svg)) return JS_TRUE;
+	JS_ValueToNumber(c, *vp, &d);
+	par.val = FLT2FIX(d);
+	if (!par.val) {
+		return dom_throw_exception(c, GF_DOM_EXC_INVALID_ACCESS_ERR);
+	}
+	if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_SET_SCALE, (GF_Node *)n, &par)) {
+		return JS_TRUE;
+	}
+	return JS_TRUE;
+	/*currentRotate*/
+case 6:
+	if (!JSVAL_IS_NUMBER(*vp) || (n->sgprivate->tag!=TAG_SVG_svg)) return JS_TRUE;
+	JS_ValueToNumber(c, *vp, &d);
+	par.val = FLT2FIX(d);
+	if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_SET_ROTATION, (GF_Node *)n, &par)) {
+		return JS_TRUE;
+	}
+	return JS_TRUE;
+	/*currentTime*/
+case 9:
+	if (!JSVAL_IS_NUMBER(*vp) || (n->sgprivate->tag!=TAG_SVG_svg)) return JS_TRUE;
+	JS_ValueToNumber(c, *vp, &d);
+	par.time = d;
+	if (ScriptAction(n->sgprivate->scenegraph, GF_JSAPI_OP_SET_TIME, (GF_Node *)n, &par)) {
+		return JS_TRUE;
+	}
+	return JS_TRUE;
+default:
+	return JS_TRUE;
+}
+return JS_TRUE;
 }
 
 
@@ -531,6 +531,10 @@ JSBool SMJS_FUNCTION_EXT(svg_udom_smil_time_insert, Bool is_end)
 
 	times = *((GF_List **)info.far_ptr);
 	GF_SAFEALLOC(newtime, SMIL_Time);
+	if (!newtime) {
+		dom_throw_exception(c, GF_DOM_EXC_DATA_CLONE_ERR);
+		return JS_FALSE;
+	}
 	newtime->type = GF_SMIL_TIME_EVENT_RESOLVED;
 
 	offset = 0;
@@ -700,7 +704,7 @@ JSBool SMJS_FUNCTION(svg_udom_get_trait)
 	/*Number*/
 	case SVG_Number_datatype:
 
-/*all string traits*/
+	/*all string traits*/
 	case SVG_Boolean_datatype:
 	case SVG_FillRule_datatype:
 	case SVG_StrokeLineJoin_datatype:
@@ -734,8 +738,8 @@ JSBool SMJS_FUNCTION(svg_udom_get_trait)
 	case SVG_VectorEffect_datatype:
 	case SVG_PlaybackOrder_datatype:
 	case SVG_TimelineBegin_datatype:
-/*end of string traits*/
-/*DOM string traits*/
+	/*end of string traits*/
+	/*DOM string traits*/
 	case SVG_FontFamily_datatype:
 	case XMLRI_datatype:
 	case DOM_String_datatype:
@@ -744,7 +748,7 @@ JSBool SMJS_FUNCTION(svg_udom_get_trait)
 	case SVG_Focus_datatype:
 	case SVG_ID_datatype:
 	case SVG_GradientOffset_datatype:
-/*end of DOM string traits*/
+		/*end of DOM string traits*/
 		attValue = gf_svg_dump_attribute(n, &info);
 		SMJS_SET_RVAL( STRING_TO_JSVAL( JS_NewStringCopyZ(c, attValue) ) );
 		if (attValue) gf_free(attValue);
@@ -753,7 +757,7 @@ JSBool SMJS_FUNCTION(svg_udom_get_trait)
 		break;
 
 #if 0
-/*SVGT 1.2 default traits*/
+	/*SVGT 1.2 default traits*/
 	case SMIL_KeyTimes_datatype:
 	case SMIL_KeyPoints_datatype:
 	case SMIL_KeySplines_datatype:
@@ -761,9 +765,9 @@ JSBool SMJS_FUNCTION(svg_udom_get_trait)
 	case SVG_StrokeDashArray_datatype:
 	case SVG_Points_datatype:
 	case SVG_Motion_datatype:
-/*end SVGT 1.2 default traits*/
+	/*end SVGT 1.2 default traits*/
 
-/*unimplemented/unnkown/FIXME traits*/
+	/*unimplemented/unnkown/FIXME traits*/
 	case SMIL_SyncTolerance_datatype:
 	case SVG_TransformType_datatype:
 	case SVG_TransformList_datatype:
@@ -774,7 +778,7 @@ JSBool SMJS_FUNCTION(svg_udom_get_trait)
 	case SMIL_Duration_datatype:
 	case SMIL_RepeatCount_datatype:
 	default:
-/*end unimplemented/unnkown/FIXME traits*/
+		/*end unimplemented/unnkown/FIXME traits*/
 		return JS_TRUE;
 #endif
 	}
@@ -878,6 +882,10 @@ JSBool SMJS_FUNCTION(svg_udom_get_rect_trait)
 		SVG_ViewBox *v = (SVG_ViewBox *)info.far_ptr;
 		newObj = JS_NewObject(c, &svg_rt->rectClass._class, 0, 0);
 		GF_SAFEALLOC(rc, rectCI);
+		if (!rc) {
+			dom_throw_exception(c, GF_DOM_EXC_DATA_CLONE_ERR);
+			return JS_FALSE;
+		}
 		rc->x = FIX2FLT(v->x);
 		rc->y = FIX2FLT(v->y);
 		rc->w = FIX2FLT(v->width);
@@ -940,6 +948,10 @@ JSBool SMJS_FUNCTION(svg_udom_get_rgb_color_trait)
 		if (col->type == SVG_COLOR_INHERIT) return JS_TRUE;
 		newObj = JS_NewObject(c, &svg_rt->rgbClass._class, 0, 0);
 		GF_SAFEALLOC(rgb, rgbCI);
+		if (!rgb) {
+			dom_throw_exception(c, GF_DOM_EXC_DATA_CLONE_ERR);
+			return JS_FALSE;
+		}
 		rgb->r = (u8) (255*FIX2FLT(col->red)) ;
 		rgb->g = (u8) (255*FIX2FLT(col->green)) ;
 		rgb->b = (u8) (255*FIX2FLT(col->blue)) ;
@@ -947,13 +959,17 @@ JSBool SMJS_FUNCTION(svg_udom_get_rgb_color_trait)
 		SMJS_SET_RVAL( OBJECT_TO_JSVAL(newObj) );
 		return JS_TRUE;
 	}
-		break;
+	break;
 	case SVG_Paint_datatype:
 	{
 		SVG_Paint *paint = (SVG_Paint *)info.far_ptr;
 		if (1 || paint->type==SVG_PAINT_COLOR) {
 			newObj = JS_NewObject(c, &svg_rt->rgbClass._class, 0, 0);
 			GF_SAFEALLOC(rgb, rgbCI);
+			if (!rgb) {
+				dom_throw_exception(c, GF_DOM_EXC_DATA_CLONE_ERR);
+				return JS_FALSE;
+			}
 			rgb->r = (u8) (255*FIX2FLT(paint->color.red) );
 			rgb->g = (u8) (255*FIX2FLT(paint->color.green) );
 			rgb->b = (u8) (255*FIX2FLT(paint->color.blue) );
@@ -1064,9 +1080,13 @@ JSBool SMJS_FUNCTION(svg_udom_set_float_trait)
 		while (gf_list_count(*l)) {
 			val = (SVG_Number *)gf_list_get(*l, 0);
 			gf_list_rem(*l, 0);
-			gf_free(val);
+			if (val) gf_free(val);
 		}
 		GF_SAFEALLOC(val, SVG_Coordinate);
+		if (!val) {
+			dom_throw_exception(c, GF_DOM_EXC_DATA_CLONE_ERR);
+			return JS_FALSE;
+		}
 		val->type=SVG_NUMBER_VALUE;
 		val->value = FLT2FIX(d);
 		gf_list_add(*l, val);
@@ -1167,7 +1187,7 @@ JSBool SMJS_FUNCTION(svg_udom_set_path_trait)
 	if (!GF_JS_InstanceOf(c, pO, &svg_rt->pathClass, NULL) ) return JS_TRUE;
 	path = SMJS_GET_PRIVATE(c, pO);
 	if (!path) return JS_TRUE;
-	
+
 	szName = SMJS_CHARS(c, argv[0]);
 	e = gf_node_get_field_by_name(n, szName, &info);
 	SMJS_FREE(c, szName);
@@ -1196,9 +1216,15 @@ JSBool SMJS_FUNCTION(svg_udom_set_path_trait)
 			gf_list_add(d->commands, t);
 			switch (*t) {
 			case 0:
-			case 1: nb_pts++; break;
-			case 2: nb_pts+=3; break;
-			case 4: nb_pts+=2; break;
+			case 1:
+				nb_pts++;
+				break;
+			case 2:
+				nb_pts+=3;
+				break;
+			case 4:
+				nb_pts+=2;
+				break;
 			}
 		}
 		for (i=0; i<nb_pts; i++) {
@@ -1403,6 +1429,10 @@ JSBool SMJS_FUNCTION(svg_udom_create_color)
 	if (argc!=3) return JS_TRUE;
 
 	GF_SAFEALLOC(col, rgbCI);
+	if (!col) {
+		dom_throw_exception(c, GF_DOM_EXC_DATA_CLONE_ERR);
+		return JS_FALSE;
+	}
 	col->r = JSVAL_TO_INT(argv[0]);
 	col->g = JSVAL_TO_INT(argv[1]);
 	col->b = JSVAL_TO_INT(argv[2]);
@@ -1532,8 +1562,8 @@ static JSFunctionSpec connectionFuncs[] = {
 	/*eventTarget interface*/
 	{"addEventListenerNS", dom_event_add_listener, 4, 0, 0},
 	{"removeEventListenerNS", dom_event_remove_listener, 4, 0, 0},
-	{"addEventListenerNS", dom_event_add_listener, 3, 0, 0},
-	{"removeEventListenerNS", dom_event_remove_listener, 3, 0, 0},
+	{"addEventListener", dom_event_add_listener, 3, 0, 0},
+	{"removeEventListener", dom_event_remove_listener, 3, 0, 0},
 	/*connection interface*/
 	{"setEncoding", svg_connection_set_encoding, 1, 0, 0},
 	{"connect", svg_connection_connect, 1, 0, 0},
@@ -1545,130 +1575,171 @@ static JSFunctionSpec connectionFuncs[] = {
 
 static DECL_FINALIZE( baseCI_finalize)
 
-	/*avoids GCC warning*/
-	void *data = SMJS_GET_PRIVATE(c, obj);
-	if (!c) c=NULL;
-	if (data) gf_free(data);
+/*avoids GCC warning*/
+void *data = SMJS_GET_PRIVATE(c, obj);
+if (!c) c=NULL;
+if (data) gf_free(data);
 }
 
 static SMJS_FUNC_PROP_GET(rgb_getProperty)
 
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->rgbClass, NULL) ) return JS_TRUE;
-	if (SMJS_ID_IS_INT(id)) {
-		rgbCI *col = (rgbCI *)SMJS_GET_PRIVATE(c, obj);
-		if (!col) return JS_TRUE;
-		switch (SMJS_ID_TO_INT(id)) {
-		case 0: *vp = INT_TO_JSVAL(col->r); return JS_TRUE;
-		case 1: *vp = INT_TO_JSVAL(col->g); return JS_TRUE;
-		case 2: *vp = INT_TO_JSVAL(col->b); return JS_TRUE;
-		default:
-			return JS_TRUE;
-		}
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->rgbClass, NULL) ) return JS_TRUE;
+if (SMJS_ID_IS_INT(id)) {
+	rgbCI *col = (rgbCI *)SMJS_GET_PRIVATE(c, obj);
+	if (!col) return JS_TRUE;
+	switch (SMJS_ID_TO_INT(id)) {
+	case 0:
+		*vp = INT_TO_JSVAL(col->r);
+		return JS_TRUE;
+	case 1:
+		*vp = INT_TO_JSVAL(col->g);
+		return JS_TRUE;
+	case 2:
+		*vp = INT_TO_JSVAL(col->b);
+		return JS_TRUE;
+	default:
+		return JS_TRUE;
 	}
-	return JS_TRUE;
+}
+return JS_TRUE;
 }
 static SMJS_FUNC_PROP_SET( rgb_setProperty)
 
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->rgbClass, NULL) ) return JS_TRUE;
-	if (SMJS_ID_IS_INT(id)) {
-		rgbCI *col = (rgbCI *)SMJS_GET_PRIVATE(c, obj);
-		if (!col) return JS_TRUE;
-		switch (SMJS_ID_TO_INT(id)) {
-		case 0: col->r = JSVAL_TO_INT(*vp); return JS_TRUE;
-		case 1: col->g = JSVAL_TO_INT(*vp); return JS_TRUE;
-		case 2: col->b = JSVAL_TO_INT(*vp); return JS_TRUE;
-		default: return JS_TRUE;
-		}
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->rgbClass, NULL) ) return JS_TRUE;
+if (SMJS_ID_IS_INT(id)) {
+	rgbCI *col = (rgbCI *)SMJS_GET_PRIVATE(c, obj);
+	if (!col) return JS_TRUE;
+	switch (SMJS_ID_TO_INT(id)) {
+	case 0:
+		col->r = JSVAL_TO_INT(*vp);
+		return JS_TRUE;
+	case 1:
+		col->g = JSVAL_TO_INT(*vp);
+		return JS_TRUE;
+	case 2:
+		col->b = JSVAL_TO_INT(*vp);
+		return JS_TRUE;
+	default:
+		return JS_TRUE;
 	}
-	return JS_TRUE;
+}
+return JS_TRUE;
 }
 
 
 static SMJS_FUNC_PROP_GET(rect_getProperty)
 
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->rectClass, NULL) ) return JS_TRUE;
-	if (SMJS_ID_IS_INT(id)) {
-		rectCI *rc = (rectCI *)SMJS_GET_PRIVATE(c, obj);
-		if (!rc) return JS_TRUE;
-		if (rc->sg) {
-			GF_JSAPIParam par;
-			ScriptAction(rc->sg, GF_JSAPI_OP_GET_VIEWPORT, rc->sg->RootNode, &par);
-			rc->x = FIX2FLT(par.rc.x);
-			rc->y = FIX2FLT(par.rc.y);
-			rc->w = FIX2FLT(par.rc.width);
-			rc->h = FIX2FLT(par.rc.height);
-		}
-		switch (SMJS_ID_TO_INT(id)) {
-		case 0: *vp = JS_MAKE_DOUBLE(c, rc->x); return JS_TRUE;
-		case 1: *vp = JS_MAKE_DOUBLE(c, rc->y); return JS_TRUE;
-		case 2: *vp = JS_MAKE_DOUBLE(c, rc->w); return JS_TRUE;
-		case 3: *vp = JS_MAKE_DOUBLE(c, rc->h); return JS_TRUE;
-		default: return JS_TRUE;
-		}
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->rectClass, NULL) ) return JS_TRUE;
+if (SMJS_ID_IS_INT(id)) {
+	rectCI *rc = (rectCI *)SMJS_GET_PRIVATE(c, obj);
+	if (!rc) return JS_TRUE;
+	if (rc->sg) {
+		GF_JSAPIParam par;
+		ScriptAction(rc->sg, GF_JSAPI_OP_GET_VIEWPORT, rc->sg->RootNode, &par);
+		rc->x = FIX2FLT(par.rc.x);
+		rc->y = FIX2FLT(par.rc.y);
+		rc->w = FIX2FLT(par.rc.width);
+		rc->h = FIX2FLT(par.rc.height);
 	}
-	return JS_TRUE;
+	switch (SMJS_ID_TO_INT(id)) {
+	case 0:
+		*vp = JS_MAKE_DOUBLE(c, rc->x);
+		return JS_TRUE;
+	case 1:
+		*vp = JS_MAKE_DOUBLE(c, rc->y);
+		return JS_TRUE;
+	case 2:
+		*vp = JS_MAKE_DOUBLE(c, rc->w);
+		return JS_TRUE;
+	case 3:
+		*vp = JS_MAKE_DOUBLE(c, rc->h);
+		return JS_TRUE;
+	default:
+		return JS_TRUE;
+	}
+}
+return JS_TRUE;
 }
 static SMJS_FUNC_PROP_SET( rect_setProperty)
 
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->rectClass, NULL) ) return JS_TRUE;
-	if (SMJS_ID_IS_INT(id)) {
-		jsdouble d;
-		rectCI *rc = (rectCI *)SMJS_GET_PRIVATE(c, obj);
-		if (!rc) return JS_TRUE;
-		JS_ValueToNumber(c, *vp, &d);
-		switch (SMJS_ID_TO_INT(id)) {
-		case 0: rc->x = (Float) d; return JS_TRUE;
-		case 1: rc->y = (Float) d; return JS_TRUE;
-		case 2: rc->w = (Float) d; return JS_TRUE;
-		case 3: rc->h = (Float) d; return JS_TRUE;
-		default: return JS_TRUE;
-		}
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->rectClass, NULL) ) return JS_TRUE;
+if (SMJS_ID_IS_INT(id)) {
+	jsdouble d;
+	rectCI *rc = (rectCI *)SMJS_GET_PRIVATE(c, obj);
+	if (!rc) return JS_TRUE;
+	JS_ValueToNumber(c, *vp, &d);
+	switch (SMJS_ID_TO_INT(id)) {
+	case 0:
+		rc->x = (Float) d;
+		return JS_TRUE;
+	case 1:
+		rc->y = (Float) d;
+		return JS_TRUE;
+	case 2:
+		rc->w = (Float) d;
+		return JS_TRUE;
+	case 3:
+		rc->h = (Float) d;
+		return JS_TRUE;
+	default:
+		return JS_TRUE;
 	}
-	return JS_TRUE;
+}
+return JS_TRUE;
 }
 
 static SMJS_FUNC_PROP_GET( point_getProperty)
 
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->pointClass, NULL) ) return JS_TRUE;
-	if (SMJS_ID_IS_INT(id)) {
-		pointCI *pt = (pointCI *)SMJS_GET_PRIVATE(c, obj);
-		if (!pt) return JS_TRUE;
-		if (pt->sg) {
-			GF_JSAPIParam par;
-			ScriptAction(pt->sg, GF_JSAPI_OP_GET_TRANSLATE, pt->sg->RootNode, &par);
-			pt->x = FIX2FLT(par.pt.x);
-			pt->y = FIX2FLT(par.pt.y);
-		}
-		switch (SMJS_ID_TO_INT(id)) {
-		case 0: *vp = JS_MAKE_DOUBLE(c, pt->x); return JS_TRUE;
-		case 1: *vp = JS_MAKE_DOUBLE(c, pt->y); return JS_TRUE;
-		default: return JS_TRUE;
-		}
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->pointClass, NULL) ) return JS_TRUE;
+if (SMJS_ID_IS_INT(id)) {
+	pointCI *pt = (pointCI *)SMJS_GET_PRIVATE(c, obj);
+	if (!pt) return JS_TRUE;
+	if (pt->sg) {
+		GF_JSAPIParam par;
+		ScriptAction(pt->sg, GF_JSAPI_OP_GET_TRANSLATE, pt->sg->RootNode, &par);
+		pt->x = FIX2FLT(par.pt.x);
+		pt->y = FIX2FLT(par.pt.y);
 	}
-	return JS_TRUE;
+	switch (SMJS_ID_TO_INT(id)) {
+	case 0:
+		*vp = JS_MAKE_DOUBLE(c, pt->x);
+		return JS_TRUE;
+	case 1:
+		*vp = JS_MAKE_DOUBLE(c, pt->y);
+		return JS_TRUE;
+	default:
+		return JS_TRUE;
+	}
+}
+return JS_TRUE;
 }
 static SMJS_FUNC_PROP_SET( point_setProperty)
 
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->pointClass, NULL) ) return JS_TRUE;
-	if (SMJS_ID_IS_INT(id)) {
-		jsdouble d;
-		pointCI *pt = (pointCI *)SMJS_GET_PRIVATE(c, obj);
-		if (!pt) return JS_TRUE;
-		JS_ValueToNumber(c, *vp, &d);
-		switch (SMJS_ID_TO_INT(id)) {
-		case 0: pt->x = (Float) d; break;
-		case 1: pt->y = (Float) d; break;
-		default: return JS_TRUE;
-		}
-		if (pt->sg) {
-			GF_JSAPIParam par;
-			par.pt.x = FLT2FIX(pt->x);
-			par.pt.y = FLT2FIX(pt->y);
-			ScriptAction(pt->sg, GF_JSAPI_OP_SET_TRANSLATE, pt->sg->RootNode, &par);
-		}
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->pointClass, NULL) ) return JS_TRUE;
+if (SMJS_ID_IS_INT(id)) {
+	jsdouble d;
+	pointCI *pt = (pointCI *)SMJS_GET_PRIVATE(c, obj);
+	if (!pt) return JS_TRUE;
+	JS_ValueToNumber(c, *vp, &d);
+	switch (SMJS_ID_TO_INT(id)) {
+	case 0:
+		pt->x = (Float) d;
+		break;
+	case 1:
+		pt->y = (Float) d;
+		break;
+	default:
 		return JS_TRUE;
 	}
+	if (pt->sg) {
+		GF_JSAPIParam par;
+		par.pt.x = FLT2FIX(pt->x);
+		par.pt.y = FLT2FIX(pt->y);
+		ScriptAction(pt->sg, GF_JSAPI_OP_SET_TRANSLATE, pt->sg->RootNode, &par);
+	}
 	return JS_TRUE;
+}
+return JS_TRUE;
 }
 
 static JSObject *svg_new_path_object(JSContext *c, SVG_PathData *d)
@@ -1721,16 +1792,19 @@ static void pathCI_finalize(JSContext *c, JSObject *obj)
 
 static SMJS_FUNC_PROP_GET( path_getProperty)
 
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->pathClass, NULL) ) return JS_TRUE;
-	if (SMJS_ID_IS_INT(id)) {
-		pathCI *p = (pathCI *)SMJS_GET_PRIVATE(c, obj);
-		if (!p) return JS_TRUE;
-		switch (SMJS_ID_TO_INT(id)) {
-		case 0: *vp = INT_TO_JSVAL(p->nb_coms); return JS_TRUE;
-		default: return JS_TRUE;
-		}
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->pathClass, NULL) ) return JS_TRUE;
+if (SMJS_ID_IS_INT(id)) {
+	pathCI *p = (pathCI *)SMJS_GET_PRIVATE(c, obj);
+	if (!p) return JS_TRUE;
+	switch (SMJS_ID_TO_INT(id)) {
+	case 0:
+		*vp = INT_TO_JSVAL(p->nb_coms);
+		return JS_TRUE;
+	default:
+		return JS_TRUE;
 	}
-	return JS_TRUE;
+}
+return JS_TRUE;
 }
 static JSBool SMJS_FUNCTION(svg_path_get_segment)
 {
@@ -1745,15 +1819,23 @@ static JSBool SMJS_FUNCTION(svg_path_get_segment)
 	idx = JSVAL_TO_INT(argv[0]);
 	if (idx>=p->nb_coms) return JS_TRUE;
 	switch (p->tags[idx]) {
-	case 0: SMJS_SET_RVAL( INT_TO_JSVAL(77)); return JS_TRUE;	/* Move To */
-	case 1: SMJS_SET_RVAL( INT_TO_JSVAL(76)); return JS_TRUE;	/* Line To */
+	case 0:
+		SMJS_SET_RVAL( INT_TO_JSVAL(77));
+		return JS_TRUE;	/* Move To */
+	case 1:
+		SMJS_SET_RVAL( INT_TO_JSVAL(76));
+		return JS_TRUE;	/* Line To */
 	case 2:/* Curve To */
 	case 3:/* next Curve To */
-		SMJS_SET_RVAL( INT_TO_JSVAL(67)); return JS_TRUE;
+		SMJS_SET_RVAL( INT_TO_JSVAL(67));
+		return JS_TRUE;
 	case 4:/* Quad To */
 	case 5:/* next Quad To */
-		SMJS_SET_RVAL( INT_TO_JSVAL(81)); return JS_TRUE;
-	case 6: SMJS_SET_RVAL( INT_TO_JSVAL(90)); return JS_TRUE;	/* Close */
+		SMJS_SET_RVAL( INT_TO_JSVAL(81));
+		return JS_TRUE;
+	case 6:
+		SMJS_SET_RVAL( INT_TO_JSVAL(90));
+		return JS_TRUE;	/* Close */
 	}
 	return JS_TRUE;
 }
@@ -1775,12 +1857,24 @@ static JSBool SMJS_FUNCTION(svg_path_get_segment_param)
 	pt_idx = 0;
 	for (i=0; i<idx; i++) {
 		switch (p->tags[i]) {
-		case 0: pt_idx++; break;
-		case 1: pt_idx++; break;
-		case 2: pt_idx+=3; break;
-		case 3: pt_idx+=2; break;
-		case 4: pt_idx+=2; break;
-		case 5: pt_idx+=1; break;
+		case 0:
+			pt_idx++;
+			break;
+		case 1:
+			pt_idx++;
+			break;
+		case 2:
+			pt_idx+=3;
+			break;
+		case 3:
+			pt_idx+=2;
+			break;
+		case 4:
+			pt_idx+=2;
+			break;
+		case 5:
+			pt_idx+=1;
+			break;
 		}
 	}
 	switch (p->tags[idx]) {
@@ -1822,7 +1916,7 @@ static JSBool SMJS_FUNCTION(svg_path_get_segment_param)
 			SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, param_idx ? pt->y : pt->x));
 		}
 		return JS_TRUE;
-		/*spec is quite obscur here*/
+	/*spec is quite obscur here*/
 	case 6:
 		SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, 0));
 		return JS_TRUE;
@@ -1836,12 +1930,24 @@ static u32 svg_path_realloc_pts(pathCI *p, u32 nb_pts)
 	orig_pts = 0;
 	for (i=0; i<p->nb_coms; i++) {
 		switch (p->tags[i]) {
-		case 0: orig_pts++; break;
-		case 1: orig_pts++; break;
-		case 2: orig_pts+=3; break;
-		case 3: orig_pts+=2; break;
-		case 4: orig_pts+=2; break;
-		case 5: orig_pts+=1; break;
+		case 0:
+			orig_pts++;
+			break;
+		case 1:
+			orig_pts++;
+			break;
+		case 2:
+			orig_pts+=3;
+			break;
+		case 3:
+			orig_pts+=2;
+			break;
+		case 4:
+			orig_pts+=2;
+			break;
+		case 5:
+			orig_pts+=1;
+			break;
 		}
 	}
 	p->pts = (ptCI *)gf_realloc(p->pts, sizeof(ptCI)*(nb_pts+orig_pts));
@@ -1906,8 +2012,10 @@ static JSBool SMJS_FUNCTION(svg_path_quad_to)
 	JS_ValueToNumber(c, argv[2], &x2);
 	JS_ValueToNumber(c, argv[3], &y2);
 	nb_pts = svg_path_realloc_pts(p, 2);
-	p->pts[nb_pts].x = (Float) x1; p->pts[nb_pts].y = (Float) y1;
-	p->pts[nb_pts+1].x = (Float) x2; p->pts[nb_pts+1].y = (Float) y2;
+	p->pts[nb_pts].x = (Float) x1;
+	p->pts[nb_pts].y = (Float) y1;
+	p->pts[nb_pts+1].x = (Float) x2;
+	p->pts[nb_pts+1].y = (Float) y2;
 	p->tags = (u8 *)gf_realloc(p->tags, sizeof(u8)*(p->nb_coms+1) );
 	p->tags[p->nb_coms] = 4;
 	p->nb_coms++;
@@ -1931,9 +2039,12 @@ static JSBool SMJS_FUNCTION(svg_path_curve_to)
 	JS_ValueToNumber(c, argv[4], &x);
 	JS_ValueToNumber(c, argv[5], &y);
 	nb_pts = svg_path_realloc_pts(p, 3);
-	p->pts[nb_pts].x = (Float) x1; p->pts[nb_pts].y = (Float) y1;
-	p->pts[nb_pts+1].x = (Float) x2; p->pts[nb_pts+1].y = (Float) y2;
-	p->pts[nb_pts+2].x = (Float) x; p->pts[nb_pts+2].y = (Float) y;
+	p->pts[nb_pts].x = (Float) x1;
+	p->pts[nb_pts].y = (Float) y1;
+	p->pts[nb_pts+1].x = (Float) x2;
+	p->pts[nb_pts+1].y = (Float) y2;
+	p->pts[nb_pts+2].x = (Float) x;
+	p->pts[nb_pts+2].y = (Float) y;
 	p->tags = (u8 *)gf_realloc(p->tags, sizeof(u8)*(p->nb_coms+1) );
 	p->tags[p->nb_coms] = 2;
 	p->nb_coms++;
@@ -1955,42 +2066,68 @@ static JSBool SMJS_FUNCTION(svg_path_close)
 
 static SMJS_FUNC_PROP_GET( matrix_getProperty)
 
-	GF_Matrix2D *mx;
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->matrixClass, NULL) ) return JS_TRUE;
-	mx = (GF_Matrix2D *)SMJS_GET_PRIVATE(c, obj);
-	if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
+GF_Matrix2D *mx;
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->matrixClass, NULL) ) return JS_TRUE;
+mx = (GF_Matrix2D *)SMJS_GET_PRIVATE(c, obj);
+if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
 
-	if (!mx) return JS_TRUE;
-	switch (SMJS_ID_TO_INT(id)) {
-	case 0: *vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[0])); return JS_TRUE;
-	case 1: *vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[3])); return JS_TRUE;
-	case 2: *vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[1])); return JS_TRUE;
-	case 3: *vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[4])); return JS_TRUE;
-	case 4: *vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[2])); return JS_TRUE;
-	case 5: *vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[5])); return JS_TRUE;
-	default: return JS_TRUE;
-	}
+if (!mx) return JS_TRUE;
+switch (SMJS_ID_TO_INT(id)) {
+case 0:
+	*vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[0]));
 	return JS_TRUE;
+case 1:
+	*vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[3]));
+	return JS_TRUE;
+case 2:
+	*vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[1]));
+	return JS_TRUE;
+case 3:
+	*vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[4]));
+	return JS_TRUE;
+case 4:
+	*vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[2]));
+	return JS_TRUE;
+case 5:
+	*vp = JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[5]));
+	return JS_TRUE;
+default:
+	return JS_TRUE;
+}
+return JS_TRUE;
 }
 static SMJS_FUNC_PROP_SET( matrix_setProperty)
 
-	jsdouble d;
-	GF_Matrix2D *mx;
-	if (!GF_JS_InstanceOf(c, obj, &svg_rt->matrixClass, NULL) ) return JS_TRUE;
-	mx = (GF_Matrix2D *)SMJS_GET_PRIVATE(c, obj);
-	if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
+jsdouble d;
+GF_Matrix2D *mx;
+if (!GF_JS_InstanceOf(c, obj, &svg_rt->matrixClass, NULL) ) return JS_TRUE;
+mx = (GF_Matrix2D *)SMJS_GET_PRIVATE(c, obj);
+if (!SMJS_ID_IS_INT(id)) return JS_TRUE;
 
-	JS_ValueToNumber(c, *vp, &d);
-	switch (SMJS_ID_TO_INT(id)) {
-	case 0: mx->m[0] = FLT2FIX(d); break;
-	case 1: mx->m[3] = FLT2FIX(d); break;
-	case 2: mx->m[1] = FLT2FIX(d); break;
-	case 3: mx->m[4] = FLT2FIX(d); break;
-	case 4: mx->m[2] = FLT2FIX(d); break;
-	case 5: mx->m[5] = FLT2FIX(d); break;
-	default: return JS_TRUE;
-	}
+JS_ValueToNumber(c, *vp, &d);
+switch (SMJS_ID_TO_INT(id)) {
+case 0:
+	mx->m[0] = FLT2FIX(d);
+	break;
+case 1:
+	mx->m[3] = FLT2FIX(d);
+	break;
+case 2:
+	mx->m[1] = FLT2FIX(d);
+	break;
+case 3:
+	mx->m[4] = FLT2FIX(d);
+	break;
+case 4:
+	mx->m[2] = FLT2FIX(d);
+	break;
+case 5:
+	mx->m[5] = FLT2FIX(d);
+	break;
+default:
 	return JS_TRUE;
+}
+return JS_TRUE;
 }
 static JSBool SMJS_FUNCTION(svg_mx2d_get_component)
 {
@@ -2002,12 +2139,24 @@ static JSBool SMJS_FUNCTION(svg_mx2d_get_component)
 	if (!mx || (argc!=1)) return JS_TRUE;
 	if (!JSVAL_IS_INT(argv[0])) return JS_TRUE;
 	switch (JSVAL_TO_INT(argv[0])) {
-	case 0: SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[0]))); return JS_TRUE;
-	case 1: SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[3]))); return JS_TRUE;
-	case 2: SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[1]))); return JS_TRUE;
-	case 3: SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[4]))); return JS_TRUE;
-	case 4: SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[2]))); return JS_TRUE;
-	case 5: SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[5]))); return JS_TRUE;
+	case 0:
+		SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[0])));
+		return JS_TRUE;
+	case 1:
+		SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[3])));
+		return JS_TRUE;
+	case 2:
+		SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[1])));
+		return JS_TRUE;
+	case 3:
+		SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[4])));
+		return JS_TRUE;
+	case 4:
+		SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[2])));
+		return JS_TRUE;
+	case 5:
+		SMJS_SET_RVAL( JS_MAKE_DOUBLE(c, FIX2FLT(mx->m[5])));
+		return JS_TRUE;
 	}
 	return JS_TRUE;
 }
@@ -2127,11 +2276,11 @@ void *svg_get_element_class(GF_Node *n)
 {
 	if (!n) return NULL;
 	if ((n->sgprivate->tag>=GF_NODE_RANGE_FIRST_SVG) && (n->sgprivate->tag<=GF_NODE_RANGE_LAST_SVG)) {
-        if (n->sgprivate->tag == TAG_SVG_video || n->sgprivate->tag == TAG_SVG_audio) {
-            return html_get_element_class(n);
-        }
+		if (n->sgprivate->tag == TAG_SVG_video || n->sgprivate->tag == TAG_SVG_audio) {
+			return html_get_element_class(n);
+		}
 		return &svg_rt->svgElement;
-    }
+	}
 	return NULL;
 }
 void *svg_get_document_class(GF_SceneGraph *sg)
@@ -2143,6 +2292,21 @@ void *svg_get_document_class(GF_SceneGraph *sg)
 	return NULL;
 }
 
+Bool is_svg_document_class(JSContext *c, JSObject *obj)
+{
+	if (!obj) return GF_FALSE;
+	if (GF_JS_InstanceOf(c, obj, &svg_rt->svgDocument, NULL))
+		return GF_TRUE;
+	return GF_FALSE;
+}
+
+Bool is_svg_element_class(JSContext *c, JSObject *obj)
+{
+	if (!obj) return GF_FALSE;
+	if (GF_JS_InstanceOf(c, obj, &svg_rt->svgElement, NULL))
+		return GF_TRUE;
+	return GF_FALSE;
+}
 
 static void svg_init_js_api(GF_SceneGraph *scene)
 {
@@ -2391,7 +2555,7 @@ Bool svg_script_execute(GF_SceneGraph *sg, char *utf8_script, GF_DOM_Event *even
 
 	gf_sg_lock_javascript(sg->svg_js->js_ctx, GF_TRUE);
 
-	prev_event = SMJS_GET_PRIVATE(sg->svg_js->js_ctx, sg->svg_js->event);
+	prev_event = (GF_DOM_Event *)SMJS_GET_PRIVATE(sg->svg_js->js_ctx, sg->svg_js->event);
 	SMJS_SET_PRIVATE(sg->svg_js->js_ctx, sg->svg_js->event, event);
 	ret = JS_EvaluateScript(sg->svg_js->js_ctx, sg->svg_js->global, utf8_script, (u32) strlen(utf8_script), 0, 0, &rval);
 	SMJS_SET_PRIVATE(sg->svg_js->js_ctx, sg->svg_js->event, prev_event);
@@ -2416,6 +2580,25 @@ Bool svg_script_execute(GF_SceneGraph *sg, char *utf8_script, GF_DOM_Event *even
 
 void html_media_js_api_del();
 
+void gf_svg_script_context_del(GF_SVGJS *svg_js, GF_SceneGraph *scenegraph)
+{
+	gf_sg_js_dom_pre_destroy(svg_js->js_ctx, scenegraph, NULL);
+	/*user-defined extensions*/
+	gf_sg_load_script_extensions(scenegraph, svg_js->js_ctx, svg_js->global, GF_TRUE);
+	gf_sg_ecmascript_del(svg_js->js_ctx);
+	dom_js_unload();
+	gf_free(svg_js);
+	scenegraph->svg_js = NULL;
+	assert(svg_rt);
+	svg_rt->nb_inst--;
+	if (!svg_rt->nb_inst) {
+		/* HTML */
+		html_media_js_api_del();
+		gf_free(svg_rt);
+		svg_rt = NULL;
+	}
+}
+
 static void svg_script_predestroy(GF_Node *n, void *eff, Bool is_destroy)
 {
 	if (is_destroy) {
@@ -2427,34 +2610,28 @@ static void svg_script_predestroy(GF_Node *n, void *eff, Bool is_destroy)
 			svg_js->nb_scripts--;
 
 			/*detach this script from our object cache*/
-			dom_js_pre_destroy(svg_js->js_ctx, n->sgprivate->scenegraph, n);
+			gf_sg_js_dom_pre_destroy(svg_js->js_ctx, n->sgprivate->scenegraph, n);
 
 			if (!svg_js->nb_scripts) {
-				dom_js_pre_destroy(svg_js->js_ctx, n->sgprivate->scenegraph, NULL);
-				/*user-defined extensions*/
-				gf_sg_load_script_extensions(n->sgprivate->scenegraph, svg_js->js_ctx, svg_js->global, GF_TRUE);
-				gf_sg_ecmascript_del(svg_js->js_ctx);
-				dom_js_unload(svg_js->js_ctx, svg_js->global);
-				gf_free(svg_js);
-				n->sgprivate->scenegraph->svg_js = NULL;
-				assert(svg_rt);
-				svg_rt->nb_inst--;
-				if (!svg_rt->nb_inst) {
-					/* HTML */
-				    html_media_js_api_del();
-					gf_free(svg_rt);
-					svg_rt = NULL;
-				}
+				gf_svg_script_context_del(svg_js, n->sgprivate->scenegraph);
 			}
 		}
 	}
 }
 
-static GF_Err JSScript_CreateSVGContext(GF_SceneGraph *sg)
+GF_Err JSScript_CreateSVGContext(GF_SceneGraph *sg)
 {
 	GF_SVGJS *svg_js;
-	GF_SAFEALLOC(svg_js, GF_SVGJS);
 
+	if (sg->svg_js) {
+		/* the JS/SVG context is already created, no need to do anything  */
+		return GF_OK;
+	}
+
+	GF_SAFEALLOC(svg_js, GF_SVGJS);
+	if (!svg_js) {
+		return GF_OUT_OF_MEM;
+	}
 	/*create new ecmascript context*/
 	svg_js->js_ctx = gf_sg_ecmascript_new(sg);
 	if (!svg_js->js_ctx) {
@@ -2482,8 +2659,8 @@ static GF_Err JSScript_CreateSVGContext(GF_SceneGraph *sg)
 	/*load SVG & DOM APIs*/
 	svg_init_js_api(sg);
 
-    /* HTML */
-    html_media_init_js_api(sg);
+	/* HTML */
+	html_media_init_js_api(sg);
 
 	svg_js->script_execute = svg_script_execute;
 	svg_js->handler_execute = svg_script_execute_handler;
@@ -2520,7 +2697,8 @@ static Bool svg_js_load_script(GF_Node *script, char *file)
 	GF_SVGJS *svg_js;
 
 	svg_js = script->sgprivate->scenegraph->svg_js;
-	jsf = gf_f64_open(file, "rb");
+	if (!strnicmp(file, "file://", 7)) file += 7;
+	jsf = gf_fopen(file, "rb");
 	if (!jsf) {
 		GF_JSAPIParam par;
 		GF_SceneGraph *scene = script->sgprivate->scenegraph;
@@ -2530,19 +2708,20 @@ static Bool svg_js_load_script(GF_Node *script, char *file)
 			abs_url = (char *) par.uri.url;
 
 		if (abs_url) {
-			jsf = gf_f64_open(abs_url, "rb");
+			jsf = gf_fopen(abs_url, "rb");
 			gf_free(abs_url);
 		}
 	}
 	if (!jsf) return GF_FALSE;
 
-	gf_f64_seek(jsf, 0, SEEK_END);
-	fsize = (u32) gf_f64_tell(jsf);
-	gf_f64_seek(jsf, 0, SEEK_SET);
+	gf_fseek(jsf, 0, SEEK_END);
+	fsize = (u32) gf_ftell(jsf);
+	gf_fseek(jsf, 0, SEEK_SET);
 	jsscript = (char *)gf_malloc(sizeof(char)*(size_t)(fsize+1));
 	fsize = (u32) fread(jsscript, sizeof(char), (size_t)fsize, jsf);
-	fclose(jsf);
+	gf_fclose(jsf);
 	jsscript[fsize] = 0;
+	if ((s32) fsize<0) return GF_FALSE;
 
 	/*for handler, only load code*/
 	if (script->sgprivate->tag==TAG_SVG_handler) {
@@ -2552,8 +2731,8 @@ static Bool svg_js_load_script(GF_Node *script, char *file)
 	}
 
 	gf_sg_lock_javascript(svg_js->js_ctx, GF_TRUE);
-	
-	ret = JS_EvaluateScript(svg_js->js_ctx, svg_js->global, jsscript, sizeof(char)*fsize, 0, 0, &rval);
+
+	ret = JS_EvaluateScript(svg_js->js_ctx, svg_js->global, jsscript, sizeof(char)*fsize, file, 0, &rval);
 
 	if (svg_js->force_gc) {
 		gf_sg_js_call_gc(svg_js->js_ctx);
@@ -2659,6 +2838,15 @@ void dump_root(const char *name, void *rp, void *data)
 }
 #endif
 
+/* Executes JavaScript code in response to an event being triggered
+  The code to be executed (stored in a GF_DOMHandler struct) is either:
+  - text content not yet passed to the JS engine
+     - text contained in a node's text content not yet parsed (node)
+	 - text, outside of a node, obtained by some external means (XHR, ...) - utf8_script
+  - already in the JS engine, in the form of:
+     - an anonymous function (js_fun_val)
+	 - a named function (js_fun)
+*/
 static Bool svg_script_execute_handler(GF_Node *node, GF_DOM_Event *event, GF_Node *observer, char *utf8_script)
 {
 	GF_DOMText *txt = NULL;
@@ -2679,13 +2867,13 @@ static Bool svg_script_execute_handler(GF_Node *node, GF_DOM_Event *event, GF_No
 			if (!txt) return GF_FALSE;
 		}
 		/*not sure about this (cf test struct-use-205-t.svg)*/
-		if (!node->sgprivate->parents) return GF_FALSE;
+		//if (!node->sgprivate->parents) return GF_FALSE;
 	}
 
 	svg_js = node->sgprivate->scenegraph->svg_js;
 
 #ifndef GPAC_DISABLE_LOG
-	if (gf_log_tool_level_on(GF_LOG_SCRIPT, GF_LOG_DEBUG)) { 
+	if (gf_log_tool_level_on(GF_LOG_SCRIPT, GF_LOG_DEBUG)) {
 		char *content, *_content = NULL;
 		if (utf8_script) {
 			content = utf8_script;
@@ -2700,7 +2888,7 @@ static Bool svg_script_execute_handler(GF_Node *node, GF_DOM_Event *event, GF_No
 		} else {
 			content = "unknown";
 		}
-		gf_log_lt(GF_LOG_DEBUG, GF_LOG_SCRIPT); 
+		gf_log_lt(GF_LOG_DEBUG, GF_LOG_SCRIPT);
 		gf_log("[DOM Events    ] Executing script code from handler: %s\n", content);
 		SMJS_FREE(svg_js->js_ctx, _content);
 	}
@@ -2728,7 +2916,7 @@ static Bool svg_script_execute_handler(GF_Node *node, GF_DOM_Event *event, GF_No
 
 	if (utf8_script) {
 		ret = JS_EvaluateScript(svg_js->js_ctx, __this, utf8_script, (u32) strlen(utf8_script), 0, 0, &rval);
-	} 
+	}
 	else if (hdl->js_fun || hdl->js_fun_val || hdl->evt_listen_obj) {
 		JSObject *evt;
 		jsval argv[1];
@@ -2787,7 +2975,7 @@ static Bool svg_script_execute_handler(GF_Node *node, GF_DOM_Event *event, GF_No
 #endif
 
 	if (ret==JS_FALSE) {
-		GF_LOG(GF_LOG_ERROR, GF_LOG_SCRIPT, ("SVG: Invalid handler textContent\n" ));
+		GF_LOG(GF_LOG_ERROR, GF_LOG_SCRIPT, ("SVG: Invalid event handler script\n" ));
 		return GF_FALSE;
 	}
 	return GF_TRUE;

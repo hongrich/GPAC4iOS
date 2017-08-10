@@ -24,6 +24,7 @@
  */
 
 #include <gpac/base_coding.h>
+#include <gpac/color.h>
 #include <gpac/events.h>
 #include <gpac/nodes_svg.h>
 
@@ -34,7 +35,11 @@
 #define DUMP_COORDINATES 1
 
 
-static const struct dom_event_def {u32 event;  const char *name; u32 category; } defined_dom_events [] =
+static const struct dom_event_def {
+	GF_EventType event;
+	const char *name;
+	GF_DOMEventCategory category;
+} defined_dom_events [] =
 {
 	{ GF_EVENT_ABORT, "abort", GF_DOM_EVENT_DOM },
 	{ GF_EVENT_ERROR, "error", GF_DOM_EVENT_DOM },
@@ -121,19 +126,6 @@ static const struct dom_event_def {u32 event;  const char *name; u32 category; }
 	{ GF_EVENT_BATTERY, "battery", GF_DOM_EVENT_LASER },
 	{ GF_EVENT_CPU, "cpu", GF_DOM_EVENT_LASER },
 
-	/*MediaAccess events*/
-#if 0
-	{ GF_EVENT_MEDIA_BEGIN_SESSION_SETUP, "BeginSessionSetup", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_END_SESSION_SETUP, "EndSessionSetup", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_DATA_REQUEST, "DataRequest", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_PLAYABLE, "Playable", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_NOT_PLAYABLE, "NotPlayable", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_DATA_PROGRESS, "DataReceptionProgress", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_END_OF_DATA, "EndOfDataReception", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_STOP, "Stop", GF_DOM_EVENT_MEDIA_ACCESS },
-	{ GF_EVENT_MEDIA_ERROR, "Error", GF_DOM_EVENT_MEDIA_ACCESS },
-#endif
-
 	{ GF_EVENT_MEDIA_SETUP_BEGIN, "setupbegin", GF_DOM_EVENT_MEDIA},
 	{ GF_EVENT_MEDIA_SETUP_DONE, "setupdone", GF_DOM_EVENT_MEDIA},
 
@@ -144,7 +136,7 @@ static const struct dom_event_def {u32 event;  const char *name; u32 category; }
 	{ GF_EVENT_ABORT, "abort", GF_DOM_EVENT_MEDIA },
 	{ GF_EVENT_ERROR, "error", GF_DOM_EVENT_MEDIA },
 	{ GF_EVENT_MEDIA_EMPTIED, "emptied", GF_DOM_EVENT_MEDIA },
-	{ GF_EVENT_MEDIA_STALLED, "stalled", GF_DOM_EVENT_MEDIA },	
+	{ GF_EVENT_MEDIA_STALLED, "stalled", GF_DOM_EVENT_MEDIA },
 	{ GF_EVENT_MEDIA_LOADED_METADATA, "loadedmetadata", GF_DOM_EVENT_MEDIA },
 	{ GF_EVENT_MEDIA_LODADED_DATA, "loadeddata", GF_DOM_EVENT_MEDIA },
 	{ GF_EVENT_MEDIA_CANPLAY, "canplay", GF_DOM_EVENT_MEDIA },
@@ -165,56 +157,148 @@ static const struct dom_event_def {u32 event;  const char *name; u32 category; }
 	{ GF_EVENT_HTML_MSE_SOURCE_OPEN, "sourceopen", GF_DOM_EVENT_MEDIASOURCE },
 	{ GF_EVENT_HTML_MSE_SOURCE_ENDED, "sourceended", GF_DOM_EVENT_MEDIASOURCE },
 	{ GF_EVENT_HTML_MSE_SOURCE_CLOSE, "sourceclose", GF_DOM_EVENT_MEDIASOURCE },
-	{ GF_EVENT_HTML_MSE_APPEND_START, "appendstart", GF_DOM_EVENT_MEDIASOURCE },
-	{ GF_EVENT_HTML_MSE_APPEND_END, "appendend", GF_DOM_EVENT_MEDIASOURCE },
-	{ GF_EVENT_HTML_MSE_APPEND_ERROR, "error", GF_DOM_EVENT_MEDIASOURCE },
-	{ GF_EVENT_HTML_MSE_APPEND_ABORT, "abort", GF_DOM_EVENT_MEDIASOURCE },
+	{ GF_EVENT_HTML_MSE_UPDATE_START, "updatestart", GF_DOM_EVENT_MEDIASOURCE },
+	{ GF_EVENT_HTML_MSE_UPDATE, "update", GF_DOM_EVENT_MEDIASOURCE },
+	{ GF_EVENT_HTML_MSE_UPDATE_END, "updateend", GF_DOM_EVENT_MEDIASOURCE },
+	{ GF_EVENT_HTML_MSE_UPDATE_ERROR, "error", GF_DOM_EVENT_MEDIASOURCE },
+	{ GF_EVENT_HTML_MSE_UPDATE_ABORT, "abort", GF_DOM_EVENT_MEDIASOURCE },
 	{ GF_EVENT_HTML_MSE_ADD_SOURCE_BUFFER, "addsourcebuffer", GF_DOM_EVENT_MEDIASOURCE },
 	{ GF_EVENT_HTML_MSE_REMOVE_SOURCE_BUFFER, "removesourcebuffer", GF_DOM_EVENT_MEDIASOURCE },
 
 	/*GPAC internals*/
-	{ GF_EVENT_SCENE_ATTACHED, "gpac_scene_attached", GF_DOM_EVENT_DOM },
-	{ GF_EVENT_VP_RESIZE, "gpac_vp_changed", GF_DOM_EVENT_DOM },
+	{ GF_EVENT_SCENE_ATTACHED, "gpac_scene_attached", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_SCENE_SIZE, "gpac_scene_size", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_VP_RESIZE, "gpac_vp_changed", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_ADDON_DETECTED, "gpac_addon_found", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_MAIN_ADDON_STATE, "gpac_main_addon_state", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_STREAMLIST, "gpac_streamlist_changed", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_TIMESHIFT_DEPTH, "gpac_timeshift_depth_changed", GF_DOM_EVENT_GPAC},
+
+
+#if 0
+	{ GF_EVENT_DBLCLICK, "gpac_dbl_click", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_SIZE, "gpac_size_changed", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_SCENE_SIZE, "gpac_scene_size", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_SHOWHIDE, "gpac_show_hide", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_SET_CURSOR, "gpac_set_cursor", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_SET_CAPTION, "gpac_set_caption", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_MOVE, "gpac_move", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_REFRESH, "gpac_move", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_QUIT, "gpac_quit", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_PASTE_TEXT, "gpac_paste", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_COPY_TEXT, "gpac_copy", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_CONNECT, "gpac_on_connect", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_DURATION, "gpac_on_duration", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_EOS, "gpac_eos", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_AUTHORIZATION, "gpac_authorization", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_NAVIGATE, "gpac_navigate", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_NAVIGATE_INFO, "gpac_navigate_info", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_MESSAGE, "gpac_on_message", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_PROGRESS, "gpac_on_progress", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_VIEWPOINTS, "gpac_viewpoints_changed", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_STREAMLIST, "gpac_streamlist_changed", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_METADATA, "gpac_metadata_changed", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_MIGRATE, "gpac_session_migrate", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_DISCONNECT, "gpac_request_disconnect", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_RESOLUTION, "gpac_resolution_changed", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_DROPFILE, "gpac_dropfile", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_TEXT_EDITING_START, "gpac_textedit_start", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_TEXT_EDITING_END, "gpac_textedit_end", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_QUALITY_SWITCHED, "gpac_quality_switch", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_TIMESHIFT_OVERFLOW, "gpac_timeshift_overflow", GF_DOM_EVENT_GPAC},
+	{ GF_EVENT_TIMESHIFT_UPDATE, "gpac_timeshift_update", GF_DOM_EVENT_GPAC}
+#endif
+
 };
 
+/** In order to have the same representation of laser/svg media on unix and windows
+  * we have to force windows to use the same rounding method as the glibc.
+  * See: http://pubs.opengroup.org/onlinepubs/009695399/functions/fprintf.html
+  * "The low-order digit shall be rounded in an implementation-defined manner."
+  * glibc uses the IEEE-754 recommended half-to-even method while windows rounds half up.
+  * When windows finally implements HTE rounding we'll be able to remove the convoluted functions below
+ **/
+int is_even(double d) {
+	double int_part;
+	modf(d / 2.0, &int_part);
+	return 2.0 * int_part == d;
+}
+
+double round_ieee_754(double d) {
+	double i = floor(d);
+	d -= i;
+	if (d < 0.5)
+		return i;
+	if (d > 0.5)
+		return i + 1.0;
+	if (is_even(i))
+		return i;
+	return i + 1.0;
+}
+
+double round_float_hte(double value, int digits)
+{
+	if (value) {
+
+		int missing_digits = digits - (int)log10(fabs(value)) - (fabs(value) > 1.f);
+
+		double exp = pow(10.f, missing_digits > 0 ? missing_digits : 0);
+
+		value *= exp;
+		value = round_ieee_754(value);
+		value /= exp;
+	}
+	return value;
+};
+
+#ifdef WIN32
+#define _FIX2FLT(x) (round_float_hte(FIX2FLT(x),6))
+#else
+#define _FIX2FLT(x) FIX2FLT(x)
+#endif
+
 GF_EXPORT
-u32 gf_dom_event_type_by_name(const char *name)
+GF_EventType gf_dom_event_type_by_name(const char *name)
 {
 	u32 i, count;
 	count = sizeof(defined_dom_events) / sizeof(struct dom_event_def);
 	if (!name) return GF_EVENT_UNKNOWN;
 	if ((name[0]=='o') && (name[1]=='n')) name += 2;
-	for (i=0;i<count;i++) {
+	for (i=0; i<count; i++) {
 		if (!strcmp(name, defined_dom_events[i].name))
 			return defined_dom_events[i].event;
 	}
 	return GF_EVENT_UNKNOWN;
 }
 
-const char *gf_dom_event_get_name(u32 type)
+GF_EXPORT
+const char *gf_dom_event_get_name(GF_EventType type)
 {
 	u32 i, count;
 	count = sizeof(defined_dom_events) / sizeof(struct dom_event_def);
-	for (i=0;i<count;i++) {
+	for (i=0; i<count; i++) {
 		if (defined_dom_events[i].event == type)
 			return defined_dom_events[i].name;
 	}
 	return "unknown";
 }
 
-u32 gf_dom_event_get_category(u32 type)
+GF_DOMEventCategory gf_dom_event_get_category(GF_EventType type)
 {
 	u32 i, count;
 	count = sizeof(defined_dom_events) / sizeof(struct dom_event_def);
-	for (i=0;i<count;i++) {
+	for (i=0; i<count; i++) {
 		if (defined_dom_events[i].event == type)
 			return defined_dom_events[i].category;
 	}
-	return 0;
+	return GF_DOM_EVENT_UNKNOWN_CATEGORY;
 }
 
 
-static const struct predef_keyid {u32 key_code;  const char *name; } predefined_key_identifiers[] =
+static const struct predef_keyid {
+	GF_KeyCode key_code;
+	const char *name;
+} predefined_key_identifiers[] =
 {
 	{ GF_KEY_ACCEPT, "Accept" },
 	{ GF_KEY_AGAIN, "Again" },
@@ -423,18 +507,19 @@ static const struct predef_keyid {u32 key_code;  const char *name; } predefined_
 
 
 GF_EXPORT
-const char *gf_dom_get_key_name(u32 key_identifier)
+const char *gf_dom_get_key_name(GF_KeyCode key_identifier)
 {
 	u32 count = sizeof(predefined_key_identifiers) / sizeof(struct predef_keyid);
-	if (!key_identifier || count<=key_identifier) return "Unknown";
+	if (!key_identifier || count<= (u32) key_identifier) return "Unknown";
 	return predefined_key_identifiers[key_identifier-1].name;
 }
 
 
-u32 gf_dom_get_key_type(char *key_name)
+GF_EXPORT
+GF_KeyCode gf_dom_get_key_type(char *key_name)
 {
 	if (strlen(key_name) == 1) {
-		unsigned char c[2];
+		char c[2];
 		c[0] = key_name[0];
 		c[1] = 0;
 		strupr(c);
@@ -444,40 +529,73 @@ u32 gf_dom_get_key_type(char *key_name)
 		if (c[0] >= '0' && c[0] <= '9')
 			return ( GF_KEY_0 + (c[0] - '0') );
 
-		switch (c[0]) {
-		case '@': return GF_KEY_AT;
-		case '*': return GF_KEY_STAR;
-		case '#': return GF_KEY_NUMBER;
-		case ' ': return GF_KEY_SPACE;
-		case '!': return GF_KEY_EXCLAMATION;
-		case '"': return GF_KEY_QUOTATION;
-		case '$': return GF_KEY_DOLLAR;
-		case '&': return GF_KEY_AMPERSAND;
-		case '\'': return GF_KEY_APOSTROPHE;
-		case '(': return GF_KEY_LEFTPARENTHESIS;
-		case ')': return GF_KEY_RIGHTPARENTHESIS;
-		case '+': return GF_KEY_PLUS;
-		case ',': return GF_KEY_COMMA;
-		case '-': return GF_KEY_HYPHEN;
-		case '.': return GF_KEY_FULLSTOP;
-		case '/': return GF_KEY_SLASH;
-		case ':': return GF_KEY_COLON;
-		case ';': return GF_KEY_SEMICOLON;
-		case '<': return GF_KEY_LESSTHAN;
-		case '=': return GF_KEY_EQUALS;
-		case '>': return GF_KEY_GREATERTHAN;
-		case '?': return GF_KEY_QUESTION;
-		case '[': return GF_KEY_LEFTSQUAREBRACKET;
-		case '\\': return GF_KEY_BACKSLASH;
-		case ']': return GF_KEY_RIGHTSQUAREBRACKET;
-		case '^': return GF_KEY_CIRCUM;
-		case '_': return GF_KEY_UNDERSCORE;
-		case '`': return GF_KEY_GRAVEACCENT;
-		case '{': return GF_KEY_LEFTCURLYBRACKET;
-		case '|': return GF_KEY_PIPE;
-		case '}': return GF_KEY_RIGHTCURLYBRACKET;
-		case 0xA1: return GF_KEY_INVERTEXCLAMATION;
-		default: return GF_KEY_UNIDENTIFIED;
+		switch ((u8) c[0]) {
+		case '@':
+			return GF_KEY_AT;
+		case '*':
+			return GF_KEY_STAR;
+		case '#':
+			return GF_KEY_NUMBER;
+		case ' ':
+			return GF_KEY_SPACE;
+		case '!':
+			return GF_KEY_EXCLAMATION;
+		case '"':
+			return GF_KEY_QUOTATION;
+		case '$':
+			return GF_KEY_DOLLAR;
+		case '&':
+			return GF_KEY_AMPERSAND;
+		case '\'':
+			return GF_KEY_APOSTROPHE;
+		case '(':
+			return GF_KEY_LEFTPARENTHESIS;
+		case ')':
+			return GF_KEY_RIGHTPARENTHESIS;
+		case '+':
+			return GF_KEY_PLUS;
+		case ',':
+			return GF_KEY_COMMA;
+		case '-':
+			return GF_KEY_HYPHEN;
+		case '.':
+			return GF_KEY_FULLSTOP;
+		case '/':
+			return GF_KEY_SLASH;
+		case ':':
+			return GF_KEY_COLON;
+		case ';':
+			return GF_KEY_SEMICOLON;
+		case '<':
+			return GF_KEY_LESSTHAN;
+		case '=':
+			return GF_KEY_EQUALS;
+		case '>':
+			return GF_KEY_GREATERTHAN;
+		case '?':
+			return GF_KEY_QUESTION;
+		case '[':
+			return GF_KEY_LEFTSQUAREBRACKET;
+		case '\\':
+			return GF_KEY_BACKSLASH;
+		case ']':
+			return GF_KEY_RIGHTSQUAREBRACKET;
+		case '^':
+			return GF_KEY_CIRCUM;
+		case '_':
+			return GF_KEY_UNDERSCORE;
+		case '`':
+			return GF_KEY_GRAVEACCENT;
+		case '{':
+			return GF_KEY_LEFTCURLYBRACKET;
+		case '|':
+			return GF_KEY_PIPE;
+		case '}':
+			return GF_KEY_RIGHTCURLYBRACKET;
+		case 0xA1:
+			return GF_KEY_INVERTEXCLAMATION;
+		default:
+			return GF_KEY_UNIDENTIFIED;
 		}
 	} else {
 		u32 i, count;
@@ -492,161 +610,13 @@ u32 gf_dom_get_key_type(char *key_name)
 }
 
 /* Basic SVG datatype parsing functions */
-static const struct predef_col { const char *name; u8 r; u8 g; u8 b; } predefined_colors[] =
-{
-	{"aliceblue",240, 248, 255},
-	{"antiquewhite",250, 235, 215},
-	{"aqua", 0, 255, 255},
-	{"aquamarine",127, 255, 212},
-	{"azure",240, 255, 255},
-	{"beige",245, 245, 220},
-	{"bisque",255, 228, 196},
-	{"black", 0, 0, 0},
-	{"blanchedalmond",255, 235, 205},
-	{"blue", 0, 0, 255},
-	{"blueviolet",138, 43, 226},
-	{"brown",165, 42, 42},
-	{"burlywood",222, 184, 135},
-	{"cadetblue", 95, 158, 160},
-	{"chartreuse",127, 255, 0},
-	{"chocolate",210, 105, 30},
-	{"coral",255, 127, 80},
-	{"lightpink",255, 182, 193},
-	{"lightsalmon",255, 160, 122},
-	{"lightseagreen", 32, 178, 170},
-	{"lightskyblue",135, 206, 250},
-	{"lightslategray",119, 136, 153},
-	{"lightslategrey",119, 136, 153},
-	{"lightsteelblue",176, 196, 222},
-	{"lightyellow",255, 255, 224},
-	{"lime", 0, 255, 0},
-	{"limegreen", 50, 205, 50},
-	{"linen",250, 240, 230},
-	{"magenta",255, 0, 255},
-	{"maroon",128, 0, 0},
-	{"mediumaquamarine",102, 205, 170},
-	{"mediumblue", 0, 0, 205},
-	{"mediumorchid",186, 85, 211},
-	{"cornflowerblue",100, 149, 237},
-	{"cornsilk",255, 248, 220},
-	{"crimson",220, 20, 60},
-	{"cyan", 0, 255, 255},
-	{"darkblue", 0, 0, 139},
-	{"darkcyan", 0, 139, 139},
-	{"darkgoldenrod",184, 134, 11},
-	{"darkgray",169, 169, 169},
-	{"darkgreen", 0, 100, 0},
-	{"darkgrey",169, 169, 169},
-	{"darkkhaki",189, 183, 107},
-	{"darkmagenta",139, 0, 139},
-	{"darkolivegreen", 85, 107, 47},
-	{"darkorange",255, 140, 0},
-	{"darkorchid",153, 50, 204},
-	{"darkred",139, 0, 0},
-	{"darksalmon",233, 150, 122},
-	{"darkseagreen",143, 188, 143},
-	{"darkslateblue", 72, 61, 139},
-	{"darkslategray", 47, 79, 79},
-	{"darkslategrey", 47, 79, 79},
-	{"darkturquoise", 0, 206, 209},
-	{"darkviolet",148, 0, 211},
-	{"deeppink",255, 20, 147},
-	{"deepskyblue", 0, 191, 255},
-	{"dimgray",105, 105, 105},
-	{"dimgrey",105, 105, 105},
-	{"dodgerblue", 30, 144, 255},
-	{"firebrick",178, 34, 34},
-	{"floralwhite",255, 250, 240},
-	{"forestgreen", 34, 139, 34},
-	{"fuchsia",255, 0, 255},
-	{"gainsboro",220, 220, 220},
-	{"ghostwhite",248, 248, 255},
-	{"gold",255, 215, 0},
-	{"goldenrod",218, 165, 32},
-	{"gray",128, 128, 128},
-	{"grey",128, 128, 128},
-	{"green", 0, 128, 0},
-	{"greenyellow",173, 255, 47},
-	{"honeydew",240, 255, 240},
-	{"hotpink",255, 105, 180},
-	{"indianred",205, 92, 92},
-	{"indigo", 75, 0, 130},
-	{"ivory",255, 255, 240},
-	{"khaki",240, 230, 140},
-	{"lavender",230, 230, 25},
-	{"lavenderblush",255, 240, 245},
-	{"mediumpurple",147, 112, 219},
-	{"mediumseagreen", 60, 179, 113},
-	{"mediumslateblue",123, 104, 238},
-	{"mediumspringgreen", 0, 250, 154},
-	{"mediumturquoise", 72, 209, 204},
-	{"mediumvioletred",199, 21, 133},
-	{"midnightblue", 25, 25, 112},
-	{"mintcream",245, 255, 250},
-	{"mistyrose",255, 228, 225},
-	{"moccasin",255, 228, 181},
-	{"navajowhite",255, 222, 173},
-	{"navy", 0, 0, 128},
-	{"oldlace",253, 245, 230},
-	{"olive",128, 128, 0},
-	{"olivedrab",107, 142, 35},
-	{"orange",255, 165, 0},
-	{"orangered",255, 69, 0},
-	{"orchid",218, 112, 214},
-	{"palegoldenrod",238, 232, 170},
-	{"palegreen",152, 251, 152},
-	{"paleturquoise",175, 238, 238},
-	{"palevioletred",219, 112, 147},
-	{"papayawhip",255, 239, 213},
-	{"peachpuff",255, 218, 185},
-	{"peru",205, 133, 63},
-	{"pink",255, 192, 203},
-	{"plum",221, 160, 221},
-	{"powderblue",176, 224, 230},
-	{"purple",128, 0, 128},
-	{"red",255, 0, 0},
-	{"rosybrown",188, 143, 143},
-	{"royalblue", 65, 105, 225},
-	{"saddlebrown",139, 69, 19},
-	{"salmon",250, 128, 114},
-	{"sandybrown",244, 164, 96},
-	{"seagreen", 46, 139, 87},
-	{"seashell",255, 245, 238},
-	{"sienna",160, 82, 45},
-	{"silver",192, 192, 192},
-	{"skyblue",135, 206, 235},
-	{"slateblue",106, 90, 205},
-	{"slategray",112, 128, 144},
-	{"slategrey",112, 128, 144},
-	{"snow",255, 250, 250},
-	{"springgreen", 0, 255, 127},
-	{"steelblue", 70, 130, 180},
-	{"tan",210, 180, 140},
-	{"teal", 0, 128, 128},
-	{"lawngreen",124, 252, 0},
-	{"lemonchiffon",255, 250, 205},
-	{"lightblue",173, 216, 230},
-	{"lightcoral",240, 128, 128},
-	{"lightcyan",224, 255, 255},
-	{"lightgoldenrodyellow",250, 250, 210},
-	{"lightgray",211, 211, 211},
-	{"lightgreen",144, 238, 144},
-	{"lightgrey",211, 211, 211},
-	{"thistle",216, 191, 216},
-	{"tomato",255, 99, 71},
-	{"turquoise", 64, 224, 208},
-	{"violet",238, 130, 238},
-	{"wheat",245, 222, 179},
-	{"white",255, 255, 255},
-	{"whitesmoke",245, 245, 245},
-	{"yellow",255, 255, 0},
-	{"yellowgreen",154, 205, 50}
-
-};
 
 
 /* Basic SVG datatype parsing functions */
-static const struct sys_col { const char *name; u8 type; } system_colors[] =
+static const struct sys_col {
+	const char *name;
+	u8 type;
+} system_colors[] =
 {
 	{"ActiveBorder", SVG_COLOR_ACTIVE_BORDER},
 	{"ActiveCaption", SVG_COLOR_ACTIVE_CAPTION},
@@ -681,17 +651,16 @@ static const struct sys_col { const char *name; u8 type; } system_colors[] =
 /* parses an color from a named color HTML or CSS 2 */
 static void svg_parse_named_color(SVG_Color *col, char *attribute_content)
 {
-	u32 i, count;
-	count = sizeof(predefined_colors) / sizeof(struct predef_col);
-	for (i=0; i<count; i++) {
-		if (!strcmp(attribute_content, predefined_colors[i].name)) {
-			col->red = INT2FIX(predefined_colors[i].r) / 255;
-			col->green = INT2FIX(predefined_colors[i].g) / 255;
-			col->blue = INT2FIX(predefined_colors[i].b) / 255;
-			col->type = SVG_COLOR_RGBCOLOR;
-			return;
-		}
+	u32 i, count, val;
+	val = gf_color_parse(attribute_content);
+	if (val) {
+		col->red = INT2FIX((val>>16) & 0xFF) / 255;
+		col->green = INT2FIX((val>>8) & 0xFF) / 255;
+		col->blue = INT2FIX(val & 0xFF) / 255;
+		col->type = SVG_COLOR_RGBCOLOR;
+		return;
 	}
+
 	count = sizeof(system_colors) / sizeof(struct sys_col);
 	for (i=0; i<count; i++) {
 		if (!strcmp(attribute_content, system_colors[i].name)) {
@@ -759,7 +728,8 @@ static void svg_parse_color(SVG_Color *col, char *attribute_content)
 		if (strstr(str, "%")) is_percentage = 1;
 		str = strstr(str, "(");
 		str++;
-		sscanf(str, "%f", &_val); col->red = FLT2FIX(_val);
+		sscanf(str, "%f", &_val);
+		col->red = FLT2FIX(_val);
 		str = strstr(str, ",");
 		if (!str) {
 			/* space separated colors/percentages are not allowed neither in SVG 1.1 nor in SVG T1.2 */
@@ -767,7 +737,8 @@ static void svg_parse_color(SVG_Color *col, char *attribute_content)
 			return;
 		}
 		str++;
-		sscanf(str, "%f", &_val); col->green = FLT2FIX(_val);
+		sscanf(str, "%f", &_val);
+		col->green = FLT2FIX(_val);
 		str = strstr(str, ",");
 		if (!str) {
 			/* space separated colors/percentages are not allowed neither in SVG 1.1 nor in SVG T1.2 */
@@ -775,7 +746,8 @@ static void svg_parse_color(SVG_Color *col, char *attribute_content)
 			return;
 		}
 		str++;
-		sscanf(str, "%f", &_val); col->blue = FLT2FIX(_val);
+		sscanf(str, "%f", &_val);
+		col->blue = FLT2FIX(_val);
 		if (is_percentage) {
 			col->red /= 100;
 			col->green /= 100;
@@ -787,7 +759,7 @@ static void svg_parse_color(SVG_Color *col, char *attribute_content)
 		}
 		col->type = SVG_COLOR_RGBCOLOR;
 	} else if ((str[0] >= 'a' && str[0] <= 'z')
-		|| (str[0] >= 'A' && str[0] <= 'Z')) {
+	           || (str[0] >= 'A' && str[0] <= 'Z')) {
 		svg_parse_named_color(col, str);
 	} else {
 		Float _r, _g, _b;
@@ -810,64 +782,64 @@ static void svg_parse_color(SVG_Color *col, char *attribute_content)
 */
 static u32 svg_parse_number(char *d, Fixed *f, Bool is_angle)
 {
-    u32 nb_digit_before = 0;
+	u32 nb_digit_before = 0;
 	u32 nb_digit_after = 0;
-    Bool has_fractional = 0;
+	Bool has_fractional = 0;
 	Bool is_negative = 0;
 	Float _val = 0;
 	u32 i = 0;
 
-    /* warning the comma and semicolumn should not be there when parsing a number in a path */
+	/* warning the comma and semicolumn should not be there when parsing a number in a path */
 	while ((d[i] != 0) && strchr(" ,;\r\n\t", d[i])) i++;
 
-    if (!d[i]) {
-        GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[SVG Parsing] Parsing number with empty string or only spaces: %s\n", d));
-        return 0;
-    }
-    if (d[i] == '+') {
-        i++;
-    } else if (d[i] == '-') {
+	if (!d[i]) {
+		GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[SVG Parsing] Parsing number with empty string or only spaces: %s\n", d));
+		return 0;
+	}
+	if (d[i] == '+') {
+		i++;
+	} else if (d[i] == '-') {
 		is_negative = 1;
 		i++;
 	}
-    /* Warning: this is not normal, should be detected somehow by checking the BNF */
+	/* Warning: this is not normal, should be detected somehow by checking the BNF */
 	/* if ((d[i]=='N') && (d[i+1]=='a') && (d[i+2]=='N')) {
 		i+= 3;
 		_val = 0;
 		goto end;
 	}*/
-    /* read the digit-sequence token of the BNF */
+	/* read the digit-sequence token of the BNF */
 	while (d[i] >= '0' && d[i] <= '9' && d[i] != 0) {
 		_val = _val*10 + (d[i]-'0');
-        nb_digit_before++;
+		nb_digit_before++;
 		i++;
 	}
 	if (d[i] == '.') {
-        has_fractional = 1;
+		has_fractional = 1;
 		i++;
 		while (d[i] >= '0' && d[i] <= '9' && d[i] != 0) {
 			_val = _val*10 + (d[i]-'0');
 			nb_digit_after++;
 			i++;
 		}
-        if (nb_digit_after) {
-            _val /= (Float)pow(10,nb_digit_after);
-        } else if (nb_digit_before == 0) {
-            GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing number (expecting digits before or after a '.': %s\n", d));
-            return 0;
-        } else {
-            /* dangling '.' without digits after. This is allowed by the BNF */
-        }
+		if (nb_digit_after) {
+			_val /= (Float)pow(10,nb_digit_after);
+		} else if (nb_digit_before == 0) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing number (expecting digits before or after a '.': %s\n", d));
+			return 0;
+		} else {
+			/* dangling '.' without digits after. This is allowed by the BNF */
+		}
 	}
-    if ((nb_digit_before == 0) && (has_fractional == 0)) {
-        GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing number (expecting digits):%s\n", d));
-        return 0;
-    }
-    /* reading the exponent */
+	if ((nb_digit_before == 0) && (has_fractional == 0)) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing number (expecting digits):%s\n", d));
+		return 0;
+	}
+	/* reading the exponent */
 	if (d[i] == 'e' || d[i] == 'E') {
 		Bool neg_exp = 0;
 		u32 nb_exp_digits = 0;
-        s32 exp = 0;
+		s32 exp = 0;
 		i++;
 		if (d[i] == '+') i++;
 		else if (d[i] == '-') {
@@ -876,17 +848,17 @@ static u32 svg_parse_number(char *d, Fixed *f, Bool is_angle)
 		}
 		while (d[i] >= '0' && d[i] <= '9' && d[i] != 0) {
 			exp = exp*10 + (d[i]-'0');
-            nb_exp_digits++;
+			nb_exp_digits++;
 			i++;
 		}
-        if (nb_exp_digits) {
-            _val *= (Float)pow(10, neg_exp ? -exp : exp);
-        } else {
-            GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing exponent, 'e' or 'E' should be followed by digits: %s\n", d));
-            return 0;
-        }
+		if (nb_exp_digits) {
+			_val *= (Float)pow(10, neg_exp ? -exp : exp);
+		} else {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing exponent, 'e' or 'E' should be followed by digits: %s\n", d));
+			return 0;
+		}
 	}
-    /* We can now produce the final number */
+	/* We can now produce the final number */
 	if (is_negative) _val *= -1;
 	if (is_angle) {
 		_val/=180;
@@ -895,7 +867,7 @@ static u32 svg_parse_number(char *d, Fixed *f, Bool is_angle)
 		(*f) = FLT2FIX(_val);
 	}
 
-    /* warning the comma and semicolumn should not be there when parsing a path number */
+	/* warning the comma and semicolumn should not be there when parsing a path number */
 	while (d[i] != 0 && (d[i] == ' ' || d[i] == ',' || d[i] == ';')) i++;
 	return i;
 }
@@ -913,7 +885,10 @@ static GF_Err svg_parse_clock_value(char *d, Double *clock_value)
 	if (!d[0]) return GF_BAD_PARAM;
 
 	if (d[0] == '+') d++;
-	else if (d[0] == '-') { sign = -1; d++; }
+	else if (d[0] == '-') {
+		sign = -1;
+		d++;
+	}
 
 	if (!d[0]) return GF_BAD_PARAM;
 
@@ -982,7 +957,7 @@ static GF_Err smil_parse_time(GF_Node *elt, SMIL_Time *v, char *d)
 	char *tmp;
 
 	/* Offset Values */
-	if ((d[0] >= '0' && d[0] <= '9') || d[0] == '+' || d[0] == '-'){
+	if ((d[0] >= '0' && d[0] <= '9') || d[0] == '+' || d[0] == '-') {
 		v->type = GF_SMIL_TIME_CLOCK;
 		return svg_parse_clock_value(d, &(v->clock));
 	}
@@ -1085,7 +1060,10 @@ static GF_Err smil_parse_time(GF_Node *elt, SMIL_Time *v, char *d)
 			char *tmp3 = tmp2;
 			tmp2[0] = 0;
 			tmp3--;
-			while (*tmp3==' ') { *tmp3=0; tmp3--; }
+			while (*tmp3==' ') {
+				*tmp3=0;
+				tmp3--;
+			}
 			if (v->event.type == 0) v->event.type = gf_dom_event_type_by_name(tmp);
 			if (!had_param && (v->event.type == GF_EVENT_REPEAT || v->event.type == GF_EVENT_REPEAT_EVENT))
 				v->event.parameter = 1;
@@ -1109,7 +1087,7 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 	GF_Matrix2D tmp;
 
 	char *str;
-    u32 read_chars;
+	u32 read_chars;
 	u32 i;
 
 	gf_mx2d_init(*mat);
@@ -1127,21 +1105,21 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				Fixed sx, sy;
 				i++;
 				read_chars = svg_parse_number(&(str[i]), &sx, 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading sx component in scale: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading sx component in scale: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 
 				if (str[i] == ')') {
 					sy = sx;
 				} else {
 					read_chars = svg_parse_number(&(str[i]), &sy, 0);
-                    if (!read_chars) {
-                        GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading sy component in scale: %s\n", attribute_content));
-                        return 0;
-                    }
-                    i += read_chars;
+					if (!read_chars) {
+						GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading sy component in scale: %s\n", attribute_content));
+						return 0;
+					}
+					i += read_chars;
 				}
 				gf_mx2d_init(tmp);
 				gf_mx2d_add_scale(&tmp, sx, sy);
@@ -1151,12 +1129,12 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				while(str[i] == ' ') i++;
 				if (str[i] == ')') i++;
 				else {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
-                    return 0;
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
+					return 0;
 				}
 			} else {
 				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in transform attribute: %s\n", attribute_content));
-                return 0;
+				return 0;
 			}
 		} else if (strstr(str+i, "translate")==str+i) {
 			i += 9;
@@ -1165,20 +1143,20 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				Fixed tx, ty;
 				i++;
 				read_chars = svg_parse_number(&(str[i]), &tx, 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading tx component in translate: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading tx component in translate: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				if (str[i] == ')') {
 					ty = 0;
 				} else {
 					read_chars = svg_parse_number(&(str[i]), &ty, 0);
-                    if (!read_chars) {
-                        GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading ty component in translate: %s\n", attribute_content));
-                        return 0;
-                    }
-                    i += read_chars;
+					if (!read_chars) {
+						GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading ty component in translate: %s\n", attribute_content));
+						return 0;
+					}
+					i += read_chars;
 				}
 				gf_mx2d_init(tmp);
 				gf_mx2d_add_translation(&tmp, tx, ty);
@@ -1187,12 +1165,12 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				while(str[i] == ' ') i++;
 				if (str[i] == ')') i++;
 				else {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
-                    return 0;
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
+					return 0;
 				}
 			} else {
 				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in transform attribute: %s\n", attribute_content));
-                return 0;
+				return 0;
 			}
 		} else if (strstr(str+i, "rotate")==str+i) {
 			i += 6;
@@ -1201,26 +1179,26 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				Fixed angle, cx, cy;
 				i++;
 				read_chars = svg_parse_number(&(str[i]), &angle, 1);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading angle component in rotate: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading angle component in rotate: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				if (str[i] == ')') {
 					cx = cy = 0;
 				} else {
 					read_chars = svg_parse_number(&(str[i]), &cx, 0);
-                    if (!read_chars) {
-                        GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading cx component in rotate: %s\n", attribute_content));
-                        return 0;
-                    }
-                    i += read_chars;
+					if (!read_chars) {
+						GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading cx component in rotate: %s\n", attribute_content));
+						return 0;
+					}
+					i += read_chars;
 					read_chars = svg_parse_number(&(str[i]), &cy, 0);
-                    if (!read_chars) {
-                        GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading cy component in rotate: %s\n", attribute_content));
-                        return 0;
-                    }
-                    i += read_chars;
+					if (!read_chars) {
+						GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading cy component in rotate: %s\n", attribute_content));
+						return 0;
+					}
+					i += read_chars;
 				}
 				gf_mx2d_init(tmp);
 				gf_mx2d_add_rotation(&tmp, cx, cy, angle);
@@ -1229,12 +1207,12 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				while(str[i] == ' ') i++;
 				if (str[i] == ')') i++;
 				else {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
-                    return 0;
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
+					return 0;
 				}
 			} else {
 				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in transform attribute: %s\n", attribute_content));
-                return 0;
+				return 0;
 			}
 		} else if (strstr(str+i, "skewX")==str+i) {
 			i += 5;
@@ -1243,11 +1221,11 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				Fixed angle;
 				i++;
 				read_chars = svg_parse_number(&(str[i]), &angle, 1);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading angle in skewX: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading angle in skewX: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				gf_mx2d_init(tmp);
 				gf_mx2d_add_skew_x(&tmp, angle);
 				gf_mx2d_add_matrix(&tmp, mat);
@@ -1255,12 +1233,12 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				while(str[i] == ' ') i++;
 				if (str[i] == ')') i++;
 				else {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
-                    return 0;
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
+					return 0;
 				}
 			} else {
 				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in transform attribute: %s\n", attribute_content));
-                return 0;
+				return 0;
 			}
 		} else if (strstr(str+i, "skewY")==str+i) {
 			i += 5;
@@ -1269,11 +1247,11 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				Fixed angle;
 				i++;
 				read_chars = svg_parse_number(&(str[i]), &angle, 1);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading angle component in skewY: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading angle component in skewY: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				gf_mx2d_init(tmp);
 				gf_mx2d_add_skew_y(&tmp, angle);
 				gf_mx2d_add_matrix(&tmp, mat);
@@ -1281,12 +1259,12 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 				while(str[i] == ' ') i++;
 				if (str[i] == ')') i++;
 				else {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
-                    return 0;
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
+					return 0;
 				}
 			} else {
 				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in transform attribute: %s\n", attribute_content));
-                return 0;
+				return 0;
 			}
 		} else if (strstr(str+i, "matrix")==str+i) {
 			i+=6;
@@ -1294,61 +1272,61 @@ Bool gf_svg_parse_transformlist(GF_Matrix2D *mat, char *attribute_content)
 			if (str[i] == '(') {
 				i++;
 				read_chars = svg_parse_number(&(str[i]), &(tmp.m[0]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient a in matrix: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient a in matrix: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				read_chars = svg_parse_number(&(str[i]), &(tmp.m[3]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient b in matrix: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient b in matrix: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				read_chars = svg_parse_number(&(str[i]), &(tmp.m[1]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient c in matrix: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient c in matrix: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				read_chars = svg_parse_number(&(str[i]), &(tmp.m[4]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient d in matrix: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient d in matrix: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				read_chars = svg_parse_number(&(str[i]), &(tmp.m[2]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient e in matrix: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient e in matrix: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				read_chars = svg_parse_number(&(str[i]), &(tmp.m[5]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient f in matrix: %s\n", attribute_content));
-                    return 0;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient f in matrix: %s\n", attribute_content));
+					return 0;
+				}
+				i += read_chars;
 				gf_mx2d_add_matrix(&tmp, mat);
 				gf_mx2d_copy(*mat, tmp);
 				while(str[i] == ' ') i++;
 				if (str[i] == ')') i++;
 				else {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
-                    return 0;
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
+					return 0;
 				}
 			} else {
 				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in transform attribute: %s\n", attribute_content));
-                return 0;
+				return 0;
 			}
 		} else {
 			GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Unrecognized transofrm type in attribute %s\n", attribute_content));
-            return 0;
+			return 0;
 		}
 		/*for svgView parsing*/
 		if (str[i] == ')') i++;
 	}
-    return 1;
+	return 1;
 }
 
 /* Parses an SVG transform attribute and collapses all in the given matrix */
@@ -1356,8 +1334,7 @@ static GF_Err svg_parse_transform(SVG_Transform *t, char *attribute_content)
 {
 	char *str;
 	u32 i;
-    u32 read_chars;
-	str = attribute_content;
+	u32 read_chars;
 	i = 0;
 
 	if ((str = strstr(attribute_content, "ref"))) {
@@ -1371,43 +1348,43 @@ static GF_Err svg_parse_transform(SVG_Transform *t, char *attribute_content)
 			if (str[i] == 's' && str[i+1] == 'v' && str[i+2] == 'g') {
 				i+=3;
 				while (str[i] == ' ') i++;
-                if (str[i] == ',') {
-                    i++;
-                } else if (str[i] == ')') {
+				if (str[i] == ',') {
+					i++;
+				} else if (str[i] == ')') {
 					i++;
 					return GF_OK;
 				}
 				read_chars = svg_parse_number(&(str[i]), &(t->mat.m[2]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient tx in ref transform: %s\n", attribute_content));
-                    return GF_BAD_PARAM;
-                }
-                i += read_chars;
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient tx in ref transform: %s\n", attribute_content));
+					return GF_BAD_PARAM;
+				}
+				i += read_chars;
 				read_chars = svg_parse_number(&(str[i]), &(t->mat.m[5]), 0);
-                if (!read_chars) {
-                    GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient ty in ref transform: %s\n", attribute_content));
-                    return GF_BAD_PARAM;
-                }
-                i += read_chars;
-            } else {
+				if (!read_chars) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error reading coefficient ty in ref transform: %s\n", attribute_content));
+					return GF_BAD_PARAM;
+				}
+				i += read_chars;
+			} else {
 				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Unsupported syntax for ref transform attribute"));
-            }
+			}
 			while (str[i] == ' ') i++;
 			if (str[i] == ')') i++;
 			else {
-                GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
+				GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing closing parenthesis in transform attribute: %s\n", attribute_content));
 			}
 			return GF_OK;
 		} else {
-            GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in ref transform attribute: %s\n", attribute_content));
+			GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Missing opening parenthesis in ref transform attribute: %s\n", attribute_content));
 			return GF_BAD_PARAM;
 		}
 	} else {
 		Bool res = gf_svg_parse_transformlist(&t->mat, attribute_content);
-	        if (!res) {
-	            GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error parsing transform list: %s\n", attribute_content));
-	            return GF_BAD_PARAM;
-	        }
+		if (!res) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error parsing transform list: %s\n", attribute_content));
+			return GF_BAD_PARAM;
+		}
 	}
 	return GF_OK;
 }
@@ -1422,10 +1399,10 @@ static void svg_parse_path(SVG_PathData *path, char *attribute_content)
 {
 	char *d = attribute_content;
 
-    /* used to detect end of BNF production:
-    "The processing of the BNF must consume as much of a given BNF production as possible,
-    stopping at the point when a character is encountered which no longer satisfies the production." */
-    u32 read_chars = 0;
+	/* used to detect end of BNF production:
+	"The processing of the BNF must consume as much of a given BNF production as possible,
+	stopping at the point when a character is encountered which no longer satisfies the production." */
+	u32 read_chars = 0;
 
 	/* Point used to start a new subpath when the previous subpath is closed */
 	SVG_Point prev_m_pt;
@@ -1454,11 +1431,11 @@ next_command:
 		case 'M':
 			i++;
 			read_chars = svg_parse_number(&(d[i]), &(orig.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(orig.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'm') {
 				orig.x += rel_ref_pt.x;
 				orig.y += rel_ref_pt.y;
@@ -1479,11 +1456,11 @@ next_command:
 		case 'l':
 			i++;
 			read_chars = svg_parse_number(&(d[i]), &(orig.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(orig.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'l') {
 				orig.x += rel_ref_pt.x;
 				orig.y += rel_ref_pt.y;
@@ -1501,8 +1478,8 @@ next_command:
 		case 'h':
 			i++;
 			read_chars = svg_parse_number(&(d[i]), &(orig.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'h') {
 				orig.x += rel_ref_pt.x;
 			}
@@ -1520,8 +1497,8 @@ next_command:
 		case 'v':
 			i++;
 			read_chars = svg_parse_number(&(d[i]), &(orig.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'v') {
 				orig.y += rel_ref_pt.y;
 			}
@@ -1539,31 +1516,31 @@ next_command:
 		case 'c':
 			i++;
 			read_chars = svg_parse_number(&(d[i]), &(ct_orig.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(ct_orig.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'c') {
 				ct_orig.x += rel_ref_pt.x;
 				ct_orig.y += rel_ref_pt.y;
 			}
 			read_chars = svg_parse_number(&(d[i]), &(ct_end.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(ct_end.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'c') {
 				ct_end.x += rel_ref_pt.x;
 				ct_end.y += rel_ref_pt.y;
 			}
 			read_chars = svg_parse_number(&(d[i]), &(end.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(end.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'c') {
 				end.x += rel_ref_pt.x;
 				end.y += rel_ref_pt.y;
@@ -1582,21 +1559,21 @@ next_command:
 			ct_orig.x = 2*orig.x - ct_orig.x;
 			ct_orig.y = 2*orig.y - ct_orig.y;
 			read_chars = svg_parse_number(&(d[i]), &(ct_end.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(ct_end.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 's') {
 				ct_end.x += rel_ref_pt.x;
 				ct_end.y += rel_ref_pt.y;
 			}
 			read_chars = svg_parse_number(&(d[i]), &(end.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(end.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 's') {
 				end.x += rel_ref_pt.x;
 				end.y += rel_ref_pt.y;
@@ -1613,21 +1590,21 @@ next_command:
 		case 'q':
 			i++;
 			read_chars = svg_parse_number(&(d[i]), &(ct_orig.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(ct_orig.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'q') {
 				ct_orig.x += rel_ref_pt.x;
 				ct_orig.y += rel_ref_pt.y;
 			}
 			read_chars = svg_parse_number(&(d[i]), &(end.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(end.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'q') {
 				end.x += rel_ref_pt.x;
 				end.y += rel_ref_pt.y;
@@ -1645,11 +1622,11 @@ next_command:
 			ct_orig.x = 2*orig.x - ct_orig.x;
 			ct_orig.y = 2*orig.y - ct_orig.y;
 			read_chars = svg_parse_number(&(d[i]), &(end.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(end.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 't') {
 				end.x += rel_ref_pt.x;
 				end.y += rel_ref_pt.y;
@@ -1666,28 +1643,28 @@ next_command:
 			i++;
 
 			read_chars = svg_parse_number(&(d[i]), &(orig.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(orig.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 
 			read_chars = svg_parse_number(&(d[i]), &(x_axis_rotation), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(large_arc_flag), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(sweep_flag), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 
 			read_chars = svg_parse_number(&(d[i]), &(end.x), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			read_chars = svg_parse_number(&(d[i]), &(end.y), 0);
-            if (!read_chars) return;
-            i += read_chars;
+			if (!read_chars) return;
+			i += read_chars;
 			if (c == 'a') {
 				end.x += rel_ref_pt.x;
 				end.y += rel_ref_pt.y;
@@ -1928,39 +1905,39 @@ next_command:
 				break;
 			case 'A':
 			case 'a':
-				{
-					Fixed tmp;
-					i++;
+			{
+				Fixed tmp;
+				i++;
 #ifndef REMOVE_ALLOC
-					GF_SAFEALLOC(command, u8)
-					gf_list_add(d_commands, command);
-					*command = SVG_PATHCOMMAND_A;
+				GF_SAFEALLOC(command, u8)
+				gf_list_add(d_commands, command);
+				*command = SVG_PATHCOMMAND_A;
 
-					GF_SAFEALLOC(pt, SVG_Point)
-					gf_list_add(d_points, pt);
+				GF_SAFEALLOC(pt, SVG_Point)
+				gf_list_add(d_points, pt);
 #endif
-					i += svg_parse_number(&(d[i]), &(pt->x), 0);
-					i += svg_parse_number(&(d[i]), &(pt->y), 0);
+				i += svg_parse_number(&(d[i]), &(pt->x), 0);
+				i += svg_parse_number(&(d[i]), &(pt->y), 0);
 
-					i += svg_parse_number(&(d[i]), &(tmp), 0);
-					i += svg_parse_number(&(d[i]), &(tmp), 0);
-					i += svg_parse_number(&(d[i]), &(tmp), 0);
+				i += svg_parse_number(&(d[i]), &(tmp), 0);
+				i += svg_parse_number(&(d[i]), &(tmp), 0);
+				i += svg_parse_number(&(d[i]), &(tmp), 0);
 
 #ifndef REMOVE_ALLOC
-					GF_SAFEALLOC(pt, SVG_Point)
-					gf_list_add(d_points, pt);
+				GF_SAFEALLOC(pt, SVG_Point)
+				gf_list_add(d_points, pt);
 #endif
-					i += svg_parse_number(&(d[i]), &(pt->x), 0);
-					i += svg_parse_number(&(d[i]), &(pt->y), 0);
-					if (c == 'a') {
-						pt->x += cur_pt.x;
-						pt->y += cur_pt.y;
-					}
-					cur_pt.x = pt->x;
-					cur_pt.y = pt->y;
+				i += svg_parse_number(&(d[i]), &(pt->x), 0);
+				i += svg_parse_number(&(d[i]), &(pt->y), 0);
+				if (c == 'a') {
+					pt->x += cur_pt.x;
+					pt->y += cur_pt.y;
 				}
-				prev_c = c;
-				break;
+				cur_pt.x = pt->x;
+				cur_pt.y = pt->y;
+			}
+			prev_c = c;
+			break;
 			case 'Z':
 			case 'z':
 				i++;
@@ -2046,12 +2023,13 @@ static void svg_parse_paint(GF_Node *n, SVG_Paint *paint, char *attribute_conten
 /* Parses a length which is a number with a unit */
 static u32 svg_parse_length(SVG_Number *number, char *value_string, Bool clamp0to1)
 {
-    char c = '\0';
-    char *unit = NULL;
-    u32 len = 0;
-    u32 unit_pos = 0;
-    u32 unit_len = 0;
-    u32 read_chars;
+	char c = '\0';
+	char *unit = NULL;
+	u32 len = 0;
+	u32 unit_pos = 0;
+	u32 unit_len = 0;
+	u32 read_chars;
+	if (!number || !value_string) return 0;
 
 	if (!strcmp(value_string, "inherit")) {
 		number->type = SVG_NUMBER_INHERIT;
@@ -2064,7 +2042,7 @@ static u32 svg_parse_length(SVG_Number *number, char *value_string, Bool clamp0t
 		return 12;
 	} else if ((unit = strstr(value_string, "%")) ) {
 		number->type = SVG_NUMBER_PERCENTAGE;
-        unit_len = 1;
+		unit_len = 1;
 	} else if ((unit = strstr(value_string, "em"))) {
 		number->type = SVG_NUMBER_EMS;
 	} else if ((unit = strstr(value_string, "ex"))) {
@@ -2084,23 +2062,23 @@ static u32 svg_parse_length(SVG_Number *number, char *value_string, Bool clamp0t
 	} else {
 		number->type = SVG_NUMBER_VALUE;
 	}
-    if (unit) {
-        if (!unit_len) unit_len = 2;
-        unit_pos = (u32) (unit - value_string);
-        /* setting the first unit character to 0 for the svg_parse_number method to finish */
-        c = value_string[unit_pos];
-        value_string[unit_pos] = 0;
-    }
+	if (unit) {
+		if (!unit_len) unit_len = 2;
+		unit_pos = (u32) (unit - value_string);
+		/* setting the first unit character to 0 for the svg_parse_number method to finish */
+		c = value_string[unit_pos];
+		value_string[unit_pos] = 0;
+	}
 	read_chars = svg_parse_number(value_string, &(number->value), 0);
-    if (unit) {
-        value_string[unit_pos] = c;
-    }
-    if (!read_chars) {
-        GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing: %s\n", value_string));
-        len = 0;
-    } else {
-        len = unit_len + read_chars;
-    }
+	if (unit) {
+		value_string[unit_pos] = c;
+	}
+	if (!read_chars) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Error in parsing: %s\n", value_string));
+		len = 0;
+	} else {
+		len = unit_len + read_chars;
+	}
 
 	if (clamp0to1) number->value = MAX(0, MIN(1, number->value));
 	return len;
@@ -2460,7 +2438,7 @@ static void smil_parse_time_list(GF_Node *e, GF_List *values, char *begin_or_end
 		value_string[len] = 0;
 
 		GF_SAFEALLOC(value, SMIL_Time)
- 		gf_list_add(values, value);
+		gf_list_add(values, value);
 
 		if (smil_parse_time(e, value, value_string) != GF_OK) goto err;
 
@@ -2528,6 +2506,11 @@ err:
 	}
 
 	GF_SAFEALLOC(value, SMIL_Time)
+	if (!value) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Fail to allocate SMIL time\n"));
+		return;
+	}
+
 	gf_list_add(values, value);
 
 	switch (e->sgprivate->tag) {
@@ -2663,7 +2646,7 @@ static void smil_parse_syncToleranceOrDefault(SMIL_SyncTolerance *value, char *v
 
 static void svg_parse_viewbox(SVG_ViewBox *value, char *value_string)
 {
-    u32 read_chars;
+	u32 read_chars;
 	char *str = value_string;
 	if (!strcmp(str, "none")) {
 		value->is_set = 0;
@@ -2671,17 +2654,17 @@ static void svg_parse_viewbox(SVG_ViewBox *value, char *value_string)
 		u32 i = 0;
 		value->is_set = 1;
 		read_chars = svg_parse_number(&(str[i]), &(value->x), 0);
-        if (!read_chars) return;
-        i += read_chars;
+		if (!read_chars) return;
+		i += read_chars;
 		read_chars = svg_parse_number(&(str[i]), &(value->y), 0);
-        if (!read_chars) return;
-        i += read_chars;
+		if (!read_chars) return;
+		i += read_chars;
 		read_chars = svg_parse_number(&(str[i]), &(value->width), 0);
-        if (!read_chars) return;
-        i += read_chars;
+		if (!read_chars) return;
+		i += read_chars;
 		read_chars = svg_parse_number(&(str[i]), &(value->height), 0);
-        if (!read_chars) return;
-        i += read_chars;
+		if (!read_chars) return;
+//		i += read_chars;
 	}
 }
 
@@ -2716,7 +2699,7 @@ u32 svg_parse_point(SVG_Point *p, char *value_string)
 {
 	u32 i = 0, j = 0;
 	i = svg_parse_number(&(value_string[i]), &(p->x), 0);
-    /* TODO: handle cases where a point has an invalid syntax */
+	/* TODO: handle cases where a point has an invalid syntax */
 	j = svg_parse_number(&(value_string[i]), &(p->y), 0);
 	/* we need to detect an odd number of coordinates in polygon points list
 	   cf. http://www.w3.org/TR/SVGMobile12/shapes.html#PolygonElement
@@ -2730,9 +2713,9 @@ static u32 svg_parse_point_into_matrix(GF_Matrix2D *p, char *value_string)
 	u32 i = 0, j = 0;
 	gf_mx2d_init(*p);
 	i = svg_parse_number(&(value_string[i]), &(p->m[2]), 0);
-    if (i == 0) return 0;
+	if (i == 0) return 0;
 	j = svg_parse_number(&(value_string[i]), &(p->m[5]), 0);
-    if (j == 0) return 0;
+	if (j == 0) return 0;
 	return i+j;
 }
 
@@ -2765,7 +2748,7 @@ static void svg_parse_points(GF_List *values, char *value_string)
 /* Parses a list of numbers */
 static void svg_parse_numbers(GF_List *values, char *value_string, Bool is_angle)
 {
-    u32 read_chars;
+	u32 read_chars;
 	u32 i = 0;
 	char *str = value_string;
 	u32 len = (u32) strlen(str);
@@ -2777,7 +2760,7 @@ static void svg_parse_numbers(GF_List *values, char *value_string, Bool is_angle
 			gf_free(f);
 			return;
 		}
-        i += read_chars;
+		i += read_chars;
 		gf_list_add(values, f);
 	}
 }
@@ -2830,7 +2813,7 @@ static void svg_parse_strings(GF_List *values, char *value_string, u32 string_ty
 
 static void svg_parse_strokedasharray(SVG_StrokeDashArray *value, char *value_string)
 {
-    u32 read_chars;
+	u32 read_chars;
 	if (!strcmp(value_string, "none")) {
 		value->type = SVG_STROKEDASHARRAY_NONE;
 	} else if (!strcmp(value_string, "inherit")) {
@@ -2845,11 +2828,11 @@ static void svg_parse_strokedasharray(SVG_StrokeDashArray *value, char *value_st
 			SVG_Length *f;
 			GF_SAFEALLOC(f, SVG_Length)
 			read_chars = svg_parse_length(f, &(str[i]), 0);
-            if (!read_chars) {
-                gf_free(f);
-                return;
-            }
-            i += read_chars;
+			if (!read_chars) {
+				gf_free(f);
+				return;
+			}
+			i += read_chars;
 			gf_list_add(values, f);
 		}
 		vals->count = gf_list_count(values);
@@ -2858,7 +2841,7 @@ static void svg_parse_strokedasharray(SVG_StrokeDashArray *value, char *value_st
 		for (i = 0; i < vals->count; i++) {
 			SVG_Length *f = (SVG_Length *)gf_list_get(values, i);
 			vals->vals[i] = f->value;
-            vals->units[i] = f->type;
+			vals->units[i] = f->type;
 			gf_free(f);
 		}
 		gf_list_del(values);
@@ -3073,7 +3056,7 @@ GF_Err laser_parse_size(LASeR_Size *size, char *attribute_content)
 	char *str = attribute_content;
 	u32 i = 0;
 	i+=svg_parse_number(&(str[i]), &(size->width), 0);
-	i+=svg_parse_number(&(str[i]), &(size->height), 0);
+	/*i+=*/ svg_parse_number(&(str[i]), &(size->height), 0);
 	return GF_OK;
 }
 
@@ -3089,10 +3072,10 @@ GF_Err gf_svg_parse_element_id(GF_Node *n, const char *nodename, Bool warning_if
 GF_EXPORT
 GF_Err gf_svg_parse_attribute(GF_Node *n, GF_FieldInfo *info, char *attribute_content, u8 anim_value_type)
 {
-    /* for all attributes, except strings, apply some sort of white space normalization*/
+	/* for all attributes, except strings, apply some sort of white space normalization*/
 	if (info->fieldType != DOM_String_datatype && strlen(attribute_content)) {
 		u32 i, len;
-		/*remove spaces at the begining*/
+		/*remove spaces at the beginning*/
 		while (attribute_content[0] && (strchr("\r\n\t ", attribute_content[0])))
 			attribute_content++;
 
@@ -3114,15 +3097,15 @@ GF_Err gf_svg_parse_attribute(GF_Node *n, GF_FieldInfo *info, char *attribute_co
 	switch (info->fieldType) {
 	case SVG_Boolean_datatype:
 		svg_parse_boolean((SVG_Boolean *)info->far_ptr, attribute_content);
-	    break;
+		break;
 	case SVG_Color_datatype:
 		svg_parse_color((SVG_Color *)info->far_ptr, attribute_content);
-	    break;
+		break;
 	case SVG_Paint_datatype:
 		svg_parse_paint(n, (SVG_Paint *)info->far_ptr, attribute_content);
 		break;
 
-/* beginning of keyword type parsing */
+	/* beginning of keyword type parsing */
 	case SVG_FillRule_datatype:
 		svg_parse_clipfillrule((SVG_FillRule *)info->far_ptr, attribute_content);
 		break;
@@ -3245,14 +3228,14 @@ GF_Err gf_svg_parse_attribute(GF_Node *n, GF_FieldInfo *info, char *attribute_co
 		else *(u8*)info->far_ptr = SVG_FILTER_TRANSFER_IDENTITY;
 		break;
 
-/* end of keyword type parsing */
+	/* end of keyword type parsing */
 
 	/* keyword | numbers (with possibly units) */
 	case SVG_Length_datatype:
 	case SVG_Coordinate_datatype:
 	case SVG_FontSize_datatype:
 	case SVG_Rotate_datatype:
-    case SVG_Number_datatype:
+	case SVG_Number_datatype:
 		svg_parse_length((SVG_Number*)info->far_ptr, attribute_content, 0);
 		break;
 
@@ -3312,49 +3295,49 @@ GF_Err gf_svg_parse_attribute(GF_Node *n, GF_FieldInfo *info, char *attribute_co
 		svg_parse_transform((SVG_Transform*)info->far_ptr, attribute_content);
 		break;
 	case SVG_Transform_Translate_datatype:
-		{
-			u32 i = 0;
-			SVG_Point *p = (SVG_Point *)info->far_ptr;;
-			i+=svg_parse_number(&(attribute_content[i]), &(p->x), 0);
-			if (attribute_content[i] == 0) {
-				p->y = 0;
-			} else {
-				i+=svg_parse_number(&(attribute_content[i]), &(p->y), 0);
-			}
+	{
+		u32 i = 0;
+		SVG_Point *p = (SVG_Point *)info->far_ptr;;
+		i+=svg_parse_number(&(attribute_content[i]), &(p->x), 0);
+		if (attribute_content[i] == 0) {
+			p->y = 0;
+		} else {
+			/*i+=*/svg_parse_number(&(attribute_content[i]), &(p->y), 0);
 		}
-		break;
+	}
+	break;
 	case SVG_Transform_Scale_datatype:
-		{
-			u32 i = 0;
-			SVG_Point *p = (SVG_Point *)info->far_ptr;;
-			i+=svg_parse_number(&(attribute_content[i]), &(p->x), 0);
-			if (attribute_content[i] == 0) {
-				p->y = p->x;
-			} else {
-				i+=svg_parse_number(&(attribute_content[i]), &(p->y), 0);
-			}
+	{
+		u32 i = 0;
+		SVG_Point *p = (SVG_Point *)info->far_ptr;;
+		i+=svg_parse_number(&(attribute_content[i]), &(p->x), 0);
+		if (attribute_content[i] == 0) {
+			p->y = p->x;
+		} else {
+			/*i+=*/svg_parse_number(&(attribute_content[i]), &(p->y), 0);
 		}
-		break;
+	}
+	break;
 	case SVG_Transform_SkewX_datatype:
 	case SVG_Transform_SkewY_datatype:
-		{
-			Fixed *p = (Fixed *)info->far_ptr;
-			svg_parse_number(attribute_content, p, 1);
-		}
-		break;
+	{
+		Fixed *p = (Fixed *)info->far_ptr;
+		svg_parse_number(attribute_content, p, 1);
+	}
+	break;
 	case SVG_Transform_Rotate_datatype:
-		{
-			u32 i = 0;
-			SVG_Point_Angle *p = (SVG_Point_Angle *)info->far_ptr;;
-			i+=svg_parse_number(&(attribute_content[i]), &(p->angle), 1);
-			if (attribute_content[i] == 0) {
-				p->y = p->x = 0;
-			} else {
-				i+=svg_parse_number(&(attribute_content[i]), &(p->x), 0);
-				i+=svg_parse_number(&(attribute_content[i]), &(p->y), 0);
-			}
+	{
+		u32 i = 0;
+		SVG_Point_Angle *p = (SVG_Point_Angle *)info->far_ptr;;
+		i+=svg_parse_number(&(attribute_content[i]), &(p->angle), 1);
+		if (attribute_content[i] == 0) {
+			p->y = p->x = 0;
+		} else {
+			i+=svg_parse_number(&(attribute_content[i]), &(p->x), 0);
+			/*i+=*/svg_parse_number(&(attribute_content[i]), &(p->y), 0);
 		}
-		break;
+	}
+	break;
 	case SVG_PreserveAspectRatio_datatype:
 		svg_parse_preserveaspectratio((SVG_PreserveAspectRatio*)info->far_ptr, attribute_content);
 		break;
@@ -3401,7 +3384,7 @@ GF_Err gf_svg_parse_attribute(GF_Node *n, GF_FieldInfo *info, char *attribute_co
 			xml_ev->type = gf_dom_event_type_by_name(attribute_content);
 		}
 	}
-		break;
+	break;
 
 	case SVG_Focus_datatype:
 		svg_parse_focus(n, (SVG_Focus*)info->far_ptr, attribute_content);
@@ -3478,26 +3461,26 @@ void *gf_svg_create_attribute_value(u32 attribute_type)
 {
 	switch (attribute_type) {
 	case SVG_Boolean_datatype:
-		{
-			SVG_Boolean *b;
-			GF_SAFEALLOC(b, SVG_Boolean)
-			return b;
-		}
-		break;
+	{
+		SVG_Boolean *b;
+		GF_SAFEALLOC(b, SVG_Boolean)
+		return b;
+	}
+	break;
 	case SVG_Color_datatype:
-		{
-			SVG_Color *color;
-			GF_SAFEALLOC(color, SVG_Color)
-			return color;
-		}
-		break;
+	{
+		SVG_Color *color;
+		GF_SAFEALLOC(color, SVG_Color)
+		return color;
+	}
+	break;
 	case SVG_Paint_datatype:
-		{
-			SVG_Paint *paint;
-			GF_SAFEALLOC(paint, SVG_Paint)
-			return paint;
-		}
-		break;
+	{
+		SVG_Paint *paint;
+		GF_SAFEALLOC(paint, SVG_Paint)
+		return paint;
+	}
+	break;
 
 	/* keyword types */
 	case SVG_FillRule_datatype:
@@ -3538,19 +3521,19 @@ void *gf_svg_create_attribute_value(u32 attribute_type)
 	case SVG_SpreadMethod_datatype:
 	case SVG_Focusable_datatype:
 	case SVG_Filter_TransferType_datatype:
-		{
-			u8 *keyword;
-			GF_SAFEALLOC(keyword, u8)
-			return keyword;
-		}
-		break;
+	{
+		u8 *keyword;
+		GF_SAFEALLOC(keyword, u8)
+		return keyword;
+	}
+	break;
 	case SMIL_SyncTolerance_datatype:
-		{
-			SMIL_SyncTolerance *st;
-			GF_SAFEALLOC(st, SMIL_SyncTolerance)
-			return st;
-		}
-		break;
+	{
+		SMIL_SyncTolerance *st;
+		GF_SAFEALLOC(st, SMIL_SyncTolerance)
+		return st;
+	}
+	break;
 
 	/* inheritable floats */
 	case SVG_FontSize_datatype:
@@ -3558,97 +3541,97 @@ void *gf_svg_create_attribute_value(u32 attribute_type)
 	case SVG_Coordinate_datatype:
 	case SVG_Rotate_datatype:
 	case SVG_Number_datatype:
-		{
-			SVG_Number *number;
-			GF_SAFEALLOC(number, SVG_Number)
-			return number;
-		}
-		break;
+	{
+		SVG_Number *number;
+		GF_SAFEALLOC(number, SVG_Number)
+		return number;
+	}
+	break;
 
 	case SVG_StrokeDashArray_datatype:
-		{
-			SVG_StrokeDashArray *array;
-			GF_SAFEALLOC(array, SVG_StrokeDashArray)
-			return array;
-		}
-		break;
+	{
+		SVG_StrokeDashArray *array;
+		GF_SAFEALLOC(array, SVG_StrokeDashArray)
+		return array;
+	}
+	break;
 
 	case SVG_Motion_datatype:
-		{
-			GF_Matrix2D *p;
-			GF_SAFEALLOC(p, GF_Matrix2D)
-			gf_mx2d_init(*p);
-			return p;
-		}
-		break;
+	{
+		GF_Matrix2D *p;
+		GF_SAFEALLOC(p, GF_Matrix2D)
+		gf_mx2d_init(*p);
+		return p;
+	}
+	break;
 
 	case SVG_Transform_datatype:
-		{
-			SVG_Transform *p;
-			GF_SAFEALLOC(p, SVG_Transform)
-			gf_mx2d_init(p->mat);
-			return p;
-		}
-		break;
+	{
+		SVG_Transform *p;
+		GF_SAFEALLOC(p, SVG_Transform)
+		gf_mx2d_init(p->mat);
+		return p;
+	}
+	break;
 
 	case SVG_Transform_Translate_datatype:
 	case SVG_Transform_Scale_datatype:
-		{
-			SVG_Point *p;
-			GF_SAFEALLOC(p, SVG_Point)
-			return p;
-		}
-		break;
+	{
+		SVG_Point *p;
+		GF_SAFEALLOC(p, SVG_Point)
+		return p;
+	}
+	break;
 
 	case SVG_Transform_SkewX_datatype:
 	case SVG_Transform_SkewY_datatype:
-		{
-			Fixed *p;
-			GF_SAFEALLOC(p, Fixed)
-			return p;
-		}
-		break;
+	{
+		Fixed *p;
+		GF_SAFEALLOC(p, Fixed)
+		return p;
+	}
+	break;
 
 	case SVG_Transform_Rotate_datatype:
-		{
-			SVG_Point_Angle *p;
-			GF_SAFEALLOC(p, SVG_Point_Angle)
-			return p;
-		}
-		break;
+	{
+		SVG_Point_Angle *p;
+		GF_SAFEALLOC(p, SVG_Point_Angle)
+		return p;
+	}
+	break;
 
 	case SVG_ViewBox_datatype:
-		{
-			SVG_ViewBox *viewbox;
-			GF_SAFEALLOC(viewbox, SVG_ViewBox)
-			return viewbox;
-		}
-		break;
+	{
+		SVG_ViewBox *viewbox;
+		GF_SAFEALLOC(viewbox, SVG_ViewBox)
+		return viewbox;
+	}
+	break;
 	case XMLRI_datatype:
 	case XML_IDREF_datatype:
-		{
-			XMLRI *iri;
-			GF_SAFEALLOC(iri, XMLRI)
-			return iri;
-		}
-		break;
+	{
+		XMLRI *iri;
+		GF_SAFEALLOC(iri, XMLRI)
+		return iri;
+	}
+	break;
 	case SVG_FontFamily_datatype:
-		{
-			SVG_FontFamily *fontfamily;
-			GF_SAFEALLOC(fontfamily, SVG_FontFamily)
-			return fontfamily;
-		}
-		break;
+	{
+		SVG_FontFamily *fontfamily;
+		GF_SAFEALLOC(fontfamily, SVG_FontFamily)
+		return fontfamily;
+	}
+	break;
 	case DOM_String_datatype:
 	case SVG_ContentType_datatype:
 	case SVG_LanguageID_datatype:
 	case SVG_ID_datatype:
-		{
-			SVG_String *string;
-			GF_SAFEALLOC(string, SVG_String)
-			return string;
-		}
-		break;
+	{
+		SVG_String *string;
+		GF_SAFEALLOC(string, SVG_String)
+		return string;
+	}
+	break;
 	case DOM_StringList_datatype:
 	case XMLRI_List_datatype:
 	case SVG_Points_datatype:
@@ -3658,109 +3641,111 @@ void *gf_svg_create_attribute_value(u32 attribute_type)
 	case SMIL_KeyTimes_datatype:
 	case SMIL_KeyPoints_datatype:
 	case SVG_Numbers_datatype:
-		{
-			ListOfXXX *list;
-			GF_SAFEALLOC(list, ListOfXXX)
-			*list = gf_list_new();
-			return list;
-		}
-		break;
+	{
+		ListOfXXX *list;
+		GF_SAFEALLOC(list, ListOfXXX)
+		if (list) *list = gf_list_new();
+		return list;
+	}
+	break;
 	case SVG_PreserveAspectRatio_datatype:
-		{
-			SVG_PreserveAspectRatio *par;
-			GF_SAFEALLOC(par, SVG_PreserveAspectRatio)
-			return par;
-		}
-		break;
+	{
+		SVG_PreserveAspectRatio *par;
+		GF_SAFEALLOC(par, SVG_PreserveAspectRatio)
+		return par;
+	}
+	break;
 	case SVG_PathData_datatype:
-		{
-			SVG_PathData *path;
-			GF_SAFEALLOC(path, SVG_PathData);
+	{
+		SVG_PathData *path;
+		GF_SAFEALLOC(path, SVG_PathData);
+		if (!path) return NULL;
 #if USE_GF_PATH
-			gf_path_reset(path);
-			path->fineness = FIX_ONE;
+		gf_path_reset(path);
+		path->fineness = FIX_ONE;
 #else
-			path->commands = gf_list_new();
-			path->points = gf_list_new();
+		path->commands = gf_list_new();
+		path->points = gf_list_new();
 #endif
-			return path;
-		}
-		break;
+		return path;
+	}
+	break;
 	case LASeR_Choice_datatype:
-		{
-			LASeR_Choice *ch;
-			GF_SAFEALLOC(ch, LASeR_Choice)
-			return ch;
-		}
+	{
+		LASeR_Choice *ch;
+		GF_SAFEALLOC(ch, LASeR_Choice)
+		return ch;
+	}
 	case SVG_Focus_datatype:
-		{
-			SVG_Focus *foc;
-			GF_SAFEALLOC(foc, SVG_Focus)
-			return foc;
-		}
+	{
+		SVG_Focus *foc;
+		GF_SAFEALLOC(foc, SVG_Focus)
+		return foc;
+	}
 	case SMIL_AttributeName_datatype:
-		{
-			SMIL_AttributeName *an;
-			GF_SAFEALLOC(an, SMIL_AttributeName)
-			return an;
-		}
+	{
+		SMIL_AttributeName *an;
+		GF_SAFEALLOC(an, SMIL_AttributeName)
+		return an;
+	}
 	case SMIL_RepeatCount_datatype:
-		{
-			SMIL_RepeatCount *rc;
-			GF_SAFEALLOC(rc, SMIL_RepeatCount)
-			return rc;
-		}
+	{
+		SMIL_RepeatCount *rc;
+		GF_SAFEALLOC(rc, SMIL_RepeatCount)
+		return rc;
+	}
 	case SMIL_Duration_datatype:
-		{
-			SMIL_Duration *sd;
-			GF_SAFEALLOC(sd, SMIL_Duration)
-			return sd;
-		}
+	{
+		SMIL_Duration *sd;
+		GF_SAFEALLOC(sd, SMIL_Duration)
+		return sd;
+	}
 	case SMIL_AnimateValue_datatype:
-		{
-			SMIL_AnimateValue *av;
-			GF_SAFEALLOC(av, SMIL_AnimateValue)
-			return av;
-		}
-		break;
+	{
+		SMIL_AnimateValue *av;
+		GF_SAFEALLOC(av, SMIL_AnimateValue)
+		return av;
+	}
+	break;
 	case SMIL_AnimateValues_datatype:
-		{
-			SMIL_AnimateValues *av;
-			GF_SAFEALLOC(av, SMIL_AnimateValues)
-			av->values = gf_list_new();
-			return av;
-		}
-		break;
+	{
+		SMIL_AnimateValues *av;
+		GF_SAFEALLOC(av, SMIL_AnimateValues)
+		if (!av) return NULL;
+		av->values = gf_list_new();
+		return av;
+	}
+	break;
 	case SVG_Clock_datatype:
-		{
-			SVG_Clock *ck;
-			GF_SAFEALLOC(ck, SVG_Clock)
-			return ck;
-		}
-		break;
+	{
+		SVG_Clock *ck;
+		GF_SAFEALLOC(ck, SVG_Clock)
+		return ck;
+	}
+	break;
 
 	case XMLEV_Event_datatype:
-		{
-			XMLEV_Event *e;
-			GF_SAFEALLOC(e, XMLEV_Event);
-			return e;
-		}
-		break;
+	{
+		XMLEV_Event *e;
+		GF_SAFEALLOC(e, XMLEV_Event);
+		return e;
+	}
+	break;
 	case LASeR_Size_datatype:
-		{
-			LASeR_Size *s;
-			GF_SAFEALLOC(s, LASeR_Size);
-			return s;
-		}
-		break;
+	{
+		LASeR_Size *s;
+		GF_SAFEALLOC(s, LASeR_Size);
+		return s;
+	}
+	break;
 
 	case 0:
-		{
-			SVG_String *string;
-			GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[SVG Attributes] Unspecified attribute type - defaulting to string.\n"));
-			GF_SAFEALLOC(string, SVG_String);
-			return string;
-		}
+	{
+		SVG_String *string;
+		GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[SVG Attributes] Unspecified attribute type - defaulting to string.\n"));
+		GF_SAFEALLOC(string, SVG_String);
+		return string;
+	}
 
 
 	default:
@@ -3784,20 +3769,14 @@ static char *svg_dump_color(SVG_Color *col)
 			}
 		}
 	} else {
-		u32 i, count = sizeof(predefined_colors) / sizeof(struct predef_col);
-		u32 r, g, b;
+		u8 r, g, b;
+		const char *name;
 		r = FIX2INT(255*col->red);
 		g = FIX2INT(255*col->green);
 		b = FIX2INT(255*col->blue);
-		for (i=0; i<count; i++) {
-			if (
-				(r == predefined_colors[i].r)
-				&& (g == predefined_colors[i].g)
-				&& (b == predefined_colors[i].b)
-			) {
-				return gf_strdup(predefined_colors[i].name);
-			}
-		}
+		name = gf_color_get_name( GF_COL_ARGB(0xFF, r, g, b) );
+		if (name) return gf_strdup(name);
+
 		res = gf_malloc(sizeof(char)*8);
 		sprintf(res, "#%02X%02X%02X", r, g, b);
 		/*compress it...*/
@@ -3815,7 +3794,7 @@ static char *svg_dump_number(SVG_Number *l)
 	else if (l->type == SVG_NUMBER_AUTO) return gf_strdup("auto");
 	else if (l->type == SVG_NUMBER_AUTO_REVERSE) return gf_strdup("auto-reverse");
 	else {
-		sprintf(tmp, "%g", FIX2FLT(l->value) );
+		sprintf(tmp, "%g", _FIX2FLT(l->value));
 		if (l->type == SVG_NUMBER_PERCENTAGE) strcat(tmp, "%");
 		else if (l->type == SVG_NUMBER_EMS) strcat(tmp, "em");
 		else if (l->type == SVG_NUMBER_EXS) strcat(tmp, "ex");
@@ -3890,14 +3869,14 @@ static char *svg_dump_path(SVG_PathData *path)
 		case GF_PATH_CLOSE:
 			pt = &path->points[i];
 			if (!i || (*contour == i-1) ) {
-				sprintf(szT, "M%g %g", FIX2FLT(pt->x), FIX2FLT(pt->y));
+				sprintf(szT, "M%g %g", _FIX2FLT(pt->x), _FIX2FLT(pt->y));
 				if (i) contour++;
 			} else if (path->tags[i]==GF_PATH_CLOSE) {
 				sprintf(szT, "z");
 			} else {
-				if (i && (last_pt.x==pt->x)) sprintf(szT, "V%g", FIX2FLT(pt->y));
-				else if (i && (last_pt.y==pt->y)) sprintf(szT, "H%g", FIX2FLT(pt->x));
-				else sprintf(szT, "L%g %g", FIX2FLT(pt->x), FIX2FLT(pt->y));
+				if (i && (last_pt.x==pt->x)) sprintf(szT, "V%g", _FIX2FLT(pt->y));
+				else if (i && (last_pt.y==pt->y)) sprintf(szT, "H%g", _FIX2FLT(pt->x));
+				else sprintf(szT, "L%g %g", _FIX2FLT(pt->x), _FIX2FLT(pt->y));
 			}
 			last_pt = *pt;
 			i++;
@@ -3905,7 +3884,7 @@ static char *svg_dump_path(SVG_PathData *path)
 		case GF_PATH_CURVE_CONIC:
 			ct1 = &path->points[i];
 			end = &path->points[i+1];
-			sprintf(szT, "Q%g %g %g %g", FIX2FLT(ct1->x), FIX2FLT(ct1->y), FIX2FLT(end->x), FIX2FLT(end->y));
+			sprintf(szT, "Q%g %g %g %g", _FIX2FLT(ct1->x), _FIX2FLT(ct1->y), _FIX2FLT(end->x), _FIX2FLT(end->y));
 
 			last_pt = *end;
 			if (path->tags[i+2]==GF_PATH_CLOSE)  {
@@ -3917,7 +3896,7 @@ static char *svg_dump_path(SVG_PathData *path)
 			ct1 = &path->points[i];
 			ct2 = &path->points[i+1];
 			end = &path->points[i+2];
-			sprintf(szT, "C%g %g %g %g %g %g", FIX2FLT(ct1->x), FIX2FLT(ct1->y), FIX2FLT(ct2->x), FIX2FLT(ct2->y), FIX2FLT(end->x), FIX2FLT(end->y));
+			sprintf(szT, "C%g %g %g %g %g %g", _FIX2FLT(ct1->x), _FIX2FLT(ct1->y), _FIX2FLT(ct2->x), _FIX2FLT(ct2->y), _FIX2FLT(end->x), _FIX2FLT(end->y));
 			last_pt = *end;
 			if (path->tags[i+2]==GF_PATH_CLOSE) {
 				strcat(szT, "z");
@@ -3935,7 +3914,7 @@ static char *svg_dump_path(SVG_PathData *path)
 #else
 static void svg_dump_point(SVG_Point *pt, char *attValue)
 {
-	if (pt) sprintf(attValue, "%g %g ", FIX2FLT(pt->x), FIX2FLT(pt->y) );
+	if (pt) sprintf(attValue, "%g %g ", _FIX2FLT(pt->x), _FIX2FLT(pt->y) );
 }
 static void svg_dump_path(SVG_PathData *path, char *attValue)
 {
@@ -4060,13 +4039,13 @@ static char *gf_svg_dump_matrix(GF_Matrix2D *matrix)
 	attValue[0]=0;
 	/*try to do a simple decomposition...*/
 	if (!matrix->m[1] && !matrix->m[3]) {
-		if (matrix->m[2] != 0 || matrix->m[5] != 0) sprintf(attValue, "translate(%g,%g)", FIX2FLT(matrix->m[2]), FIX2FLT(matrix->m[5]) );
+		if (matrix->m[2] != 0 || matrix->m[5] != 0) sprintf(attValue, "translate(%g,%g)", _FIX2FLT(matrix->m[2]), _FIX2FLT(matrix->m[5]) );
 		if ((matrix->m[0]!=FIX_ONE) || (matrix->m[4]!=FIX_ONE)) {
 			char szT[1024];
 			if ((matrix->m[0]==-FIX_ONE) && (matrix->m[4]==-FIX_ONE)) {
 				strcpy(szT, " rotate(180)");
 			} else {
-				sprintf(szT, " scale(%g,%g)", FIX2FLT(matrix->m[0]), FIX2FLT(matrix->m[4]) );
+				sprintf(szT, " scale(%g,%g)", _FIX2FLT(matrix->m[0]), _FIX2FLT(matrix->m[4]) );
 			}
 			strcat(attValue, szT);
 		}
@@ -4080,27 +4059,27 @@ static char *gf_svg_dump_matrix(GF_Matrix2D *matrix)
 			angle = gf_divfix(180*angle, GF_PI);
 			if ((sx==sy) && ( ABS(FIX_ONE - ABS(sx) ) < FIX_ONE/100)) {
 				if (matrix->m[2] != 0 || matrix->m[5] != 0)
-					sprintf(attValue, "translate(%g,%g) rotate(%g)", FIX2FLT(matrix->m[2]), FIX2FLT(matrix->m[5]), FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
+					sprintf(attValue, "translate(%g,%g) rotate(%g)", _FIX2FLT(matrix->m[2]), _FIX2FLT(matrix->m[5]), _FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
 				else
-					sprintf(attValue, "rotate(%g)", FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
+					sprintf(attValue, "rotate(%g)", _FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
 			} else {
 				if (matrix->m[2] != 0 || matrix->m[5] != 0)
-					sprintf(attValue, "translate(%g,%g) scale(%g,%g) rotate(%g)", FIX2FLT(matrix->m[2]), FIX2FLT(matrix->m[5]), FIX2FLT(sx), FIX2FLT(sy), FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
+					sprintf(attValue, "translate(%g,%g) scale(%g,%g) rotate(%g)", _FIX2FLT(matrix->m[2]), _FIX2FLT(matrix->m[5]), _FIX2FLT(sx), _FIX2FLT(sy), _FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
 				else
-					sprintf(attValue, "scale(%g,%g) rotate(%g)", FIX2FLT(sx), FIX2FLT(sy), FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
+					sprintf(attValue, "scale(%g,%g) rotate(%g)", _FIX2FLT(sx), _FIX2FLT(sy), _FIX2FLT(gf_divfix(angle*180, GF_PI) ) );
 			}
 		} else {
 			Fixed a = angle;
 			if (a<0) a += GF_2PI;
 			if (matrix->m[2] != 0 || matrix->m[5] != 0)
-				sprintf(attValue, "translate(%g,%g) rotate(%g)", FIX2FLT(matrix->m[2]), FIX2FLT(matrix->m[5]), FIX2FLT(gf_divfix(a*180, GF_PI) ) );
+				sprintf(attValue, "translate(%g,%g) rotate(%g)", _FIX2FLT(matrix->m[2]), _FIX2FLT(matrix->m[5]), _FIX2FLT(gf_divfix(a*180, GF_PI) ) );
 			else
-				sprintf(attValue, "rotate(%g)", FIX2FLT(gf_divfix(a*180, GF_PI) ) );
+				sprintf(attValue, "rotate(%g)", _FIX2FLT(gf_divfix(a*180, GF_PI) ) );
 		}
 	}
 	/*default*/
 	if (!strlen(attValue))
-		sprintf(attValue, "matrix(%g %g %g %g %g %g)", FIX2FLT(matrix->m[0]), FIX2FLT(matrix->m[3]), FIX2FLT(matrix->m[1]), FIX2FLT(matrix->m[4]), FIX2FLT(matrix->m[2]), FIX2FLT(matrix->m[5]) );
+		sprintf(attValue, "matrix(%g %g %g %g %g %g)", _FIX2FLT(matrix->m[0]), _FIX2FLT(matrix->m[3]), _FIX2FLT(matrix->m[1]), _FIX2FLT(matrix->m[4]), _FIX2FLT(matrix->m[2]), _FIX2FLT(matrix->m[5]) );
 
 	return gf_strdup(attValue);
 }
@@ -4135,9 +4114,9 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 			return svg_dump_color(&paint->color);
 		}
 	}
-		break;
+	break;
 
-/* beginning of keyword type parsing */
+	/* beginning of keyword type parsing */
 	case SVG_FillRule_datatype:
 		if (intVal == SVG_FILLRULE_INHERIT) return gf_strdup("inherit");
 		else if (intVal == SVG_FILLRULE_NONZERO) return gf_strdup("nonzero");
@@ -4380,9 +4359,9 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		}
 		break;
 	case LASeR_Size_datatype:
-		sprintf(tmp, "%g %g", FIX2FLT(((LASeR_Size *)info->far_ptr)->width), FIX2FLT(((LASeR_Size *)info->far_ptr)->height));
+		sprintf(tmp, "%g %g", _FIX2FLT(((LASeR_Size *)info->far_ptr)->width), _FIX2FLT(((LASeR_Size *)info->far_ptr)->height));
 		return gf_strdup(tmp);
-/* end of keyword type parsing */
+	/* end of keyword type parsing */
 
 	/* inheritable floats */
 	case SVG_FontSize_datatype:
@@ -4419,7 +4398,7 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		}
 		return attVal;
 	}
-		break;
+	break;
 
 	case SVG_PathData_datatype:
 #if DUMP_COORDINATES
@@ -4437,7 +4416,7 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		for (i=0; i<count; i++) {
 			char szT[200];
 			SVG_Point *p = (SVG_Point *)gf_list_get(l, i);
-			sprintf(szT, "%g %g", FIX2FLT(p->x), FIX2FLT(p->y));
+			sprintf(szT, "%g %g", _FIX2FLT(p->x), _FIX2FLT(p->y));
 			attVal = gf_realloc(attVal, sizeof(char)*(strlen(szT)+strlen(attVal)+ (i ? 2 : 1) ));
 			if (i) strcat(attVal, " ");
 			strcat(attVal, szT);
@@ -4445,7 +4424,7 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		return attVal;
 #endif
 	}
-		break;
+	break;
 	case SMIL_KeyTimes_datatype:
 	case SMIL_KeyPoints_datatype:
 	case SMIL_KeySplines_datatype:
@@ -4458,14 +4437,14 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		for (i=0; i<count; i++) {
 			char szT[1000];
 			Fixed *p = (Fixed *)gf_list_get(l, i);
-			sprintf(szT, "%g", FIX2FLT(*p));
+			sprintf(szT, "%g", _FIX2FLT(*p));
 			attVal = gf_realloc(attVal, sizeof(char)*(strlen(szT)+strlen(attVal)+ (i ? 2 : 1) ));
 			if (i) strcat(attVal, " ");
 			strcat(attVal, szT);
 		}
 		return attVal;
 	}
-		break;
+	break;
 	case SVG_Coordinates_datatype:
 	{
 #if DUMP_COORDINATES
@@ -4486,17 +4465,17 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		return attVal;
 #endif
 	}
-		break;
+	break;
 	case SVG_ViewBox_datatype:
 	{
 		SVG_ViewBox *v = (SVG_ViewBox *)info->far_ptr;
 		if (v->is_set) {
-			sprintf(tmp, "%g %g %g %g", FIX2FLT(v->x), FIX2FLT(v->y), FIX2FLT(v->width), FIX2FLT(v->height) );
+			sprintf(tmp, "%g %g %g %g", _FIX2FLT(v->x), _FIX2FLT(v->y), _FIX2FLT(v->width), _FIX2FLT(v->height) );
 			return gf_strdup(tmp);
 		} else
 			return gf_strdup("none");
 	}
-		break;
+	break;
 	case SVG_StrokeDashArray_datatype:
 	{
 		SVG_StrokeDashArray *p = (SVG_StrokeDashArray *)info->far_ptr;
@@ -4508,18 +4487,19 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 			attVal[0] = 0;
 			for (i=0; i<p->array.count; i++) {
 				char *szT;
-                SVG_Length l;
-                l.type = p->array.units[i];
-                l.value = p->array.vals[i];
+				SVG_Length l;
+				l.type = p->array.units[i];
+				l.value = p->array.vals[i];
 				szT = svg_dump_number(&l);
 				attVal = gf_realloc(attVal, sizeof(char)*(strlen(szT)+strlen(attVal)+ (i ? 2 : 1) ));
 				if (i) strcat(attVal, " ");
 				strcat(attVal, szT);
+				gf_free(szT);
 			}
 			return attVal;
 		}
 	}
-		break;
+	break;
 	case SVG_FontFamily_datatype:
 	{
 		SVG_FontFamily *f = (SVG_FontFamily *)info->far_ptr;
@@ -4569,7 +4549,7 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 			return gf_strdup(tmp);
 		}
 	}
-		break;
+	break;
 	case SVG_Focusable_datatype:
 	{
 		SVG_Focusable *f = (SVG_Focusable *)info->far_ptr;
@@ -4614,78 +4594,78 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		return attVal;
 #endif
 	}
-		break;
+	break;
 
 	case SVG_Motion_datatype:
-		{
+	{
 #if DUMP_COORDINATES
-			GF_Matrix2D *m = (GF_Matrix2D *)info->far_ptr;
-			sprintf(tmp, "%g %g", FIX2FLT(m->m[2]), FIX2FLT(m->m[5]));
-			return gf_strdup(tmp);
+		GF_Matrix2D *m = (GF_Matrix2D *)info->far_ptr;
+		sprintf(tmp, "%g %g", _FIX2FLT(m->m[2]), _FIX2FLT(m->m[5]));
+		return gf_strdup(tmp);
 #endif
-		}
-		break;
+	}
+	break;
 
 	case SVG_Transform_datatype:
-		{
-			SVG_Transform *t= (SVG_Transform *)info->far_ptr;
-			if (t->is_ref) {
-				sprintf(tmp, "ref(svg,%g,%g)", FIX2FLT(t->mat.m[2]), FIX2FLT(t->mat.m[5]) );
-				return gf_strdup(tmp);
-			} else {
-				return gf_svg_dump_matrix(&t->mat);
-			}
+	{
+		SVG_Transform *t= (SVG_Transform *)info->far_ptr;
+		if (t->is_ref) {
+			sprintf(tmp, "ref(svg,%g,%g)", _FIX2FLT(t->mat.m[2]), _FIX2FLT(t->mat.m[5]) );
+			return gf_strdup(tmp);
+		} else {
+			return gf_svg_dump_matrix(&t->mat);
 		}
-		break;
+	}
+	break;
 
 	case SVG_Transform_Translate_datatype:
-		{
-			SVG_Point *pt = (SVG_Point *)info->far_ptr;
+	{
+		SVG_Point *pt = (SVG_Point *)info->far_ptr;
 #if DUMP_COORDINATES
-			sprintf(tmp, "%g %g", FIX2FLT(pt->x), FIX2FLT(pt->y) );
-			return gf_strdup(tmp);
+		sprintf(tmp, "%g %g", _FIX2FLT(pt->x), _FIX2FLT(pt->y) );
+		return gf_strdup(tmp);
 #endif
-		}
-		break;
+	}
+	break;
 
 	case SVG_Transform_Scale_datatype:
-		{
-			SVG_Point *pt = (SVG_Point *)info->far_ptr;
+	{
+		SVG_Point *pt = (SVG_Point *)info->far_ptr;
 #if DUMP_COORDINATES
-			if (pt->x == pt->y) {
-				sprintf(tmp, "%g", FIX2FLT(pt->x));
-			} else {
-				sprintf(tmp, "%g %g", FIX2FLT(pt->x), FIX2FLT(pt->y) );
-			}
-			return gf_strdup(tmp);
-#endif
+		if (pt->x == pt->y) {
+			sprintf(tmp, "%g", _FIX2FLT(pt->x));
+		} else {
+			sprintf(tmp, "%g %g", _FIX2FLT(pt->x), _FIX2FLT(pt->y) );
 		}
-		break;
+		return gf_strdup(tmp);
+#endif
+	}
+	break;
 
 	case SVG_Transform_SkewX_datatype:
 	case SVG_Transform_SkewY_datatype:
-		{
-			Fixed *f = (Fixed *)info->far_ptr;
+	{
+		Fixed *f = (Fixed *)info->far_ptr;
 #if DUMP_COORDINATES
-			sprintf(tmp, "%g", FIX2FLT( 180 * gf_divfix(*f, GF_PI) ));
-			return gf_strdup(tmp);
+		sprintf(tmp, "%g", _FIX2FLT( 180 * gf_divfix(*f, GF_PI) ));
+		return gf_strdup(tmp);
 #endif
-		}
-		break;
+	}
+	break;
 
 	case SVG_Transform_Rotate_datatype:
-		{
-			SVG_Point_Angle *pt = (SVG_Point_Angle *)info->far_ptr;
+	{
+		SVG_Point_Angle *pt = (SVG_Point_Angle *)info->far_ptr;
 #if DUMP_COORDINATES
-			if (pt->x || pt->y) {
-				sprintf(tmp, "%g %g %g", FIX2FLT( 180 * gf_divfix(pt->angle, GF_PI) ), FIX2FLT(pt->x), FIX2FLT(pt->y) );
-			} else {
-				sprintf(tmp, "%g", FIX2FLT(gf_divfix(180 * pt->angle, GF_PI) ));
-			}
-			return gf_strdup(tmp);
-#endif
+		if (pt->x || pt->y) {
+			sprintf(tmp, "%g %g %g", _FIX2FLT( 180 * gf_divfix(pt->angle, GF_PI) ), _FIX2FLT(pt->x), _FIX2FLT(pt->y) );
+		} else {
+			sprintf(tmp, "%g", _FIX2FLT(gf_divfix(180 * pt->angle, GF_PI) ));
 		}
-		break;
+		return gf_strdup(tmp);
+#endif
+	}
+	break;
 
 	case SMIL_AttributeName_datatype:
 	{
@@ -4693,10 +4673,16 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		if (att_name->name)
 			return gf_strdup(att_name->name);
 
-		if (att_name->tag)
-			return gf_strdup( gf_svg_get_attribute_name(elt, att_name->tag) );
+		if (att_name->tag) {
+			char *att_name_val = (char *)gf_svg_get_attribute_name(elt, att_name->tag);
+			if (!att_name_val) {
+				GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[SVG] unknown attribute name for tag %d\n", att_name->tag));
+				return NULL;
+			}
+			return gf_strdup(att_name_val );
+		}
 	}
-		break;
+	break;
 
 	case SMIL_Times_datatype:
 	{
@@ -4754,7 +4740,7 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		}
 		return attVal;
 	}
-		break;
+	break;
 	case SMIL_Duration_datatype:
 	{
 		SMIL_Duration *dur = (SMIL_Duration *)info->far_ptr;
@@ -4767,20 +4753,20 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 			GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[SVG Dumping] smil duration not assigned\n"));
 		}
 	}
-		break;
+	break;
 	case SMIL_RepeatCount_datatype:
 	{
 		SMIL_RepeatCount *rep = (SMIL_RepeatCount *)info->far_ptr;
 		if (rep->type == SMIL_REPEATCOUNT_INDEFINITE) return gf_strdup("indefinite");
 		else if (rep->type == SMIL_REPEATCOUNT_DEFINED) {
-			sprintf(tmp, "%g", FIX2FLT(rep->count) );
+			sprintf(tmp, "%g", _FIX2FLT(rep->count) );
 			return gf_strdup(tmp);
 		}
 		else {
 			GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[SVG Dumping] smil repeat count not assigned\n"));
 		}
 	}
-		break;
+	break;
 	case SVG_TransformType_datatype:
 	{
 		SVG_TransformType tr = *(SVG_TransformType *)info->far_ptr;
@@ -4791,7 +4777,7 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		else if (tr == SVG_TRANSFORM_SKEWX) return gf_strdup("skewX");
 		else if (tr == SVG_TRANSFORM_SKEWY) return gf_strdup("skewY");
 	}
-		break;
+	break;
 
 	case SMIL_AnimateValue_datatype:
 	{
@@ -4803,7 +4789,7 @@ char *gf_svg_dump_attribute(GF_Node *elt, GF_FieldInfo *info)
 		a_fi.far_ptr = av->value;
 		return gf_svg_dump_attribute(elt, &a_fi);
 	}
-		break;
+	break;
 	case SMIL_AnimateValues_datatype:
 	{
 		GF_FieldInfo a_fi;
@@ -4861,20 +4847,20 @@ char *gf_svg_dump_attribute_indexed(GF_Node *elt, GF_FieldInfo *info)
 	{
 #if DUMP_COORDINATES
 		SVG_Point *p = (SVG_Point *)info->far_ptr;
-		sprintf(tmp, "%g %g", FIX2FLT(p->x), FIX2FLT(p->y));
+		sprintf(tmp, "%g %g", _FIX2FLT(p->x), _FIX2FLT(p->y));
 		return gf_strdup(tmp);
 #endif
 	}
-		break;
+	break;
 	case SMIL_KeyPoints_datatype:
 	case SMIL_KeyTimes_datatype:
 	case SMIL_KeySplines_datatype:
 	{
 		Fixed *p = (Fixed *)info->far_ptr;
-		sprintf(tmp, "%g", FIX2FLT(*p));
+		sprintf(tmp, "%g", _FIX2FLT(*p));
 		return gf_strdup(tmp);
 	}
-		break;
+	break;
 	case SVG_Coordinates_datatype:
 #if DUMP_COORDINATES
 		return svg_dump_number((SVG_Length *) (SVG_Coordinate *)info->far_ptr);
@@ -4883,18 +4869,18 @@ char *gf_svg_dump_attribute_indexed(GF_Node *elt, GF_FieldInfo *info)
 	case SVG_ViewBox_datatype:
 	{
 		Fixed *v = (Fixed *)info->far_ptr;
-		sprintf(tmp, "%g", FIX2FLT(*v));
+		sprintf(tmp, "%g", _FIX2FLT(*v));
 		return gf_strdup(tmp);
 	}
-		break;
+	break;
 	case SVG_StrokeDashArray_datatype:
 	{
-        /*TODO: fix this: should be an SVG_Length*/
+		/*TODO: fix this: should be an SVG_Length*/
 		Fixed *p = (Fixed *)info->far_ptr;
-		sprintf(tmp, "%g", FIX2FLT(*p));
+		sprintf(tmp, "%g", _FIX2FLT(*p));
 		return gf_strdup(tmp);
 	}
-		break;
+	break;
 	case SMIL_Times_datatype:
 	{
 		SMIL_Time *t = (SMIL_Time *)info->far_ptr;
@@ -5045,6 +5031,7 @@ Bool gf_svg_attributes_equal(GF_FieldInfo *f1, GF_FieldInfo *f2)
 	case SVG_VectorEffect_datatype:
 	case SVG_PlaybackOrder_datatype:
 	case SVG_TimelineBegin_datatype:
+	case SVG_Focusable_datatype:
 	case SVG_FocusHighlight_datatype:
 	case SVG_TransformType_datatype:
 	case SVG_Overlay_datatype:
@@ -5073,7 +5060,7 @@ Bool gf_svg_attributes_equal(GF_FieldInfo *f1, GF_FieldInfo *f2)
 		else if (p1->type==SVG_PAINT_URI) return svg_iris_equal(&p1->iri, &p2->iri);
 		return 1;
 	}
-		break;
+	break;
 
 	case SVG_FontSize_datatype:
 	case SVG_Length_datatype:
@@ -5203,42 +5190,42 @@ Bool gf_svg_attributes_equal(GF_FieldInfo *f1, GF_FieldInfo *f2)
 		return svg_matrices_equal((GF_Matrix2D*)f1->far_ptr, (GF_Matrix2D*)f2->far_ptr);
 
 	case SVG_Transform_datatype:
-		{
-			SVG_Transform *t1 = (SVG_Transform *)f1->far_ptr;
-			SVG_Transform *t2 = (SVG_Transform *)f2->far_ptr;
-			if (t1->is_ref == t2->is_ref)
-				return svg_matrices_equal(&t1->mat, &t2->mat);
-			else
-				return 0;
-		}
+	{
+		SVG_Transform *t1 = (SVG_Transform *)f1->far_ptr;
+		SVG_Transform *t2 = (SVG_Transform *)f2->far_ptr;
+		if (t1->is_ref == t2->is_ref)
+			return svg_matrices_equal(&t1->mat, &t2->mat);
+		else
+			return 0;
+	}
 
 	case SVG_Transform_Translate_datatype:
 	case SVG_Transform_Scale_datatype:
-		{
-			SVG_Point *p1 = (SVG_Point *)f1->far_ptr;
-			SVG_Point *p2 = (SVG_Point *)f2->far_ptr;
-			if (p1->x != p2->x) return 0;
-			if (p1->y != p2->y) return 0;
-			return 1;
-		}
+	{
+		SVG_Point *p1 = (SVG_Point *)f1->far_ptr;
+		SVG_Point *p2 = (SVG_Point *)f2->far_ptr;
+		if (p1->x != p2->x) return 0;
+		if (p1->y != p2->y) return 0;
+		return 1;
+	}
 
 	case SVG_Transform_SkewX_datatype:
 	case SVG_Transform_SkewY_datatype:
-		{
-			Fixed *p1 = (Fixed *)f1->far_ptr;
-			Fixed *p2 = (Fixed *)f2->far_ptr;
-			return (*p1 == *p2);
-		}
+	{
+		Fixed *p1 = (Fixed *)f1->far_ptr;
+		Fixed *p2 = (Fixed *)f2->far_ptr;
+		return (*p1 == *p2);
+	}
 
 	case SVG_Transform_Rotate_datatype:
-		{
-			SVG_Point_Angle *p1 = (SVG_Point_Angle *)f1->far_ptr;
-			SVG_Point_Angle *p2 = (SVG_Point_Angle *)f2->far_ptr;
-			if (p1->x != p2->x) return 0;
-			if (p1->y != p2->y) return 0;
-			if (p1->angle != p2->angle) return 0;
-			return 1;
-		}
+	{
+		SVG_Point_Angle *p1 = (SVG_Point_Angle *)f1->far_ptr;
+		SVG_Point_Angle *p2 = (SVG_Point_Angle *)f2->far_ptr;
+		if (p1->x != p2->x) return 0;
+		if (p1->y != p2->y) return 0;
+		if (p1->angle != p2->angle) return 0;
+		return 1;
+	}
 
 
 	case SVG_ID_datatype:
@@ -5261,7 +5248,7 @@ Bool gf_svg_attributes_equal(GF_FieldInfo *f1, GF_FieldInfo *f2)
 		if (foc1->type != SVG_FOCUS_IRI) return 1;
 		return (foc1->target.string && foc2->target.string && !strcmp(foc1->target.string, foc2->target.string)) ? 1 : 0;
 	}
-		break;
+	break;
 
 	case DOM_StringList_datatype:
 	{
@@ -5343,7 +5330,7 @@ Bool gf_svg_attributes_equal(GF_FieldInfo *f1, GF_FieldInfo *f2)
 		if (av1->value != av2->value) return 0;
 		return 1;
 	}
-		break;
+	break;
 
 	case SMIL_AnimateValues_datatype:
 	{
@@ -5371,7 +5358,7 @@ Bool gf_svg_attributes_equal(GF_FieldInfo *f1, GF_FieldInfo *f2)
 		return 1;
 	}
 	default:
-		GF_LOG(GF_LOG_WARNING, GF_LOG_INTERACT, ("[SVG Attributes] comparaison for field %s of type %s not supported\n", f1->name, gf_svg_attribute_type_to_string(f1->fieldType)));
+		GF_LOG(GF_LOG_WARNING, GF_LOG_INTERACT, ("[SVG Attributes] comparaison for field %s of type %s not supported\n", f1->name ? f1->name : "unknown", gf_svg_attribute_type_to_string(f1->fieldType)));
 		return 0;
 	}
 }
@@ -5399,6 +5386,7 @@ static GF_Err svg_color_muladd(Fixed alpha, SVG_Color *a, Fixed beta, SVG_Color 
 
 static GF_Err svg_number_muladd(Fixed alpha, SVG_Number *a, Fixed beta, SVG_Number *b, SVG_Number *c)
 {
+	if (!a || !b || !c) return GF_BAD_PARAM;
 	if (a->type != b->type) {
 		GF_LOG(GF_LOG_ERROR, GF_LOG_INTERACT, ("[SVG Attributes] cannot add lengths of mismatching types\n"));
 		return GF_BAD_PARAM;
@@ -5423,6 +5411,8 @@ static GF_Err svg_viewbox_muladd(Fixed alpha, SVG_ViewBox *a, Fixed beta, SVG_Vi
 
 static GF_Err svg_point_muladd(Fixed alpha, SVG_Point *pta, Fixed beta, SVG_Point *ptb, SVG_Point *ptc)
 {
+	if (!pta || !ptb || !ptc) return GF_BAD_PARAM;
+
 	ptc->x = gf_mulfix(alpha, pta->x) + gf_mulfix(beta, ptb->x);
 	ptc->y = gf_mulfix(alpha, pta->y) + gf_mulfix(beta, ptb->y);
 	return GF_OK;
@@ -5476,6 +5466,10 @@ static GF_Err svg_points_copy(SVG_Points *a, SVG_Points *b)
 		SVG_Point *ptb = (SVG_Point *)gf_list_get(*b, i);
 		SVG_Point *pta;
 		GF_SAFEALLOC(pta, SVG_Point)
+		if (!pta) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Cannot allocate SVG point\n"));
+			continue;
+		}
 		*pta = *ptb;
 		gf_list_add(*a, pta);
 	}
@@ -5517,6 +5511,10 @@ static GF_Err svg_numbers_copy(SVG_Numbers *a, SVG_Numbers *b)
 	for (i = 0; i < count; i ++) {
 		SVG_Number *na;
 		GF_SAFEALLOC(na, SVG_Number)
+		if (!na) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("[SVG Parsing] Cannot allocate SVG number\n"));
+			continue;
+		}
 		*na = *(SVG_Number *)gf_list_get(*b, i);
 		gf_list_add(*a, na);
 	}
@@ -5652,7 +5650,7 @@ static GF_Err svg_dasharray_muladd(Fixed alpha, SVG_StrokeDashArray *a, Fixed be
 	c->array.vals = (Fixed *) gf_malloc(sizeof(Fixed)*c->array.count);
 	for (i = 0; i < c->array.count; i++) {
 		/* TODO: convert units if needed */
-        c->array.units[i] = a->array.units[i];
+		c->array.units[i] = a->array.units[i];
 		c->array.vals[i] = gf_mulfix(alpha, a->array.vals[i]) + gf_mulfix(beta, b->array.vals[i]);
 	}
 	return GF_OK;
@@ -5710,21 +5708,21 @@ static GF_Err laser_size_muladd(Fixed alpha, LASeR_Size *sza, Fixed beta, LASeR_
 
 /* c = alpha * a + beta * b */
 GF_Err gf_svg_attributes_muladd(Fixed alpha, GF_FieldInfo *a,
-							 Fixed beta, GF_FieldInfo *b,
-							 GF_FieldInfo *c,
-							 Bool clamp)
+                                Fixed beta, GF_FieldInfo *b,
+                                GF_FieldInfo *c,
+                                Bool clamp)
 {
 	if (!a->far_ptr || !b->far_ptr || !c->far_ptr) return GF_BAD_PARAM;
 
 	if (a->fieldType != b->fieldType) {
 		if (a->fieldType != SVG_Transform_datatype &&
-			a->fieldType != SVG_Transform_Scale_datatype &&
-			a->fieldType != SVG_Transform_Translate_datatype &&
-			a->fieldType != SVG_Transform_Rotate_datatype &&
-			a->fieldType != SVG_Transform_SkewX_datatype &&
-			a->fieldType != SVG_Transform_SkewY_datatype &&
-			a->fieldType != SVG_Motion_datatype)
-		return GF_BAD_PARAM;
+		        a->fieldType != SVG_Transform_Scale_datatype &&
+		        a->fieldType != SVG_Transform_Translate_datatype &&
+		        a->fieldType != SVG_Transform_Rotate_datatype &&
+		        a->fieldType != SVG_Transform_SkewX_datatype &&
+		        a->fieldType != SVG_Transform_SkewY_datatype &&
+		        a->fieldType != SVG_Motion_datatype)
+			return GF_BAD_PARAM;
 	}
 
 	/* by default a and c are of the same type, except for matrix related types */
@@ -5737,17 +5735,17 @@ GF_Err gf_svg_attributes_muladd(Fixed alpha, GF_FieldInfo *a,
 		return svg_color_muladd(alpha, (SVG_Color*)a->far_ptr, beta, (SVG_Color*)b->far_ptr, (SVG_Color*)c->far_ptr, clamp);
 
 	case SVG_Paint_datatype:
-		{
-			SVG_Paint *pa = (SVG_Paint *)a->far_ptr;
-			SVG_Paint *pb = (SVG_Paint *)b->far_ptr;
-			SVG_Paint *pc = (SVG_Paint *)c->far_ptr;
-			if (pa->type != pb->type || pa->type != SVG_PAINT_COLOR || pb->type != SVG_PAINT_COLOR) {
-				GF_LOG(GF_LOG_ERROR, GF_LOG_INTERACT, ("[SVG Attributes] only color paints are additive\n"));
-				return GF_BAD_PARAM;
-			}
-			pc->type = SVG_PAINT_COLOR;
-			return svg_color_muladd(alpha, &pa->color, beta, &pb->color, &pc->color, clamp);
+	{
+		SVG_Paint *pa = (SVG_Paint *)a->far_ptr;
+		SVG_Paint *pb = (SVG_Paint *)b->far_ptr;
+		SVG_Paint *pc = (SVG_Paint *)c->far_ptr;
+		if (pa->type != pb->type || pa->type != SVG_PAINT_COLOR || pb->type != SVG_PAINT_COLOR) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_INTERACT, ("[SVG Attributes] only color paints are additive\n"));
+			return GF_BAD_PARAM;
 		}
+		pc->type = SVG_PAINT_COLOR;
+		return svg_color_muladd(alpha, &pa->color, beta, &pb->color, &pc->color, clamp);
+	}
 
 	case SVG_Number_datatype:
 	case SVG_Length_datatype:
@@ -5789,12 +5787,12 @@ GF_Err gf_svg_attributes_muladd(Fixed alpha, GF_FieldInfo *a,
 			/* a and c are matrices but b is not */
 			GF_Matrix2D tmp;
 			/*TOCHECK what is this test*/
-/*
-			if (alpha != FIX_ONE) {
-				GF_LOG(GF_LOG_ERROR, GF_LOG_INTERACT, ("[SVG Attributes] matrix operations not supported\n"));
-				return GF_NOT_SUPPORTED;
-			}
-*/
+			/*
+						if (alpha != FIX_ONE) {
+							GF_LOG(GF_LOG_ERROR, GF_LOG_INTERACT, ("[SVG Attributes] matrix operations not supported\n"));
+							return GF_NOT_SUPPORTED;
+						}
+			*/
 			gf_mx2d_init(tmp);
 			switch (b->fieldType) {
 			case SVG_Transform_Translate_datatype:
@@ -5891,7 +5889,7 @@ GF_Err gf_svg_attributes_muladd(Fixed alpha, GF_FieldInfo *a,
 		if (*s_a) gf_free(*s_a);
 		*s_a = res;
 	}
-		break;
+	break;
 	case LASeR_Size_datatype:
 		laser_size_muladd(alpha, (LASeR_Size*)a->far_ptr, beta, (LASeR_Size*)b->far_ptr, (LASeR_Size*)c->far_ptr);
 		break;
@@ -5973,22 +5971,22 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 		break;
 
 	case SVG_Paint_datatype:
-		{
-			SVG_Paint *pa = (SVG_Paint *)a->far_ptr;
-			SVG_Paint *pb = (SVG_Paint *)b->far_ptr;
-			pa->type = pb->type;
-			if (pb->type == SVG_PAINT_URI) {
-				GF_FieldInfo tmp_a, tmp_b;
-				tmp_a.fieldType = tmp_b.fieldType = XMLRI_datatype;
-				tmp_a.far_ptr = &pa->iri;
-				tmp_b.far_ptr = &pb->iri;
-				gf_svg_attributes_copy(&tmp_a, &tmp_b, 0);
-			} else {
-				pa->color = pb->color;
-			}
-			return GF_OK;
+	{
+		SVG_Paint *pa = (SVG_Paint *)a->far_ptr;
+		SVG_Paint *pb = (SVG_Paint *)b->far_ptr;
+		pa->type = pb->type;
+		if (pb->type == SVG_PAINT_URI) {
+			GF_FieldInfo tmp_a, tmp_b;
+			tmp_a.fieldType = tmp_b.fieldType = XMLRI_datatype;
+			tmp_a.far_ptr = &pa->iri;
+			tmp_b.far_ptr = &pb->iri;
+			gf_svg_attributes_copy(&tmp_a, &tmp_b, 0);
+		} else {
+			pa->color = pb->color;
 		}
-		break;
+		return GF_OK;
+	}
+	break;
 
 	case SVG_Number_datatype:
 	case SVG_Length_datatype:
@@ -6097,7 +6095,7 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 	case SVG_ContentType_datatype:
 	case DOM_String_datatype:
 		if (* (SVG_String *)a->far_ptr) gf_free(* (SVG_String *)a->far_ptr);
-			* (SVG_String *)a->far_ptr = *(SVG_String *)b->far_ptr ? gf_strdup(*(SVG_String *)b->far_ptr) : NULL;
+		* (SVG_String *)a->far_ptr = *(SVG_String *)b->far_ptr ? gf_strdup(*(SVG_String *)b->far_ptr) : NULL;
 		return GF_OK;
 
 	case SVG_FontFamily_datatype:
@@ -6129,7 +6127,7 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 		if ( ((SVG_Focus *)b->far_ptr)->target.string)
 			((SVG_Focus *)a->far_ptr)->target.string = gf_strdup( ((SVG_Focus *)b->far_ptr)->target.string);
 	}
-		return GF_OK;
+	return GF_OK;
 
 	case SMIL_Times_datatype:
 	{
@@ -6142,7 +6140,7 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 			gf_free(t);
 		}
 		count = gf_list_count(src);
-		for (i=0;i<count;i++) {
+		for (i=0; i<count; i++) {
 			SMIL_Time *t2;
 			SMIL_Time *t = gf_list_get(src, i);
 			t2 = (SMIL_Time*)gf_malloc(sizeof(SMIL_Time));
@@ -6150,7 +6148,7 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 			gf_list_add(dst, t2);
 		}
 	}
-		return GF_OK;
+	return GF_OK;
 	case SMIL_AttributeName_datatype:
 	{
 		SMIL_AttributeName *saa = (SMIL_AttributeName *)a->far_ptr;
@@ -6159,7 +6157,7 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 		saa->type = sab->type;
 		saa->name = sab->name ? gf_strdup(sab->name) : NULL;
 	}
-		break;
+	break;
 	case SMIL_Duration_datatype:
 	{
 		SMIL_Duration *da = (SMIL_Duration*)a->far_ptr;
@@ -6167,7 +6165,7 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 		da->type = db->type;
 		da->clock_value = db->clock_value;
 	}
-		break;
+	break;
 	case SMIL_AnimateValue_datatype:
 	{
 		SMIL_AnimateValue *sa = (SMIL_AnimateValue*)a->far_ptr;
@@ -6183,7 +6181,7 @@ GF_Err gf_svg_attributes_copy(GF_FieldInfo *a, GF_FieldInfo *b, Bool clamp)
 			gf_svg_attributes_copy(&ava, &avb, 0);
 		}
 	}
-		break;
+	break;
 
 	/* Unsupported types */
 	case XMLRI_List_datatype:
@@ -6363,90 +6361,174 @@ Bool gf_svg_is_current_color(GF_FieldInfo *a)
 char *gf_svg_attribute_type_to_string(u32 att_type)
 {
 	switch (att_type) {
-	case SVG_FillRule_datatype:			return "FillRule";
-	case SVG_StrokeLineJoin_datatype:	return "StrokeLineJoin";
-	case SVG_StrokeLineCap_datatype:	return "StrokeLineCap";
-	case SVG_FontStyle_datatype:		return "FontStyle";
-	case SVG_FontWeight_datatype:		return "FontWeight";
-	case SVG_FontVariant_datatype:		return "FontVariant";
-	case SVG_TextAnchor_datatype:		return "TextAnchor";
-	case SVG_TransformType_datatype:	return "TransformType";
-	case SVG_Display_datatype:			return "Display";
-	case SVG_Visibility_datatype:		return "Visibility";
-	case SVG_Overflow_datatype:			return "Overflow";
-	case SVG_ZoomAndPan_datatype:		return "ZoomAndPan";
-	case SVG_DisplayAlign_datatype:		return "DisplayAlign";
-	case SVG_PointerEvents_datatype:	return "PointerEvents";
-	case SVG_RenderingHint_datatype:	return "RenderingHint";
-	case SVG_VectorEffect_datatype:		return "VectorEffect";
-	case SVG_PlaybackOrder_datatype:	return "PlaybackOrder";
-	case SVG_TimelineBegin_datatype:	return "TimelineBegin";
-	case XML_Space_datatype:			return "XML_Space";
-	case XMLEV_Propagate_datatype:		return "XMLEV_Propagate";
-	case XMLEV_DefaultAction_datatype:	return "XMLEV_DefaultAction";
-	case XMLEV_Phase_datatype:			return "XMLEV_Phase";
-	case SMIL_SyncBehavior_datatype:	return "SMIL_SyncBehavior";
-	case SMIL_SyncTolerance_datatype:	return "SMIL_SyncTolerance";
-	case SMIL_AttributeType_datatype:	return "SMIL_AttributeType";
-	case SMIL_CalcMode_datatype:		return "SMIL_CalcMode";
-	case SMIL_Additive_datatype:		return "SMIL_Additive";
-	case SMIL_Accumulate_datatype:		return "SMIL_Accumulate";
-	case SMIL_Restart_datatype:			return "SMIL_Restart";
-	case SMIL_Fill_datatype:			return "SMIL_Fill";
-	case SVG_GradientUnit_datatype:		return "GradientUnit";
-	case SVG_InitialVisibility_datatype:return "InitialVisibility";
-	case SVG_FocusHighlight_datatype:	return "FocusHighlight";
-	case SVG_Overlay_datatype:			return "Overlay";
-	case SVG_TransformBehavior_datatype:return "TransformBehavior";
-	case SVG_SpreadMethod_datatype:		return "SpreadMethod";
-	case SVG_TextAlign_datatype:		return "TextAlign";
-	case SVG_Number_datatype:			return "Number";
-	case SVG_FontSize_datatype:			return "FontSize";
-	case SVG_Length_datatype:			return "Length";
-	case SVG_Coordinate_datatype:		return "Coordinate";
-	case SVG_Rotate_datatype:			return "Rotate";
-	case SVG_Numbers_datatype:			return "Numbers";
-	case SVG_Points_datatype:			return "Points";
-	case SVG_Coordinates_datatype:		return "Coordinates";
-	case DOM_StringList_datatype:		return "StringList";
-	case XMLRI_List_datatype:			return "ListOfIRI";
-	case SMIL_KeyTimes_datatype:		return "SMIL_KeyTimes";
-	case SMIL_KeySplines_datatype:		return "SMIL_KeySplines";
-	case SMIL_KeyPoints_datatype:		return "SMIL_KeyPoints";
-	case SMIL_Times_datatype:			return "SMIL_Times";
-	case SMIL_AnimateValue_datatype:	return "SMIL_AnimateValue";
-	case SMIL_AnimateValues_datatype:	return "SMIL_AnimateValues";
-	case SMIL_Duration_datatype:		return "SMIL_Duration";
-	case SMIL_RepeatCount_datatype:		return "SMIL_RepeatCount";
-	case SMIL_AttributeName_datatype:	return "SMIL_AttributeName";
-	case SVG_Boolean_datatype:			return "Boolean";
-	case SVG_Color_datatype:			return "Color";
-	case SVG_Paint_datatype:			return "Paint";
-	case SVG_PathData_datatype:			return "PathData";
-	case SVG_FontFamily_datatype:		return "FontFamily";
-	case SVG_ID_datatype:				return "ID";
-	case XMLRI_datatype:				return "IRI";
-	case XML_IDREF_datatype:			return "IDREF";
-	case SVG_StrokeDashArray_datatype:	return "StrokeDashArray";
-	case SVG_PreserveAspectRatio_datatype:return "PreserveAspectRatio";
-	case SVG_ViewBox_datatype:			return "ViewBox";
-	case SVG_GradientOffset_datatype:	return "GradientOffset";
-	case SVG_Focus_datatype	:			return "Focus";
-	case SVG_Clock_datatype	:			return "Clock";
-	case DOM_String_datatype	:		return "String";
-	case SVG_ContentType_datatype:		return "ContentType";
-	case SVG_LanguageID_datatype:		return "LanguageID";
-	case XMLEV_Event_datatype:			return "XMLEV_Event";
-	case SVG_Motion_datatype:			return "Motion";
-	case SVG_Transform_datatype:		return "Transform";
-	case SVG_Transform_Translate_datatype:return "Translate";
-	case SVG_Transform_Scale_datatype:	return "Scale";
-	case SVG_Transform_SkewX_datatype:	return "SkewX";
-	case SVG_Transform_SkewY_datatype:	return "SkewY";
-	case SVG_Transform_Rotate_datatype:	return "Rotate";
-	case LASeR_Choice_datatype:			return "LASeR_Choice";
-	case LASeR_Size_datatype:			return "LASeR_Size";
-	default:							return "UnknownType";
+	case SVG_FillRule_datatype:
+		return "FillRule";
+	case SVG_StrokeLineJoin_datatype:
+		return "StrokeLineJoin";
+	case SVG_StrokeLineCap_datatype:
+		return "StrokeLineCap";
+	case SVG_FontStyle_datatype:
+		return "FontStyle";
+	case SVG_FontWeight_datatype:
+		return "FontWeight";
+	case SVG_FontVariant_datatype:
+		return "FontVariant";
+	case SVG_TextAnchor_datatype:
+		return "TextAnchor";
+	case SVG_TransformType_datatype:
+		return "TransformType";
+	case SVG_Display_datatype:
+		return "Display";
+	case SVG_Visibility_datatype:
+		return "Visibility";
+	case SVG_Overflow_datatype:
+		return "Overflow";
+	case SVG_ZoomAndPan_datatype:
+		return "ZoomAndPan";
+	case SVG_DisplayAlign_datatype:
+		return "DisplayAlign";
+	case SVG_PointerEvents_datatype:
+		return "PointerEvents";
+	case SVG_RenderingHint_datatype:
+		return "RenderingHint";
+	case SVG_VectorEffect_datatype:
+		return "VectorEffect";
+	case SVG_PlaybackOrder_datatype:
+		return "PlaybackOrder";
+	case SVG_TimelineBegin_datatype:
+		return "TimelineBegin";
+	case XML_Space_datatype:
+		return "XML_Space";
+	case XMLEV_Propagate_datatype:
+		return "XMLEV_Propagate";
+	case XMLEV_DefaultAction_datatype:
+		return "XMLEV_DefaultAction";
+	case XMLEV_Phase_datatype:
+		return "XMLEV_Phase";
+	case SMIL_SyncBehavior_datatype:
+		return "SMIL_SyncBehavior";
+	case SMIL_SyncTolerance_datatype:
+		return "SMIL_SyncTolerance";
+	case SMIL_AttributeType_datatype:
+		return "SMIL_AttributeType";
+	case SMIL_CalcMode_datatype:
+		return "SMIL_CalcMode";
+	case SMIL_Additive_datatype:
+		return "SMIL_Additive";
+	case SMIL_Accumulate_datatype:
+		return "SMIL_Accumulate";
+	case SMIL_Restart_datatype:
+		return "SMIL_Restart";
+	case SMIL_Fill_datatype:
+		return "SMIL_Fill";
+	case SVG_GradientUnit_datatype:
+		return "GradientUnit";
+	case SVG_InitialVisibility_datatype:
+		return "InitialVisibility";
+	case SVG_FocusHighlight_datatype:
+		return "FocusHighlight";
+	case SVG_Overlay_datatype:
+		return "Overlay";
+	case SVG_TransformBehavior_datatype:
+		return "TransformBehavior";
+	case SVG_SpreadMethod_datatype:
+		return "SpreadMethod";
+	case SVG_TextAlign_datatype:
+		return "TextAlign";
+	case SVG_Number_datatype:
+		return "Number";
+	case SVG_FontSize_datatype:
+		return "FontSize";
+	case SVG_Length_datatype:
+		return "Length";
+	case SVG_Coordinate_datatype:
+		return "Coordinate";
+	case SVG_Rotate_datatype:
+		return "Rotate";
+	case SVG_Numbers_datatype:
+		return "Numbers";
+	case SVG_Points_datatype:
+		return "Points";
+	case SVG_Coordinates_datatype:
+		return "Coordinates";
+	case DOM_StringList_datatype:
+		return "StringList";
+	case XMLRI_List_datatype:
+		return "ListOfIRI";
+	case SMIL_KeyTimes_datatype:
+		return "SMIL_KeyTimes";
+	case SMIL_KeySplines_datatype:
+		return "SMIL_KeySplines";
+	case SMIL_KeyPoints_datatype:
+		return "SMIL_KeyPoints";
+	case SMIL_Times_datatype:
+		return "SMIL_Times";
+	case SMIL_AnimateValue_datatype:
+		return "SMIL_AnimateValue";
+	case SMIL_AnimateValues_datatype:
+		return "SMIL_AnimateValues";
+	case SMIL_Duration_datatype:
+		return "SMIL_Duration";
+	case SMIL_RepeatCount_datatype:
+		return "SMIL_RepeatCount";
+	case SMIL_AttributeName_datatype:
+		return "SMIL_AttributeName";
+	case SVG_Boolean_datatype:
+		return "Boolean";
+	case SVG_Color_datatype:
+		return "Color";
+	case SVG_Paint_datatype:
+		return "Paint";
+	case SVG_PathData_datatype:
+		return "PathData";
+	case SVG_FontFamily_datatype:
+		return "FontFamily";
+	case SVG_ID_datatype:
+		return "ID";
+	case XMLRI_datatype:
+		return "IRI";
+	case XML_IDREF_datatype:
+		return "IDREF";
+	case SVG_StrokeDashArray_datatype:
+		return "StrokeDashArray";
+	case SVG_PreserveAspectRatio_datatype:
+		return "PreserveAspectRatio";
+	case SVG_ViewBox_datatype:
+		return "ViewBox";
+	case SVG_GradientOffset_datatype:
+		return "GradientOffset";
+	case SVG_Focus_datatype	:
+		return "Focus";
+	case SVG_Clock_datatype	:
+		return "Clock";
+	case DOM_String_datatype	:
+		return "String";
+	case SVG_ContentType_datatype:
+		return "ContentType";
+	case SVG_LanguageID_datatype:
+		return "LanguageID";
+	case XMLEV_Event_datatype:
+		return "XMLEV_Event";
+	case SVG_Motion_datatype:
+		return "Motion";
+	case SVG_Transform_datatype:
+		return "Transform";
+	case SVG_Transform_Translate_datatype:
+		return "Translate";
+	case SVG_Transform_Scale_datatype:
+		return "Scale";
+	case SVG_Transform_SkewX_datatype:
+		return "SkewX";
+	case SVG_Transform_SkewY_datatype:
+		return "SkewY";
+	case SVG_Transform_Rotate_datatype:
+		return "Rotate";
+	case LASeR_Choice_datatype:
+		return "LASeR_Choice";
+	case LASeR_Size_datatype:
+		return "LASeR_Size";
+	default:
+		return "UnknownType";
 	}
 }
 

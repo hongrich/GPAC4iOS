@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -31,6 +31,7 @@ GF_Path *gf_path_new()
 {
 	GF_Path *gp;
 	GF_SAFEALLOC(gp, GF_Path);
+	if (!gp) return NULL;
 	gp->fineness = FIX_ONE;
 	return gp;
 }
@@ -58,11 +59,23 @@ GF_Path *gf_path_clone(GF_Path *gp)
 	GF_SAFEALLOC(dst, GF_Path);
 	if (!dst) return NULL;
 	dst->contours = (u32 *)gf_malloc(sizeof(u32)*gp->n_contours);
-	if (!dst->contours) { gf_free(dst); return NULL; }
+	if (!dst->contours) {
+		gf_free(dst);
+		return NULL;
+	}
 	dst->points = (GF_Point2D *) gf_malloc(sizeof(GF_Point2D)*gp->n_points);
-	if (!dst->points) { gf_free(dst->contours); gf_free(dst); return NULL; }
+	if (!dst->points) {
+		gf_free(dst->contours);
+		gf_free(dst);
+		return NULL;
+	}
 	dst->tags = (u8 *) gf_malloc(sizeof(u8)*gp->n_points);
-	if (!dst->tags) { gf_free(dst->points); gf_free(dst->contours); gf_free(dst); return NULL; }
+	if (!dst->tags) {
+		gf_free(dst->points);
+		gf_free(dst->contours);
+		gf_free(dst);
+		return NULL;
+	}
 	memcpy(dst->contours, gp->contours, sizeof(u32)*gp->n_contours);
 	dst->n_contours = gp->n_contours;
 	memcpy(dst->points, gp->points, sizeof(GF_Point2D)*gp->n_points);
@@ -90,7 +103,7 @@ void gf_path_del(GF_Path *gp)
 		_gp->points = (GF_Point2D *)gf_realloc(_gp->points, sizeof(GF_Point2D)*(_gp->n_alloc_points));	\
 		_gp->tags = (u8 *) gf_realloc(_gp->tags, sizeof(u8)*(_gp->n_alloc_points));	\
 	}	\
-
+ 
 
 GF_EXPORT
 GF_Err gf_path_add_move_to(GF_Path *gp, Fixed x, Fixed y)
@@ -122,7 +135,9 @@ GF_Err gf_path_add_move_to(GF_Path *gp, Fixed x, Fixed y)
 }
 
 GF_EXPORT
-GF_Err gf_path_add_move_to_vec(GF_Path *gp, GF_Point2D *pt) { return gf_path_add_move_to(gp, pt->x, pt->y); }
+GF_Err gf_path_add_move_to_vec(GF_Path *gp, GF_Point2D *pt) {
+	return gf_path_add_move_to(gp, pt->x, pt->y);
+}
 
 GF_EXPORT
 GF_Err gf_path_add_line_to(GF_Path *gp, Fixed x, Fixed y)
@@ -142,7 +157,9 @@ GF_Err gf_path_add_line_to(GF_Path *gp, Fixed x, Fixed y)
 }
 
 GF_EXPORT
-GF_Err gf_path_add_line_to_vec(GF_Path *gp, GF_Point2D *pt) { return gf_path_add_line_to(gp, pt->x, pt->y); }
+GF_Err gf_path_add_line_to_vec(GF_Path *gp, GF_Point2D *pt) {
+	return gf_path_add_line_to(gp, pt->x, pt->y);
+}
 
 GF_EXPORT
 GF_Err gf_path_close(GF_Path *gp)
@@ -150,7 +167,7 @@ GF_Err gf_path_close(GF_Path *gp)
 	Fixed diff;
 	GF_Point2D start, end;
 	if (!gp || !gp->n_contours) return GF_BAD_PARAM;
-	
+
 	if (gp->n_contours<=1) start = gp->points[0];
 	else start = gp->points[gp->contours[gp->n_contours-2] + 1];
 	end = gp->points[gp->n_points-1];
@@ -276,20 +293,20 @@ GF_Err gf_path_add_subpath(GF_Path *gp, GF_Path *src, GF_Matrix2D *mx)
 {
 	u32 i;
 	if (!src) return GF_OK;
-	gp->contours = gf_realloc(gp->contours, sizeof(u32) * (gp->n_contours + src->n_contours));
+	gp->contours = (u32*)gf_realloc(gp->contours, sizeof(u32) * (gp->n_contours + src->n_contours));
 	if (!gp->contours) return GF_OUT_OF_MEM;
 	for (i=0; i<src->n_contours; i++) {
 		gp->contours[i+gp->n_contours] = src->contours[i] + gp->n_points;
 	}
 	gp->n_contours += src->n_contours;
 	gp->n_alloc_points += src->n_alloc_points;
-	gp->points = gf_realloc(gp->points, sizeof(GF_Point2D)*gp->n_alloc_points);
+	gp->points = (GF_Point2D*)gf_realloc(gp->points, sizeof(GF_Point2D)*gp->n_alloc_points);
 	if (!gp->points) return GF_OUT_OF_MEM;
-	gp->tags = gf_realloc(gp->tags, sizeof(u8)*gp->n_alloc_points);
+	gp->tags = (u8*)gf_realloc(gp->tags, sizeof(u8)*gp->n_alloc_points);
 	if (!gp->tags) return GF_OUT_OF_MEM;
 	memcpy(gp->points + gp->n_points, src->points, sizeof(GF_Point2D)*src->n_points);
 	if (mx) {
-		for (i=0;i<src->n_points; i++) {
+		for (i=0; i<src->n_points; i++) {
 			gf_mx2d_apply_coords(mx, &gp->points[i+gp->n_points].x, &gp->points[i+gp->n_points].y);
 		}
 	}
@@ -310,7 +327,7 @@ static void NBezier(GF_Point2D *pts, s32 n, Double mu, GF_Point2D *pt_out)
 
 	muk = 1;
 	munk = pow(1-mu,(Double)n);
-	for (k=0;k<=n;k++) {
+	for (k=0; k<=n; k++) {
 		nn = n;
 		kn = k;
 		nkn = n - k;
@@ -358,7 +375,7 @@ GF_Err gf_path_add_bezier(GF_Path *gp, GF_Point2D *pts, u32 nbPoints)
 	newpts = (GF_Point2D *) gf_malloc(sizeof(GF_Point2D) * (nbPoints+1));
 	newpts[0] = gp->points[gp->n_points-1];
 	memcpy(&newpts[1], pts, sizeof(GF_Point2D) * nbPoints);
-	
+
 	gf_add_n_bezier(gp, newpts, nbPoints + 1);
 
 	gf_free(newpts);
@@ -397,7 +414,7 @@ GF_Err gf_path_add_arc_to(GF_Path *gp, Fixed end_x, Fixed end_y, Fixed fa_x, Fix
 	end_angle = gf_atan2(end_y, end_x);
 	tmp = gf_mulfix((start_x - fa_x), (start_x - fa_x)) + gf_mulfix((start_y - fa_y), (start_y - fa_y));
 	axis_w = gf_sqrt(tmp);
-	tmp = gf_mulfix((start_x - fb_x) , (start_x - fb_x)) + gf_mulfix((start_y - fb_y), (start_y - fb_y)); 
+	tmp = gf_mulfix((start_x - fb_x) , (start_x - fb_x)) + gf_mulfix((start_y - fb_y), (start_y - fb_y));
 	axis_w += gf_sqrt(tmp);
 	axis_w /= 2;
 	axis_h = gf_sqrt(gf_mulfix(axis_w, axis_w) - gf_mulfix(fa_x,fa_x));
@@ -454,7 +471,7 @@ GF_Err gf_path_add_svg_arc_to(GF_Path *gp, Fixed end_x, Fixed end_y, Fixed r_x, 
 	start_x = gp->points[gp->n_points-1].x;
 	start_y = gp->points[gp->n_points-1].y;
 
-	phi = gf_mulfix(gf_divfix(x_axis_rotation, 180), GF_PI);
+	phi = gf_mulfix(x_axis_rotation/180, GF_PI);
 	cos_phi = gf_cos(phi);
 	sin_phi = gf_sin(phi);
 	xmid = (start_x - end_x)/2;
@@ -479,22 +496,22 @@ GF_Err gf_path_add_svg_arc_to(GF_Path *gp, Fixed end_x, Fixed end_y, Fixed r_x, 
 		r_y = gf_mulfix(gf_sqrt(radius_scale), r_y);
 		rxsq = gf_mulfix(r_x, r_x);
 		rysq = gf_mulfix(r_y, r_y);
-	} 
+	}
 
 #if 0
-	/* Old code with overflow problems in fixed point, 
+	/* Old code with overflow problems in fixed point,
 	   sign was sometimes negative (cf tango SVG icons appointment-new.svg)*/
 
 	sign = gf_mulfix(rxsq,ymidpsq) + gf_mulfix(rysq, xmidpsq);
 	scale = FIX_ONE;
 	/*FIXME - what if scale is 0 ??*/
 	if (sign) scale = gf_divfix(
-					(gf_mulfix(rxsq,rysq) - gf_mulfix(rxsq, ymidpsq) - gf_mulfix(rysq,xmidpsq)),
-					sign
-			);
+		                      (gf_mulfix(rxsq,rysq) - gf_mulfix(rxsq, ymidpsq) - gf_mulfix(rysq,xmidpsq)),
+		                      sign
+		                  );
 #else
-	/* New code: the sign variable computation is split into simpler cases and 
-	   the expression is divided by rxsq to reduce the range */	   
+	/* New code: the sign variable computation is split into simpler cases and
+	   the expression is divided by rxsq to reduce the range */
 	if ((rxsq == 0 || ymidpsq ==0) && (rysq == 0 || xmidpsq == 0)) {
 		scale = FIX_ONE;
 	} else if (rxsq == 0 || ymidpsq ==0) {
@@ -519,10 +536,6 @@ GF_Err gf_path_add_svg_arc_to(GF_Path *gp, Fixed end_x, Fixed end_y, Fixed r_x, 
 	c_x = gf_mulfix(cos_phi, cxp) - gf_mulfix(sin_phi, cyp) + (start_x + end_x)/2;
 	c_y = gf_mulfix(sin_phi, cxp) + gf_mulfix(cos_phi, cyp) + (start_y + end_y)/2;
 
-	ux = FIX_ONE;
-	uy = 0;
-	normu = FIX_ONE;
-	
 	vx = gf_divfix(xmidp-cxp,r_x);
 	vy = gf_divfix(ymidp-cyp,r_y);
 	normv = gf_sqrt(gf_mulfix(vx, vx) + gf_mulfix(vy,vy));
@@ -533,12 +546,11 @@ GF_Err gf_path_add_svg_arc_to(GF_Path *gp, Fixed end_x, Fixed end_y, Fixed r_x, 
 
 	ux = vx;
 	uy = vy;
-	normu = normv;
-	
+
 	vx = gf_divfix(-xmidp-cxp,r_x);
 	vy = gf_divfix(-ymidp-cyp,r_y);
 	normu = gf_sqrt(gf_mulfix(ux, ux) + gf_mulfix(uy,uy));
-	
+
 	sign = gf_mulfix(ux, vy) - gf_mulfix(uy, vx);
 	sweep_angle = gf_divfix( gf_mulfix(ux,vx) + gf_mulfix(uy, vy), gf_mulfix(normu, normv) );
 	/*numerical stability safety*/
@@ -546,16 +558,16 @@ GF_Err gf_path_add_svg_arc_to(GF_Path *gp, Fixed end_x, Fixed end_y, Fixed r_x, 
 	sweep_angle = gf_acos(sweep_angle);
 	sweep_angle = (sign > 0 ? sweep_angle: -sweep_angle);
 	if (sweep_flag == 0) {
-		if (sweep_angle > 0) sweep_angle -= GF_2PI; 
+		if (sweep_angle > 0) sweep_angle -= GF_2PI;
 	} else {
-		if (sweep_angle < 0) sweep_angle += GF_2PI; 
+		if (sweep_angle < 0) sweep_angle += GF_2PI;
 	}
 
 	num_steps = GF_2D_DEFAULT_RES/2;
 	for (i=1; i<=num_steps; i++) {
 		Fixed _vx, _vy;
 		Fixed _vxp, _vyp;
-		Fixed angle = start_angle + sweep_angle*i/num_steps;
+		Fixed angle = start_angle + sweep_angle*(s32)i/(s32)num_steps;
 		_vx = gf_mulfix(r_x, gf_cos(angle));
 		_vy = gf_mulfix(r_y, gf_sin(angle));
 		_vxp = gf_mulfix(cos_phi, _vx) - gf_mulfix(sin_phi, _vy) + c_x;
@@ -650,7 +662,7 @@ GF_Err gf_path_get_control_bounds(GF_Path *gp, GF_Rect *rc)
 
 /*
  *	conic bbox computing taken from freetype
- *		Copyright 1996-2001, 2002, 2004 by                                   
+ *		Copyright 1996-2001, 2002, 2004 by
  *		David Turner, Robert Wilhelm, and Werner Lemberg.
  *	License: FTL or GPL
  */
@@ -681,7 +693,7 @@ Suite:
 
 /*
  *	cubic bbox computing taken from freetype
- *		Copyright 1996-2001, 2002, 2004 by                                   
+ *		Copyright 1996-2001, 2002, 2004 by
  *		David Turner, Robert Wilhelm, and Werner Lemberg.
  *	License: FTL or GPL
 
@@ -701,7 +713,7 @@ static void gf_cubic_check(Fixed p1, Fixed p2, Fixed p3, Fixed p4, Fixed *min, F
 		Fixed y2 = arc[1];
 		Fixed y3 = arc[2];
 		Fixed y4 = arc[3];
-		
+
 		if (ABS(y1)<FIX_EPSILON) arc[0] = y1 = 0;
 		if (ABS(y2)<FIX_EPSILON) arc[1] = y2 = 0;
 		if (ABS(y3)<FIX_EPSILON) arc[2] = y3 = 0;
@@ -775,7 +787,6 @@ GF_Err gf_path_get_bounds(GF_Path *gp, GF_Rect *rc)
 		return GF_OK;
 	}
 	pt = gp->points;
-	end = pt + gp->n_points;
 	xMin = xMax = cxMin = cxMax = pt->x;
 	yMin = yMax = cyMin = cyMax = pt->y;
 	pt++;
@@ -798,7 +809,7 @@ GF_Err gf_path_get_bounds(GF_Path *gp, GF_Rect *rc)
 	}
 
 	/*control box is bigger than box , decompose curves*/
-    if ((cxMin < xMin) || (cxMax > xMax) || (cyMin < yMin) || (cyMax > yMax)) {
+	if ((cxMin < xMin) || (cxMax > xMax) || (cyMin < yMin) || (cyMax > yMax)) {
 		/*decompose all control points*/
 		pt = gp->points;
 		for (i=1 ; i < gp->n_points; ) {
@@ -814,8 +825,8 @@ GF_Err gf_path_get_bounds(GF_Path *gp, GF_Rect *rc)
 				end = &gp->points[i+1];
 				if ((ctrl1->x < xMin) || (ctrl1->x > xMax))
 					gf_conic_check(pt->x, ctrl1->x, end->x, &xMin, &xMax);
- 
-				if ((ctrl1->y < yMin) || (ctrl1->y > yMax)) 
+
+				if ((ctrl1->y < yMin) || (ctrl1->y > yMax))
 					gf_conic_check(pt->y, ctrl1->y, end->y, &yMin, &yMax);
 
 				/*and move*/
@@ -829,8 +840,8 @@ GF_Err gf_path_get_bounds(GF_Path *gp, GF_Rect *rc)
 				end = &gp->points[i+2];
 				if ((ctrl1->x < xMin) || (ctrl1->x > xMax) || (ctrl2->x < xMin) || (ctrl2->x > xMax))
 					gf_cubic_check(pt->x, ctrl1->x, ctrl2->x, end->x, &xMin, &xMax);
- 
-				if ((ctrl1->y < yMin) || (ctrl1->y > yMax) || (ctrl2->y < yMin) || (ctrl2->y > yMax)) 
+
+				if ((ctrl1->y < yMin) || (ctrl1->y > yMax) || (ctrl2->y < yMin) || (ctrl2->y > yMax))
 					gf_cubic_check(pt->y, ctrl1->y, ctrl2->y, end->y, &yMin, &yMax);
 
 				/*and move*/
@@ -867,7 +878,7 @@ static GF_Err gf_subdivide_cubic(GF_Path *gp, Fixed x0, Fixed y0, Fixed x1, Fixe
 	pt.y = y1 - y0;
 	z1_0 = gf_v2d_len(&pt);
 
-	if ((z3_0*100 < FIX_ONE) && (z1_0*100 < FIX_ONE)) 
+	if ((z3_0*100 < FIX_ONE) && (z1_0*100 < FIX_ONE))
 		goto nosubdivide;
 
 	/* perp is distance from line, multiplied by dist z0-z3 */
@@ -968,7 +979,7 @@ GF_Path *gf_path_get_flatten(GF_Path *gp)
 			if (gp->tags[i+1]==GF_PATH_CLOSE) gf_path_close(ngp);
 			i+=2;
 		}
-			break;
+		break;
 		case GF_PATH_CURVE_CUBIC:
 			gf_subdivide_cubic(ngp, pt->x, pt->y, gp->points[i].x, gp->points[i].y, gp->points[i+1].x, gp->points[i+1].y, gp->points[i+2].x, gp->points[i+2].y, fineness);
 			pt = &gp->points[i+2];
@@ -1039,12 +1050,12 @@ static void gf_subdivide_cubic_hit_test(Fixed h_x, Fixed h_y, Fixed x0, Fixed y0
 
 	if (s.y<=pt.y) {
 		if (e.y>pt.y) {
-			if (isLeft(s, e, pt) > 0) 
+			if (isLeft(s, e, pt) > 0)
 				(*wn)++;
 		}
 	}
 	else if (e.y<=pt.y) {
-		if (isLeft(s, e, pt) < 0) 
+		if (isLeft(s, e, pt) < 0)
 			(*wn)--;
 	}
 }
@@ -1059,10 +1070,10 @@ Bool gf_path_point_over(GF_Path *gp, Fixed x, Fixed y)
 
 	/*check if not in bounds*/
 	gf_path_get_bounds(gp, &rc);
-	if ((x<rc.x) || (y>rc.y) || (x>rc.x+rc.width) || (y<rc.y-rc.height)) return 0;
+	if ((x<rc.x) || (y>rc.y) || (x>rc.x+rc.width) || (y<rc.y-rc.height)) return GF_FALSE;
 
-	if (!gp || (gp->n_points<2)) return 0;
-	
+	if (!gp || (gp->n_points<2)) return GF_FALSE;
+
 	pt.x = x;
 	pt.y = y;
 	wn = 0;
@@ -1097,8 +1108,8 @@ Bool gf_path_point_over(GF_Path *gp, Fixed x, Fixed y)
 			gf_subdivide_cubic_hit_test(x, y, s.x, s.y, c1.x, c1.y, c2.x, c2.y, end->x, end->y, &wn);
 			s = *end;
 		}
-			i+=2;
-			break;
+		i+=2;
+		break;
 		case GF_PATH_CURVE_CUBIC:
 			gf_subdivide_cubic_hit_test(x, y, s.x, s.y, gp->points[i].x, gp->points[i].y, gp->points[i+1].x, gp->points[i+1].y, gp->points[i+2].x, gp->points[i+2].y, &wn);
 			s = gp->points[i+2];
@@ -1126,19 +1137,19 @@ Bool gf_path_point_over(GF_Path *gp, Fixed x, Fixed y)
 			i++;
 		}
 	}
-	if (gp->flags & GF_PATH_FILL_ZERO_NONZERO) return wn ? 1 : 0;
-	return wn%2 ? 1 : 0;
+	if (gp->flags & GF_PATH_FILL_ZERO_NONZERO) return wn ? GF_TRUE : GF_FALSE;
+	return wn%2 ? GF_TRUE : GF_FALSE;
 }
 
 GF_EXPORT
 Bool gf_path_is_empty(GF_Path *gp)
 {
-	if (gp && gp->contours) return 0;
-	return 1;
+	if (gp && gp->contours) return GF_FALSE;
+	return GF_TRUE;
 }
 
-/*iteration info*/	
-typedef struct 
+/*iteration info*/
+typedef struct
 {
 	Fixed len;
 	Fixed dx, dy;
@@ -1202,18 +1213,18 @@ GF_EXPORT
 Bool gf_path_iterator_get_transform(GF_PathIterator *path, Fixed offset, Bool follow_tangent, GF_Matrix2D *mat, Bool smooth_edges, Fixed length_after_point)
 {
 	GF_Matrix2D final, rot;
-	Bool tang = 0;
+	Bool tang = GF_FALSE;
 	Fixed res, angle, angleNext;
 	u32 i;
 	Fixed curLen = 0;
-	if (!path) return 0;
+	if (!path) return GF_FALSE;
 
 	for (i=0; i<path->num_seg; i++) {
 		if (curLen + path->seg[i].len >= offset) goto found;
 		curLen += path->seg[i].len;
 	}
-	if (!follow_tangent) return 0;
-	tang = 1;
+	if (!follow_tangent) return GF_FALSE;
+	tang = GF_TRUE;
 	i--;
 
 found:
@@ -1268,7 +1279,7 @@ found:
 	gf_mx2d_add_rotation(&rot, 0, 0, angle);
 	gf_mx2d_add_matrix(mat, &rot);
 	gf_mx2d_add_matrix(mat, &final);
-	return 1;
+	return GF_TRUE;
 }
 
 GF_EXPORT
@@ -1292,7 +1303,7 @@ void gf_path_iterator_del(GF_PathIterator *it)
     pcur = pts[iread++];						\
     delta.x = pcur.x - pprev.x;					\
     delta.y = pcur.y - pprev.y;					\
-
+ 
 #define ConvexCross(p, q) gf_mulfix(p.x,q.y) - gf_mulfix(p.y,q.x);
 
 #define ConvexCheckTriple						\
@@ -1313,47 +1324,47 @@ void gf_path_iterator_del(GF_PathIterator *it)
     pSecond = pThird;		\
     dprev.x = dcur.x;		\
     dprev.y = dcur.y;							\
-
+ 
 GF_EXPORT
 u32 gf_polygone2d_get_convexity(GF_Point2D *pts, u32 len)
 {
 	s32 curDir, thisDir = 0, dirChanges = 0, angleSign = 0;
 	u32 iread;
-    Fixed cross;
+	Fixed cross;
 	GF_Point2D pSecond, pThird, pSaveSecond;
 	GF_Point2D dprev, dcur;
 
-    /* Get different point, return if less than 3 diff points. */
-    if (len < 3 ) return GF_POLYGON_CONVEX_LINE;
-    iread = 1;
+	/* Get different point, return if less than 3 diff points. */
+	if (len < 3 ) return GF_POLYGON_CONVEX_LINE;
+	iread = 1;
 	ConvexGetPointDelta(dprev, (pts[0]), pSecond);
-    pSaveSecond = pSecond;
+	pSaveSecond = pSecond;
 	/*initial direction */
-    curDir = ConvexCompare(dprev);
-    while ( iread < len) {
+	curDir = ConvexCompare(dprev);
+	while ( iread < len) {
 		/* Get different point, break if no more points */
 		ConvexGetPointDelta(dcur, pSecond, pThird );
 		if ( (dcur.x == 0) && (dcur.y == 0) ) continue;
 		/* Check current three points */
 		ConvexCheckTriple;
-    }
+	}
 
-    /* Must check for direction changes from last vertex back to first */
+	/* Must check for direction changes from last vertex back to first */
 	/* Prepare for 'ConvexCheckTriple' */
-    pThird = pts[0];
-    dcur.x = pThird.x - pSecond.x;
-    dcur.y = pThird.y - pSecond.y;
-    if ( ConvexCompare(dcur) ) ConvexCheckTriple;
+	pThird = pts[0];
+	dcur.x = pThird.x - pSecond.x;
+	dcur.y = pThird.y - pSecond.y;
+	if ( ConvexCompare(dcur) ) ConvexCheckTriple;
 
-    /* and check for direction changes back to second vertex */
-    dcur.x = pSaveSecond.x - pSecond.x;
-    dcur.y = pSaveSecond.y - pSecond.y;
+	/* and check for direction changes back to second vertex */
+	dcur.x = pSaveSecond.x - pSecond.x;
+	dcur.y = pSaveSecond.y - pSecond.y;
 	/* Don't care about 'pThird' now */
-    ConvexCheckTriple;			
+	ConvexCheckTriple;
 
-    /* Decide on polygon type given accumulated status */
-    if ( dirChanges > 2 ) return GF_POLYGON_COMPLEX;
-    if ( angleSign > 0 ) return GF_POLYGON_CONVEX_CCW;
-    if ( angleSign < 0 ) return GF_POLYGON_CONVEX_CW;
-    return GF_POLYGON_CONVEX_LINE;
+	/* Decide on polygon type given accumulated status */
+	if ( dirChanges > 2 ) return GF_POLYGON_COMPLEX;
+	if ( angleSign > 0 ) return GF_POLYGON_CONVEX_CCW;
+	if ( angleSign < 0 ) return GF_POLYGON_CONVEX_CW;
+	return GF_POLYGON_CONVEX_LINE;
 }

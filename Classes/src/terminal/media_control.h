@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -36,7 +36,9 @@
 /*restart object and takes care of media control/clock dependencies*/
 void mediacontrol_restart(GF_ObjectManager *odm);
 void mediacontrol_pause(GF_ObjectManager *odm);
-void mediacontrol_resume(GF_ObjectManager *odm);
+//resumes object.
+//If @resume_to_live is set, will deactivate main addon acting as PVR
+void mediacontrol_resume(GF_ObjectManager *odm, Bool resume_to_live);
 
 Bool MC_URLChanged(MFURL *old_url, MFURL *new_url);
 
@@ -54,7 +56,7 @@ typedef struct _media_control
 	Fixed media_speed;
 	Bool enabled;
 	MFURL url;
-	
+
 	GF_Scene *parent;
 	/*stream owner*/
 	GF_MediaObject *stream;

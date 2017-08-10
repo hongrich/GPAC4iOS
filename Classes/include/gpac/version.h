@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2012
  *					All rights reserved
  *
@@ -25,6 +25,18 @@
 
 #ifndef _GF_VERSION_H
 
+/*! \file "gpac/version.h"
+ *	\brief GPAC version.
+ *
+*/
+
+/*!
+ *	\ingroup utils_grp
+ *	\brief GPAC version definition.
+ *
+ *	@{
+ */
+
 /*!
  *	\brief GPAC Version
  *	\hideinitializer
@@ -35,14 +47,14 @@
  * NO SPACE in GPAC_VERSION / GPAC_FULL_VERSION for proper install
  * SONAME versions must be digits (not strings)
  */
-#define GPAC_VERSION          "0.5.1-DEV"
-#define GPAC_VERSION_MAJOR 3
-#define GPAC_VERSION_MINOR 0
+#define GPAC_VERSION          "0.7.2-DEV"
+#define GPAC_VERSION_MAJOR 7
+#define GPAC_VERSION_MINOR 6
 #define GPAC_VERSION_MICRO 0
 
 #include <gpac/revision.h>
-#define GPAC_FULL_VERSION       GPAC_VERSION"-rev" GPAC_SVN_REVISION
+#define GPAC_FULL_VERSION       GPAC_VERSION "-rev" GPAC_GIT_REVISION
 
+/*! @} */
 
 #endif //_GF_VERSION_H
-

@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -28,24 +28,22 @@
 
 #ifndef GPAC_DISABLE_ISOM
 
-#if !defined(NODEJS_FS_WATCH_PATCH) && defined(WIN32)
-#define NODEJS_FS_WATCH_PATCH
-#endif
-
-
 static u32 default_write_buffering_size = 0;
 
 GF_EXPORT
 GF_Err gf_isom_set_output_buffering(GF_ISOFile *movie, u32 size)
 {
+#ifndef GPAC_DISABLE_ISOM_WRITE
 	if (!movie) {
 		default_write_buffering_size = size;
 		return GF_OK;
 	}
 	if (!movie->editFileMap) return GF_BAD_PARAM;
 	return gf_bs_set_output_buffering(movie->editFileMap->bs, size);
+#else
+	return GF_NOT_SUPPORTED;
+#endif
 }
-
 
 void gf_isom_datamap_del(GF_DataMap *ptr)
 {
@@ -66,7 +64,6 @@ void gf_isom_datamap_del(GF_DataMap *ptr)
 	default:
 		break;
 	}
-
 }
 
 //Close a data entry
@@ -102,11 +99,11 @@ static Bool IsLargeFile(char *path)
 #ifndef _WIN32_WCE
 	FILE *stream;
 	s64 size;
-	stream = gf_f64_open(path, "rb");
+	stream = gf_fopen(path, "rb");
 	if (!stream) return 0;
-	gf_f64_seek(stream, 0, SEEK_END);
-	size = gf_f64_tell(stream);
-	fclose(stream);
+	gf_fseek(stream, 0, SEEK_END);
+	size = gf_ftell(stream);
+	gf_fclose(stream);
 	if (size == -1L) return 0;
 	if (size > 0xFFFFFFFF) return 1;
 #endif
@@ -132,14 +129,18 @@ GF_Err gf_isom_datamap_new(const char *location, const char *parentPath, u8 mode
 	if (!strcmp(location, "mp4_tmp_edit")) {
 #ifndef GPAC_DISABLE_ISOM_WRITE
 		*outDataMap = gf_isom_fdm_new_temp(parentPath);
-		if (! (*outDataMap)) return GF_IO_ERR;
+		if (! (*outDataMap)) {
+			return GF_IO_ERR;
+		}
 		return GF_OK;
 #else
 		return GF_NOT_SUPPORTED;
 #endif
 	} else if (!strncmp(location, "gmem://", 7)) {
 		*outDataMap = gf_isom_fdm_new(location, GF_ISOM_DATA_MAP_READ);
-		if (! (*outDataMap)) return GF_IO_ERR;
+		if (! (*outDataMap)) {
+			return GF_IO_ERR;
+		}
 		return GF_OK;
 	}
 
@@ -153,14 +154,18 @@ GF_Err gf_isom_datamap_new(const char *location, const char *parentPath, u8 mode
 	}
 
 	//TEMP: however, only support for file right now (we'd have to add some callback functions at some point)
-	if (extern_file) return GF_NOT_SUPPORTED;
+	if (extern_file) {
+		return GF_NOT_SUPPORTED;
+	}
 
 	sPath = gf_url_get_absolute_path(location, parentPath);
-	if (sPath == NULL) return GF_URL_ERROR;
+	if (sPath == NULL) {
+		return GF_URL_ERROR;
+	}
 
 	if (mode == GF_ISOM_DATA_MAP_READ_ONLY) {
 		mode = GF_ISOM_DATA_MAP_READ;
-		/*It seems win32 file mapping is reported in prog mem usage -> large increases of occupancy. Should not be a pb 
+		/*It seems win32 file mapping is reported in prog mem usage -> large increases of occupancy. Should not be a pb
 		but unless you want mapping, only regular IO will be used...*/
 #if 0
 		if (IsLargeFile(sPath)) {
@@ -179,9 +184,13 @@ GF_Err gf_isom_datamap_new(const char *location, const char *parentPath, u8 mode
 		}
 	}
 
-	if (sPath) 
+	if (sPath) {
 		gf_free(sPath);
-	if (! (*outDataMap)) return GF_URL_ERROR;
+	}
+	if (! (*outDataMap)) {
+		return GF_URL_ERROR;
+	}
+
 	return GF_OK;
 }
 
@@ -243,9 +252,9 @@ GF_Err gf_isom_datamap_open(GF_MediaBox *mdia, u32 dataRefIndex, u8 Edit)
 #else
 			//this should never be the case in an read-only MP4 file
 			return GF_BAD_PARAM;
-#endif		
+#endif
 		}
-	//else this is a URL (read mode only)
+		//else this is a URL (read mode only)
 	} else {
 		e = gf_isom_datamap_new(ent->location, mdia->mediaTrack->moov->mov->fileName, GF_ISOM_DATA_MAP_READ, & mdia->information->dataHandler);
 		if (e) return (e==GF_URL_ERROR) ? GF_ISOM_UNKNOWN_DATA_REF : e;
@@ -279,13 +288,6 @@ void gf_isom_datamap_flush(GF_DataMap *map)
 	if (map->type==GF_ISOM_DATA_FILE) {
 		GF_FileDataMap *fdm = (GF_FileDataMap *)map;
 		gf_bs_flush(fdm->bs);
-#ifdef NODEJS_FS_WATCH_PATCH
-		if (fdm->stream && fdm->szName) {
-			fclose(fdm->stream);
-			fdm->stream = gf_f64_open(fdm->szName, "a+b");
-			gf_bs_reassign(fdm->bs, fdm->stream);
-		}
-#endif
 	}
 }
 
@@ -322,14 +324,15 @@ GF_Err gf_isom_datamap_add_data(GF_DataMap *ptr, char *data, u32 dataSize)
 
 GF_DataMap *gf_isom_fdm_new_temp(const char *sPath)
 {
-	GF_FileDataMap *tmp = (GF_FileDataMap *) gf_malloc(sizeof(GF_FileDataMap));
+	GF_FileDataMap *tmp;
+	GF_SAFEALLOC(tmp, GF_FileDataMap);
 	if (!tmp) return NULL;
-	memset(tmp, 0, sizeof(GF_FileDataMap));
+
 	tmp->type = GF_ISOM_DATA_FILE;
 	tmp->mode = GF_ISOM_DATA_MAP_WRITE;
 
 	if (!sPath) {
-		tmp->stream = gf_temp_file_new();
+		tmp->stream = gf_temp_file_new(&tmp->temp_file);
 	} else {
 		char szPath[GF_MAX_PATH];
 		if ((sPath[strlen(sPath)-1] != '\\') && (sPath[strlen(sPath)-1] != '/')) {
@@ -337,7 +340,7 @@ GF_DataMap *gf_isom_fdm_new_temp(const char *sPath)
 		} else {
 			sprintf(szPath, "%s%p_isotmp", sPath, (void*) tmp);
 		}
-		tmp->stream = gf_f64_open(szPath, "w+b");
+		tmp->stream = gf_fopen(szPath, "w+b");
 		tmp->temp_file = gf_strdup(szPath);
 	}
 	if (!tmp->stream) {
@@ -347,7 +350,7 @@ GF_DataMap *gf_isom_fdm_new_temp(const char *sPath)
 	}
 	tmp->bs = gf_bs_from_file(tmp->stream, GF_BITSTREAM_WRITE);
 	if (!tmp->bs) {
-		fclose(tmp->stream);
+		gf_fclose(tmp->stream);
 		gf_free(tmp);
 		return NULL;
 	}
@@ -361,22 +364,24 @@ GF_DataMap *gf_isom_fdm_new_temp(const char *sPath)
 
 #endif /*GPAC_DISABLE_ISOM_WRITE*/
 
+#include <errno.h>
+#include <string.h>
 GF_DataMap *gf_isom_fdm_new(const char *sPath, u8 mode)
 {
 	u8 bs_mode;
-
-	GF_FileDataMap *tmp = (GF_FileDataMap *) gf_malloc(sizeof(GF_FileDataMap));
+	GF_FileDataMap *tmp;
+	GF_SAFEALLOC(tmp, GF_FileDataMap);
 	if (!tmp) return NULL;
-	memset(tmp, 0, sizeof(GF_FileDataMap));
+
 	tmp->type = GF_ISOM_DATA_FILE;
 	tmp->mode = mode;
 
 #ifndef GPAC_DISABLE_ISOM_WRITE
 	//open a temp file
 	if (!strcmp(sPath, "mp4_tmp_edit")) {
-		//create  a temp file (that only occurs in EDIT/WRITE mode)
-		tmp->stream = gf_temp_file_new();
-		bs_mode = GF_BITSTREAM_READ;
+		//create a temp file (that only occurs in EDIT/WRITE mode)
+		tmp->stream = gf_temp_file_new(&tmp->temp_file);
+//		bs_mode = GF_BITSTREAM_READ;
 	}
 #endif
 	if (!strncmp(sPath, "gmem://", 7)) {
@@ -394,29 +399,29 @@ GF_DataMap *gf_isom_fdm_new(const char *sPath, u8 mode)
 
 	switch (mode) {
 	case GF_ISOM_DATA_MAP_READ:
-		if (!tmp->stream) tmp->stream = gf_f64_open(sPath, "rb");
+		if (!tmp->stream) tmp->stream = gf_fopen(sPath, "rb");
 		bs_mode = GF_BITSTREAM_READ;
 		break;
-	///we open the file in READ/WRITE mode, in case 
+	///we open the file in READ/WRITE mode, in case
 	case GF_ISOM_DATA_MAP_WRITE:
 		if (!strcmp(sPath, "std")) {
 			tmp->stream = stdout;
 			tmp->is_stdout = 1;
 		}
 
-		if (!tmp->stream) tmp->stream = gf_f64_open(sPath, "w+b");
-		if (!tmp->stream) tmp->stream = gf_f64_open(sPath, "wb");
+		if (!tmp->stream) tmp->stream = gf_fopen(sPath, "w+b");
+		if (!tmp->stream) tmp->stream = gf_fopen(sPath, "wb");
 		bs_mode = GF_BITSTREAM_WRITE;
 		break;
-	///we open the file in CAT mode, in case 
+	///we open the file in CAT mode, in case
 	case GF_ISOM_DATA_MAP_CAT:
 		if (!strcmp(sPath, "std")) {
 			tmp->stream = stdout;
 			tmp->is_stdout = 1;
 		}
 
-		if (!tmp->stream) tmp->stream = gf_f64_open(sPath, "a+b");
-		if (tmp->stream) gf_f64_seek(tmp->stream, 0, SEEK_END);
+		if (!tmp->stream) tmp->stream = gf_fopen(sPath, "a+b");
+		if (tmp->stream) gf_fseek(tmp->stream, 0, SEEK_END);
 		bs_mode = GF_BITSTREAM_WRITE;
 		break;
 	default:
@@ -429,7 +434,7 @@ GF_DataMap *gf_isom_fdm_new(const char *sPath, u8 mode)
 	}
 	tmp->bs = gf_bs_from_file(tmp->stream, bs_mode);
 	if (!tmp->bs) {
-		fclose(tmp->stream);
+		gf_fclose(tmp->stream);
 		gf_free(tmp);
 		return NULL;
 	}
@@ -444,7 +449,7 @@ void gf_isom_fdm_del(GF_FileDataMap *ptr)
 	if (!ptr || (ptr->type != GF_ISOM_DATA_FILE)) return;
 	if (ptr->bs) gf_bs_del(ptr->bs);
 	if (ptr->stream && !ptr->is_stdout)
-		fclose(ptr->stream);
+		gf_fclose(ptr->stream);
 
 #ifndef GPAC_DISABLE_ISOM_WRITE
 	if (ptr->temp_file) {
@@ -464,11 +469,11 @@ u32 gf_isom_fdm_get_data(GF_FileDataMap *ptr, char *buffer, u32 bufferLength, u6
 	//can we seek till that point ???
 	if (fileOffset > gf_bs_get_size(ptr->bs)) return 0;
 
-	//ouch, we are not at the previous location, do a seek
-	if (ptr->curPos != fileOffset) {
+	if (gf_bs_get_position(ptr->bs) != fileOffset) {
+		//we are not at the previous location, do a seek
 		if (gf_bs_seek(ptr->bs, fileOffset) != GF_OK) return 0;
-		ptr->curPos = fileOffset;
 	}
+	ptr->curPos = fileOffset;
 
 	//read our data.
 	bytesRead = gf_bs_read_data(ptr->bs, buffer, bufferLength);
@@ -546,7 +551,6 @@ GF_DataMap *gf_isom_fmo_new(const char *sPath, u8 mode)
 {
 	GF_FileMappingDataMap *tmp;
 	HANDLE fileH, fileMapH;
-	DWORD err;
 #ifdef _WIN32_WCE
 	unsigned short sWPath[MAX_PATH];
 #endif
@@ -554,28 +558,28 @@ GF_DataMap *gf_isom_fmo_new(const char *sPath, u8 mode)
 	//only in read only
 	if (mode != GF_ISOM_DATA_MAP_READ) return NULL;
 
-	tmp = (GF_FileMappingDataMap *) gf_malloc(sizeof(GF_FileMappingDataMap));
+	GF_SAFEALLOC(tmp, GF_FileMappingDataMap);
 	if (!tmp) return NULL;
-	memset(tmp, 0, sizeof(GF_FileMappingDataMap));
+
 	tmp->type = GF_ISOM_DATA_FILE_MAPPING;
-	tmp->mode = mode;	
+	tmp->mode = mode;
 	tmp->name = gf_strdup(sPath);
 
 	//
-	//	Open the file 
+	//	Open the file
 	//
 #ifdef _WIN32_WCE
 	//convert to WIDE
 	CE_CharToWide((char *)sPath, sWPath);
 
 	fileH = CreateFileForMapping(sWPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-						(FILE_ATTRIBUTE_READONLY | FILE_FLAG_RANDOM_ACCESS), NULL );
+	                             (FILE_ATTRIBUTE_READONLY | FILE_FLAG_RANDOM_ACCESS), NULL );
 #else
 	fileH = CreateFile(sPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-						(FILE_ATTRIBUTE_READONLY | FILE_FLAG_RANDOM_ACCESS), NULL );
+	                   (FILE_ATTRIBUTE_READONLY | FILE_FLAG_RANDOM_ACCESS), NULL );
 #endif
 
-	
+
 	if (fileH == INVALID_HANDLE_VALUE) {
 		gf_free(tmp->name);
 		gf_free(tmp);
@@ -598,10 +602,9 @@ GF_DataMap *gf_isom_fmo_new(const char *sPath, u8 mode)
 		CloseHandle(fileH);
 		gf_free(tmp->name);
 		gf_free(tmp);
-		err = GetLastError();
 		return NULL;
 	}
-		
+
 	tmp->byte_map = MapViewOfFile(fileMapH, FILE_MAP_READ, 0, 0, 0);
 	if (tmp->byte_map == NULL) {
 		CloseHandle(fileMapH);
@@ -612,7 +615,7 @@ GF_DataMap *gf_isom_fmo_new(const char *sPath, u8 mode)
 	}
 
 	CloseHandle(fileH);
-	CloseHandle(fileMapH);		
+	CloseHandle(fileMapH);
 
 	//finaly open our bitstream (from buffer)
 	tmp->bs = gf_bs_new(tmp->byte_map, tmp->file_size, GF_BITSTREAM_READ);
@@ -632,11 +635,8 @@ void gf_isom_fmo_del(GF_FileMappingDataMap *ptr)
 
 u32 gf_isom_fmo_get_data(GF_FileMappingDataMap *ptr, char *buffer, u32 bufferLength, u64 fileOffset)
 {
-	u32 size;
-
 	//can we seek till that point ???
 	if (fileOffset > ptr->file_size) return 0;
-	size = (u32) fileOffset;
 
 	//we do only read operations, so trivial
 	memcpy(buffer, ptr->byte_map + fileOffset, bufferLength);
@@ -645,9 +645,13 @@ u32 gf_isom_fmo_get_data(GF_FileMappingDataMap *ptr, char *buffer, u32 bufferLen
 
 #else
 
-GF_DataMap *gf_isom_fmo_new(const char *sPath, u8 mode) { return gf_isom_fdm_new(sPath, mode); }
-void gf_isom_fmo_del(GF_FileMappingDataMap *ptr) { gf_isom_fdm_del((GF_FileDataMap *)ptr); }
-u32 gf_isom_fmo_get_data(GF_FileMappingDataMap *ptr, char *buffer, u32 bufferLength, u64 fileOffset) 
+GF_DataMap *gf_isom_fmo_new(const char *sPath, u8 mode) {
+	return gf_isom_fdm_new(sPath, mode);
+}
+void gf_isom_fmo_del(GF_FileMappingDataMap *ptr) {
+	gf_isom_fdm_del((GF_FileDataMap *)ptr);
+}
+u32 gf_isom_fmo_get_data(GF_FileMappingDataMap *ptr, char *buffer, u32 bufferLength, u64 fileOffset)
 {
 	return gf_isom_fdm_get_data((GF_FileDataMap *)ptr, buffer, bufferLength, fileOffset);
 }

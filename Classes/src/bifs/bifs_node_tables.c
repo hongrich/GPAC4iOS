@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -15,7 +15,7 @@
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Lesser General Public License for more details.	
+ *  GNU Lesser General Public License for more details.
  *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
@@ -1142,83 +1142,6 @@ u32 gf_bifs_get_node_type(u32 NDT_Tag, u32 NodeTag, u32 Version)
 		return NDT_V9_GetNodeType(NDT_Tag, NodeTag);
 	case GF_BIFS_V10:
 		return NDT_V10_GetNodeType(NDT_Tag, NodeTag);
-	default:
-		return 0;
-	}
-}u32 GetChildrenNDT(GF_Node *node)
-{
-	if (!node) return 0;
-	switch (gf_node_get_tag(node)) {
-	case TAG_MPEG4_Anchor:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_AudioBuffer:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_AudioDelay:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_AudioFX:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_AudioMix:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_AudioSource:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_AudioSwitch:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_Billboard:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_Collision:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_CompositeTexture2D:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_CompositeTexture3D:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_Form:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_Group:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_Layer2D:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_Layer3D:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_Layout:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_OrderedGroup:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_Transform:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_Transform2D:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_TemporalTransform:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_TemporalGroup:
-		return NDT_SFTemporalNode;
-	case TAG_MPEG4_FFD:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_SBBone:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_SBSegment:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_SBSite:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_Clipper2D:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_ColorTransform:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_PathLayout:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_TransformMatrix2D:
-		return NDT_SF2DNode;
-	case TAG_MPEG4_AdvancedAudioBuffer:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_AudioChannelConfig:
-		return NDT_SFAudioNode;
-	case TAG_MPEG4_Transform3DAudio:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_FootPrintSetNode:
-		return NDT_SFGeometryNode;
-	case TAG_MPEG4_Shadow:
-		return NDT_SF3DNode;
-	case TAG_MPEG4_SpacePartition:
-		return NDT_SF3DNode;
 	default:
 		return 0;
 	}

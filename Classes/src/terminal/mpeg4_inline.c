@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -60,7 +60,11 @@ static Bool gf_inline_set_scene(M_Inline *root)
 	if (!parent) return GF_FALSE;
 
 	mo = gf_scene_get_media_object_ex(parent, &root->url, GF_MEDIA_OBJECT_SCENE, GF_FALSE, NULL, GF_FALSE, (GF_Node*)root);
-	if (!mo || !mo->odm) return GF_FALSE;
+	if (!mo) return GF_FALSE;
+	//invalidate as soon as we have an mo (eg something is attached to the scene)
+	gf_term_invalidate_compositor(parent->root_od->term);
+
+	if (!mo->odm) return GF_FALSE;
 
 	if (!mo->odm->subscene) {
 		gf_term_invalidate_compositor(parent->root_od->term);
@@ -68,8 +72,11 @@ static Bool gf_inline_set_scene(M_Inline *root)
 	}
 	/*assign inline scene as private stack of inline node, and remember inline node for event propagation*/
 	gf_node_set_private((GF_Node *)root, mo->odm->subscene);
+	mo->odm->subscene->object_attached = GF_TRUE;
+
 	/*play*/
 	gf_mo_play(mo, 0, -1, GF_FALSE);
+
 	return GF_TRUE;
 }
 
@@ -95,7 +102,7 @@ void gf_inline_on_modified(GF_Node *node)
 			if (mo->num_open) {
 				if (!changed) return;
 
-				gf_scene_notify_event(scene, GF_EVENT_UNLOAD, node, NULL, GF_OK);
+				gf_scene_notify_event(scene, GF_EVENT_UNLOAD, node, NULL, GF_OK, GF_TRUE);
 				gf_node_dirty_parents(node);
 				gf_mo_event_target_remove_by_node(mo, node);
 
@@ -109,6 +116,7 @@ void gf_inline_on_modified(GF_Node *node)
 					break;
 				}
 
+				scene->object_attached = GF_FALSE;
 				mo->num_open --;
 				if (!mo->num_open) {
 					if (ODID == GF_MEDIA_EXTERNAL_ID) {
@@ -124,9 +132,9 @@ void gf_inline_on_modified(GF_Node *node)
 						}
 					} else {
 						gf_term_lock_media_queue(scene->root_od->term, GF_TRUE);
-						
-						/*external media are completely unloaded*/
-						if (scene->root_od->OD->objectDescriptorID==GF_MEDIA_EXTERNAL_ID) {
+
+						/*external media are completely unloaded, except addons which are only declared once */
+						if (!scene->root_od->addon && (scene->root_od->OD->objectDescriptorID==GF_MEDIA_EXTERNAL_ID)) {
 							scene->root_od->action_type = GF_ODM_ACTION_DELETE;
 						} else {
 							scene->root_od->action_type = GF_ODM_ACTION_STOP;
@@ -139,8 +147,8 @@ void gf_inline_on_modified(GF_Node *node)
 				}
 			}
 		}
-	} 
-	/*force a redraw and load scene at next pass - we cannot load the scene now because 
+	}
+	/*force a redraw and load scene at next pass - we cannot load the scene now because
 		- we can be in a JS call (eg JS mutex blocked)
 		- locating scene objects matching the new url needs exclusive access to the MediaObject list, achieved with the term net mutex
 		- another service may already be setting up objects (eg exclusive access to the net mutex grabbed), which can trigger event forwarding
@@ -148,7 +156,6 @@ void gf_inline_on_modified(GF_Node *node)
 
 		In such a case we would end up in a deadlock - this needs urgent fixing ...
 	*/
-
 	if (ODID) {
 		/*if no parent we must process the url change as we may not be traversed later on (not in the scene tree)*/
 		if (gf_node_get_parent(node, 0)==NULL) {
@@ -180,7 +187,8 @@ static void gf_inline_check_restart(GF_Scene *scene)
 			}
 			else {
 				Double s, e;
-				s = now; s/=1000;
+				s = now;
+				s/=1000;
 				e = -1;
 				MC_GetRange(scene->root_od->media_ctrl, &s, &e);
 				if ((e>=0) && (e<GF_MAX_FLOAT)) dur = (u32) (e*1000);
@@ -192,10 +200,17 @@ static void gf_inline_check_restart(GF_Scene *scene)
 					gf_term_invalidate_compositor(scene->root_od->term);
 				}
 			}
-		} else {
-			/*trigger render until to watch for restart...*/
-			gf_term_invalidate_compositor(scene->root_od->term);
 		}
+	}
+}
+
+void gf_scene_mpeg4_inline_check_restart(GF_Scene *scene)
+{
+	gf_inline_check_restart(scene);
+	
+	if (scene->needs_restart) {
+		gf_term_invalidate_compositor(scene->root_od->term);
+		return;
 	}
 }
 
@@ -206,16 +221,21 @@ void gf_scene_mpeg4_inline_restart(GF_Scene *scene)
 	if (scene->root_od->media_ctrl) current_seg = scene->root_od->media_ctrl->current_seg;
 
 	if (scene->is_dynamic_scene) {
-		u32 from = 0;
+		s64 from = 0;
 		if (scene->root_od->media_ctrl) {
-			scene->root_od->media_ctrl->current_seg = current_seg;
-			from = (u32) (scene->root_od->media_ctrl->media_start * 1000);
+			if (scene->root_od->media_ctrl->media_stop<=0) {
+				from = (s64) (scene->root_od->media_ctrl->media_stop * 1000) - 1;
+			}
+			else if (scene->root_od->media_ctrl->media_start>=0) {
+				scene->root_od->media_ctrl->current_seg = current_seg;
+				from = (s64) (scene->root_od->media_ctrl->media_start * 1000);
+			}
 		}
-		gf_scene_restart_dynamic(scene, from);
+		gf_scene_restart_dynamic(scene, from, 0, 0);
 	} else {
-		/*we cannot use gf_mo_restart since it only sets the needs_restart for inline scenes. 
-		The rational is that gf_mo_restart can be called from the parent scene (OK) or from the scene itself, in 
-		which case shutting down the graph would crash the compositor. We therefore need two render passes to 
+		/*we cannot use gf_mo_restart since it only sets the needs_restart for inline scenes.
+		The rational is that gf_mo_restart can be called from the parent scene (OK) or from the scene itself, in
+		which case shutting down the graph would crash the compositor. We therefore need two render passes to
 		safely restart an inline scene*/
 
 		/*1- stop main object from playing but don't disconnect channels*/
@@ -238,7 +258,7 @@ static void gf_inline_traverse(GF_Node *n, void *rs, Bool is_destroy)
 		if (!scene) return;
 		mo = scene->root_od ? scene->root_od->mo : NULL;
 
-		gf_scene_notify_event(scene, GF_EVENT_UNLOAD, n, NULL, GF_OK);
+		gf_scene_notify_event(scene, GF_EVENT_UNLOAD, n, NULL, GF_OK, GF_TRUE);
 		if (!mo) return;
 		gf_mo_event_target_remove_by_node(mo, n);
 
@@ -248,7 +268,7 @@ static void gf_inline_traverse(GF_Node *n, void *rs, Bool is_destroy)
 			if (!mo->num_open) {
 				gf_term_lock_media_queue(scene->root_od->term, GF_TRUE);
 
-				/*this is unspecified in the spec: whenever an inline not using the 
+				/*this is unspecified in the spec: whenever an inline not using the
 				OD framework is destroyed, destroy the associated resource*/
 				if (mo->OD_ID == GF_MEDIA_EXTERNAL_ID) {
 					/*get parent scene and remove MediaObject in case the ressource
@@ -256,7 +276,10 @@ static void gf_inline_traverse(GF_Node *n, void *rs, Bool is_destroy)
 					GF_Scene *parent_scene = (GF_Scene *)gf_sg_get_private(gf_node_get_graph((GF_Node *) n) );
 					if (gf_list_del_item(parent_scene->scene_objects, mo)>=0) {
 						gf_sg_vrml_mf_reset(&mo->URLs, GF_SG_VRML_MFURL);
-						if (mo->odm) mo->odm->mo = NULL;
+						if (mo->odm) {
+							gf_odm_reset_media_control(mo->odm, 1);
+							mo->odm->mo = NULL;
+						}
 						gf_mo_del(mo);
 					}
 					scene->root_od->action_type = GF_ODM_ACTION_DELETE;
@@ -290,6 +313,24 @@ static void gf_inline_traverse(GF_Node *n, void *rs, Bool is_destroy)
 		}
 	}
 
+	/*if not attached return (attaching the graph cannot be done in render since render is not called while unattached :) */
+	if (!scene->graph_attached) {
+		/*just like protos, we must invalidate parent graph until attached*/
+		gf_node_dirty_set(n, 0, GF_TRUE);
+		//and request bew anim frame until attached
+		if (scene->object_attached)
+			gf_term_invalidate_compositor(scene->root_od->term);
+		return;
+	}
+	/*clear dirty flags for any sub-inlines, bitmaps or protos*/
+	gf_node_dirty_clear(n, 0);
+
+	current_url = scene->current_url;
+	scene->current_url = & ((M_Inline*)n)->url;
+	gf_sc_traverse_subscene(scene->root_od->term->compositor, n, scene->graph, rs);
+	scene->current_url = current_url;
+
+	//do we have to restart for next frame ? If so let's do it
 	gf_inline_check_restart(scene);
 
 	/*if we need to restart, shutdown graph and do it*/
@@ -309,21 +350,8 @@ static void gf_inline_traverse(GF_Node *n, void *rs, Bool is_destroy)
 
 		gf_node_dirty_set(n, 0, GF_TRUE);
 		return;
-	} 
-	
-	/*if not attached return (attaching the graph cannot be done in render since render is not called while unattached :) */
-	if (!scene->graph_attached) {
-		/*just like protos, we must invalidate parent graph until attached*/
-		gf_node_dirty_set(n, 0, GF_TRUE);
-		return;
 	}
-	/*clear dirty flags for any sub-inlines, bitmaps or protos*/
-	gf_node_dirty_clear(n, 0);
 
-	current_url = scene->current_url;
-	scene->current_url = & ((M_Inline*)n)->url;
-	gf_sc_traverse_subscene(scene->root_od->term->compositor, n, scene->graph, rs);
-	scene->current_url = current_url;
 }
 
 
@@ -334,7 +362,7 @@ static Bool gf_inline_is_hardcoded_proto(GF_Terminal *term, MFURL *url)
 		if (!url->vals[i].url) continue;
 		if (strstr(url->vals[i].url, "urn:inet:gpac:builtin")) return GF_TRUE;
 
-		if (gf_sc_uri_is_hardcoded_proto(term->compositor, url->vals[i].url)) 
+		if (gf_sc_uri_is_hardcoded_proto(term->compositor, url->vals[i].url))
 			return GF_TRUE;
 	}
 	return GF_FALSE;
@@ -347,7 +375,7 @@ GF_SceneGraph *gf_inline_get_proto_lib(void *_is, MFURL *lib_url)
 	GF_Scene *scene = (GF_Scene *) _is;
 	if (!scene || !lib_url->count) return NULL;
 
-	if (gf_inline_is_hardcoded_proto(scene->root_od->term, lib_url)) return GF_SG_INTERNAL_PROTO;
+	if (gf_inline_is_hardcoded_proto(scene->root_od->term, lib_url)) return (void *) GF_SG_INTERNAL_PROTO;
 
 	i=0;
 	while ((pl = (GF_ProtoLink*)gf_list_enum(scene->extern_protos, &i))) {
@@ -370,7 +398,7 @@ GF_SceneGraph *gf_inline_get_proto_lib(void *_is, MFURL *lib_url)
 			while ((pl = (GF_ProtoLink*)gf_list_enum(check_scene->extern_protos, &i))) {
 				char *url1, *url2;
 				Bool ok;
-				if (!pl->mo) continue;
+				if (!pl->mo || !pl->mo->odm) continue;
 				if (! pl->mo->odm->net_service) continue;
 				if (gf_mo_get_od_id(pl->url) != GF_MEDIA_EXTERNAL_ID) continue;
 				/*not the same url*/
@@ -396,7 +424,7 @@ GF_SceneGraph *gf_inline_get_proto_lib(void *_is, MFURL *lib_url)
 
 	/*internal, don't waste ressources*/
 	if (gf_inline_is_hardcoded_proto(scene->root_od->term, lib_url)) return NULL;
-	
+
 	i=0;
 	while ((pl = (GF_ProtoLink*)gf_list_enum(scene->extern_protos, &i)) ) {
 		if (pl->url == lib_url) return NULL;
@@ -438,10 +466,10 @@ Bool gf_inline_is_default_viewpoint(GF_Node *node)
 
 	/*check any viewpoint*/
 	seg_name = strrchr(scene->root_od->net_service->url, '#');
-	
+
 	/*check the URL of the parent*/
 	if (!seg_name && scene->current_url) {
-		if (scene->current_url->count && scene->current_url->vals[0].url) 
+		if (scene->current_url->count && scene->current_url->vals[0].url)
 			seg_name = strrchr(scene->current_url->vals[0].url, '#');
 	} else if (!seg_name && scene->root_od->mo && scene->root_od->mo->URLs.count && scene->root_od->mo->URLs.vals[0].url) {
 		seg_name = strrchr(scene->root_od->mo->URLs.vals[0].url, '#');
@@ -692,7 +720,7 @@ static void gf_storage_traverse(GF_Node *n, void *rs, Bool is_destroy)
 	if (is_destroy) {
 		GF_Scene *scene = (GF_Scene *)gf_node_get_private(n);
 		GF_ClientService *net_service = scene->root_od->net_service;
-		while (scene->root_od->parentscene) { 
+		while (scene->root_od->parentscene) {
 			if (scene->root_od->parentscene->root_od->net_service != net_service)
 				break;
 			scene = scene->root_od->parentscene;
@@ -724,7 +752,7 @@ void gf_scene_init_storage(GF_Scene *scene, GF_Node *node)
 	gf_node_set_private(node, scene);
 
 	net_service = scene->root_od->net_service;
-	while (scene->root_od->parentscene) { 
+	while (scene->root_od->parentscene) {
 		if (scene->root_od->parentscene->root_od->net_service != net_service)
 			break;
 		scene = scene->root_od->parentscene;

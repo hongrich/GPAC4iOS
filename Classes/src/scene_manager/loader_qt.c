@@ -11,20 +11,21 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
 #include <gpac/scene_manager.h>
 #include <gpac/internal/media_dev.h>
+#include <gpac/internal/isomedia_dev.h>
 #include <gpac/constants.h>
 
 #if !defined(GPAC_DISABLE_QTVR)
@@ -79,7 +80,7 @@ GF_Err gf_sm_load_init_qt(GF_SceneLoader *load)
 	for (i=0; i<gf_isom_get_track_count(src); i++) {
 		switch (gf_isom_get_media_type(src, i+1)) {
 		case GF_ISOM_MEDIA_VISUAL:
-			if (gf_isom_get_media_subtype(src, i+1, 1) == GF_4CC('j', 'p', 'e', 'g')) {
+			if (gf_isom_get_media_subtype(src, i+1, 1) == GF_ISOM_BOX_TYPE_JPEG) {
 				GF_GenericSampleDescription *udesc = gf_isom_get_generic_sample_description(src, i+1, 1);
 				if ((udesc->width>w) || (udesc->height>h)) {
 					w = udesc->width;
@@ -91,7 +92,7 @@ GF_Err gf_sm_load_init_qt(GF_SceneLoader *load)
 				gf_free(udesc);
 			}
 			break;
-		case GF_4CC('q','t','v','r'):
+		case GF_ISOM_MEDIA_QTVR:
 			has_qtvr = 1;
 			break;
 		}
@@ -143,7 +144,7 @@ GF_Err gf_sm_load_init_qt(GF_SceneLoader *load)
 	gf_node_register((GF_Node *)ni, (GF_Node *)gr);
 	gf_sg_vrml_mf_reset(&ni->type, GF_SG_VRML_MFSTRING);
 	gf_sg_vrml_mf_alloc(&ni->type, GF_SG_VRML_MFSTRING, 1);
-	ni->type.vals[0] = gf_strdup("QTVR");
+	ni->type.vals[0] = gf_strdup("VR");
 
 	/*create ODs*/
 	st = gf_sm_stream_new(load->ctx, 2, GF_STREAM_OD, 1);
@@ -166,14 +167,14 @@ GF_Err gf_sm_load_init_qt(GF_SceneLoader *load)
 		mi->delete_file = 1;
 		sprintf(szName, "%s_img%d.jpg", load->fileName, esd->ESID);
 		mi->file_name = gf_strdup(szName);
-		
+
 		gf_list_add(od->ESDescriptors, esd);
 		gf_list_add(odU->objectDescriptors, od);
 
 		samp = gf_isom_get_sample(src, tk, i+1, &di);
-		img = gf_f64_open(mi->file_name, "wb");
+		img = gf_fopen(mi->file_name, "wb");
 		gf_fwrite(samp->data, samp->dataLength, 1, img);
-		fclose(img);
+		gf_fclose(img);
 		gf_isom_sample_del(&samp);
 	}
 	gf_isom_delete(src);

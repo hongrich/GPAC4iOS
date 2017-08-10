@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -31,11 +31,26 @@
 extern "C" {
 #endif
 
+/*!
+ *	\file <gpac/scenegraph_vrml.h>
+ *	\brief Scenegraph for VRML files
+ */
+	
+/*!
+ *	\addtogroup svrml BIFS/VRML/X3D Scenegraph
+ *	\ingroup scene_grp
+ *	\brief Scenegraph for VRML files.
+ *
+ *This section documents the Scenegraph for VRML files.
+ *	@{
+ */
+
+
 #include <gpac/scenegraph.h>
-#include <gpac/gpac_math.h>
+#include <gpac/maths.h>
 
 /*
-	All extensions for VRML/MPEG-4/X3D graph structure	
+	All extensions for VRML/MPEG-4/X3D graph structure
 */
 
 /*reserved NDT for MPEG4 (match binary coding)*/
@@ -60,7 +75,7 @@ enum
 */
 
 /*
-				event types, as defined in the specs 
+				event types, as defined in the specs
 	this should not be needed by non binary codecs
 */
 enum
@@ -311,11 +326,15 @@ enum
 	GF_SG_VRML_MFVEC2D,
 	GF_SG_VRML_MFVEC3D,
 
-	/*special event only used in routes for binding eventOut/exposedFields to script functions. 
-	 A route with ToField.FieldType set to this value holds a pointer to a function object. 
+	/*special event only used in routes for binding eventOut/exposedFields to script functions.
+	 A route with ToField.FieldType set to this value holds a pointer to a function object.
 	*/
 	GF_SG_VRML_SCRIPT_FUNCTION,
 
+	/*special event only used in routes for binding eventOut/exposedFields to generic functions.
+	 A route with ToField.FieldType set to this value holds a pointer to a function object.
+	*/
+	GF_SG_VRML_GENERIC_FUNCTION,
 
 	GF_SG_VRML_UNKNOWN
 };
@@ -359,7 +378,7 @@ GF_Err gf_node_replace_child(GF_Node *node, GF_ChildNodeItem **container, s32 po
 of the extern proto lib if found and loaded, NULL if not found and GF_SG_INTERNAL_PROTO for internal
 hardcoded protos (extensions of MPEG-4 scene graph used for module deveopment)
 */
-#define GF_SG_INTERNAL_PROTO	(GF_SceneGraph *) 0xFFFFFFFF
+#define GF_SG_INTERNAL_PROTO	(PTR_TO_U_CAST -1)
 
 
 #ifndef GPAC_DISABLE_VRML
@@ -367,17 +386,17 @@ hardcoded protos (extensions of MPEG-4 scene graph used for module deveopment)
 
 
 
-/*VRML grouping nodes macro - note we have inverted the children field to be 
+/*VRML grouping nodes macro - note we have inverted the children field to be
 compatible with the base GF_ParentNode node
-All grouping nodes (with "children" field) implement the following: 
+All grouping nodes (with "children" field) implement the following:
 
 addChildren: chain containing nodes to add passed as eventIn - handled internally through ROUTE
-void (*on_addChildren)(GF_Node *pNode): add eventIn signaler - this is handled internally by the scene_graph and SHALL 
+void (*on_addChildren)(GF_Node *pNode): add feventIn signaler - this is handled internally by the scene_graph and SHALL
 NOT BE OVERRIDEN since it takes care of node(s) routing
 
 removeChildren: chain containing nodes to remove passed as eventIn - handled internally through ROUTE
 
-void (*on_removeChildren)(GF_Node *pNode): remove eventIn signaler - this is handled internally by the scene_graph and SHALL 
+void (*on_removeChildren)(GF_Node *pNode): remove eventIn signaler - this is handled internally by the scene_graph and SHALL
 NOT BE OVERRIDEN since it takes care of node(s) routing
 
 children: list of children SFNodes
@@ -389,7 +408,7 @@ children: list of children SFNodes
 	void (*on_addChildren)(GF_Node *pNode, struct _route *route);		\
 	GF_ChildNodeItem *removeChildren;						\
 	void (*on_removeChildren)(GF_Node *pNode, struct _route *route);		\
-
+ 
 typedef struct
 {
 	BASE_NODE
@@ -407,7 +426,7 @@ const char *gf_sg_vrml_get_field_type_by_name(u32 FieldType);
 
 
 /*
-allocates a new field and gets it back. 
+allocates a new field and gets it back.
 	NOTE:
 			GF_SG_VRML_MFNODE will return a pointer to a GF_List structure (eg GF_List *)
 			GF_SG_VRML_SFNODE will return NULL
@@ -477,15 +496,17 @@ note that this must be called by the user to be effective,; otherwise the max ro
 from the routes present in scene*/
 void gf_sg_set_max_defined_route_id(GF_SceneGraph *sg, u32 ID);
 
+/*create a new route from a node output to a given callback/function*/
+void gf_sg_route_new_to_callback(GF_SceneGraph *sg, GF_Node *fromNode, u32 fromField, void *cbk, void ( *route_callback) (void *param, GF_FieldInfo *from_field) );
 
 /*activates all routes currently triggered - this follows the event cascade model of VRML/MPEG4:
 	- routes are collected during eventOut generation
 	- routes are activated. If eventOuts are generated during activation the cycle goes on.
 
-  A route cannot be activated twice in the same simulation tick, hence this function shall be called 
+  A route cannot be activated twice in the same simulation tick, hence this function shall be called
   ONCE AND ONLY ONCE per simulation tick
 
-Note that children scene graphs register their routes with the top-level graph, so only the main 
+Note that children scene graphs register their routes with the top-level graph, so only the main
 scene graph needs to be activated*/
 void gf_sg_activate_routes(GF_SceneGraph *sg);
 
@@ -493,7 +514,7 @@ void gf_sg_activate_routes(GF_SceneGraph *sg);
 /*
 				proto handling
 
-	The lib allows you to construct prototype nodes as defined in VRML/MPEG4 by constructing 
+	The lib allows you to construct prototype nodes as defined in VRML/MPEG4 by constructing
 	proto interfaces and instanciating them. An instanciated proto is handled as a single node for
 	rendering, thus an application will never handle proto instances for rendering
 */
@@ -556,11 +577,11 @@ GF_Err gf_sg_proto_field_get_field(GF_ProtoFieldInterface *field, GF_FieldInfo *
 
 /*
 	NOTE on proto instances:
-		The proto instance is handled as an GF_Node outside the scenegraph lib, and is manipulated with the same functions 
-		as an GF_Node 
-		The proto instance may or may not be loaded. 
-		An unloaded instance only contains the proto instance fields 
-		A loaded instance contains the proto instance fields plus all the proto code (Nodes, routes) and 
+		The proto instance is handled as an GF_Node outside the scenegraph lib, and is manipulated with the same functions
+		as an GF_Node
+		The proto instance may or may not be loaded.
+		An unloaded instance only contains the proto instance fields
+		A loaded instance contains the proto instance fields plus all the proto code (Nodes, routes) and
 		will load any scripts present in it. This allows keeping the memory usage of proto very low, especially
 		when nested protos (protos used as building blocks of their parent proto) are used.
 */
@@ -621,7 +642,7 @@ typedef struct _scriptfield GF_ScriptField;
 /*creates new sript field - script fields are dynamically added to the node, and thus can be accessed through the
 same functions as other GF_Node fields*/
 GF_ScriptField *gf_sg_script_field_new(GF_Node *script, u32 eventType, u32 fieldType, const char *name);
-/*retrieves field info, usefull to get the field index*/
+/*retrieves field info, useful to get the field index*/
 GF_Err gf_sg_script_field_get_info(GF_ScriptField *field, GF_FieldInfo *info);
 
 /*activate eventIn for script node - needed for BIFS field replace*/
@@ -657,6 +678,11 @@ Bool gf_node_proto_is_grouping(GF_Node *node);
 
 /*tags a hardcoded proto as being a grouping node*/
 GF_Err gf_node_proto_set_grouping(GF_Node *node);
+
+/*assigns callback to an eventIn field of an hardcoded proto*/
+GF_Err gf_node_set_proto_eventin_handler(GF_Node *node, u32 fieldIndex, void (*event_in_cbk)(GF_Node *pThis, struct _route *route) );
+
+/*! @} */
 
 
 #ifdef __cplusplus

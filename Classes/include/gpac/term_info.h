@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -33,12 +33,28 @@
 extern "C" {
 #endif
 
+/*!
+ *	\file <gpac/term_info.h>
+ *	\brief GPAC media object browsing of the player.
+ */
+	
+/*!
+ *\addtogroup terminfo_grp Terminal Info
+ *\ingroup playback_grp
+ *\brief GPAC media object browsing of the player.
+ *
+ *This section documents how a user can get information on running media object in the player.
+ *	@{
+ */
+	
+
 /*
-	OD Browsing API - YOU MUST INCLUDE <gpac/terminal.h> before 
+	OD Browsing API - YOU MUST INCLUDE <gpac/terminal.h> before
 	(this has been separated from terminal.h to limit dependency of core to mpeg4_odf.h header)
 	ALL ITEMS ARE READ-ONLY AND SHALL NOT BE MODIFIED
 */
 #include <gpac/mpeg4_odf.h>
+#include <gpac/terminal.h>
 
 /*returns top-level OD of the presentation*/
 GF_ObjectManager *gf_term_get_root_object(GF_Terminal *term);
@@ -57,6 +73,12 @@ u32 gf_term_object_subscene_type(GF_Terminal *term, GF_ObjectManager *odm);
 /*select given object when stream selection is available*/
 void gf_term_select_object(GF_Terminal *term, GF_ObjectManager *odm);
 
+/*select service by given ID for multiplexed services (MPEG-2 TS)*/
+void gf_term_select_service(GF_Terminal *term, GF_ObjectManager *odm, u32 service_id);
+
+/*sets addon on or off (only one addon possible for now). When OFF , the associated service is shut down*/
+void gf_term_toggle_addons(GF_Terminal *term, Bool show_addons);
+
 typedef struct
 {
 	GF_ObjectDescriptor *od;
@@ -67,11 +89,13 @@ typedef struct
 	/*if set, the PL flags are valid*/
 	Bool has_profiles;
 	Bool inline_pl;
-	u8 OD_pl; 
+	u8 OD_pl;
 	u8 scene_pl;
 	u8 audio_pl;
 	u8 visual_pl;
 	u8 graphics_pl;
+	Bool raw_media;
+	Bool generated_scene;
 
 	/*name of module handling the service service */
 	const char *service_handler;
@@ -86,10 +110,13 @@ typedef struct
 		>=0: amount of media data present in buffer, in ms
 	*/
 	s32 buffer;
+	u32 min_buffer, max_buffer;
 	/*number of AUs in DB (cumulated on all input channels)*/
 	u32 db_unit_count;
 	/*number of CUs in composition memory (if any) and CM capacity*/
 	u16 cb_unit_count, cb_max_count;
+	/*inidciate that thye composition memory is bypassed for this decoder (video only) */
+	Bool direct_video_memory;
 	/*clock drift in ms of object clock: this is the delay set by the audio renderer to keep AV in sync*/
 	s32 clock_drift;
 	/*codec name*/
@@ -102,14 +129,21 @@ typedef struct
 	u32 width, height, pixelFormat, par;
 
 	/*average birate over last second and max bitrate over one second at decoder input - expressed in bits per sec*/
-	u32 avg_bitrate, max_bitrate;
-	u32 total_dec_time, max_dec_time, nb_dec_frames, nb_droped;
+	u32 avg_bitrate, instant_bitrate, max_bitrate;
+	u32 nb_dec_frames, nb_dropped;
+	u32 first_frame_time, last_frame_time;
+	u64 total_dec_time, irap_total_dec_time;
+	u32 max_dec_time, irap_max_dec_time;
+	u32 au_duration;
+	u32 nb_iraps;
+	s32 ntp_diff;
 
 	/*set if ISMACryp present on the object - will need refinement for IPMPX...
 	0: not protected - 1: protected and OK - 2: protected and DRM failed*/
 	u32 protection;
 
 	u32 lang;
+	const char *lang_code;
 
 	/*name of media if not defined in OD framework*/
 	const char *media_url;
@@ -118,7 +152,7 @@ typedef struct
 /*fills the GF_MediaInfo structure describing the OD manager*/
 GF_Err gf_term_get_object_info(GF_Terminal *term, GF_ObjectManager *odm, GF_MediaInfo *info);
 /*gets current downloads info for the service - only use if ODM owns thesrevice, returns 0 otherwise.
-	@d_enum: in/out current enum - shall start to 0, incremented at each call. fct returns 0 if no more 
+	@d_enum: in/out current enum - shall start to 0, incremented at each call. fct returns 0 if no more
 	downloads
 	@server: server name
 	@path: file/data location on server
@@ -135,11 +169,11 @@ Bool gf_term_get_channel_net_info(GF_Terminal *term, GF_ObjectManager *odm, u32 
 typedef struct __netinfocom NetInfoCommand;
 GF_Err gf_term_get_service_info(GF_Terminal *term, GF_ObjectManager *odm, NetInfoCommand *netcom);
 
-/*retrieves world info of the scene @od belongs to. 
+/*retrieves world info of the scene @od belongs to.
 If @odm is or points to an inlined OD the world info of the inlined content is retrieved
 If @odm is NULL the world info of the main scene is retrieved
 returns NULL if no WorldInfo available
-returns world title if available 
+returns world title if available
 @descriptions: any textual descriptions is stored here
   strings are not allocated
 */
@@ -154,6 +188,7 @@ If @odm is NULL the main scene is dumped
 */
 GF_Err gf_term_dump_scene(GF_Terminal *term, char *rad_name, char **filename, Bool xml_dump, Bool skip_proto, GF_ObjectManager *odm);
 
+/*! @} */
 
 #ifdef __cplusplus
 }

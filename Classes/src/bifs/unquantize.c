@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -27,6 +27,7 @@
 
 #ifndef GPAC_DISABLE_BIFS
 
+#include <math.h>
 
 u32 gf_bifs_dec_qp14_get_bits(GF_BifsDecoder *codec)
 {
@@ -37,17 +38,17 @@ u32 gf_bifs_dec_qp14_get_bits(GF_BifsDecoder *codec)
 void gf_bifs_dec_qp14_enter(GF_BifsDecoder * codec, Bool Enter)
 {
 	if (!codec->ActiveQP) return;
-	if (Enter) codec->storing_coord = 1;
+	if (Enter) codec->storing_coord = GF_TRUE;
 	else {
-		if (codec->storing_coord) codec->coord_stored = 1;
-		codec->storing_coord = 0;
+		if (codec->storing_coord) codec->coord_stored = GF_TRUE;
+		codec->storing_coord = GF_FALSE;
 	}
 }
 
 void gf_bifs_dec_qp14_reset(GF_BifsDecoder * codec)
 {
-	codec->coord_stored = 0;
-	codec->storing_coord = 0;
+	codec->coord_stored = GF_FALSE;
+	codec->storing_coord = GF_FALSE;
 	codec->NumCoord = 0;
 }
 
@@ -89,7 +90,7 @@ GF_Err gf_bifs_dec_qp_remove(GF_BifsDecoder *codec, Bool ActivatePrev)
 //parses efficient float
 Fixed gf_bifs_dec_mantissa_float(GF_BifsDecoder *codec, GF_BitStream *bs)
 {
-	u32 mantLength, expLength, mantSign, mantissa, expSign, exponent;
+	u32 mantLength, expLength, mantSign, mantissa;
 	unsigned char exp;
 
 	union {
@@ -104,13 +105,10 @@ Fixed gf_bifs_dec_mantissa_float(GF_BifsDecoder *codec, GF_BitStream *bs)
 	mantSign = gf_bs_read_int(bs, 1);
 	mantissa = gf_bs_read_int(bs, mantLength - 1);
 
-	expSign = exponent = 0;
-	exp = 0;
-
 	exp = 127;
 	if (expLength) {
-		expSign = gf_bs_read_int(bs, 1);
-		exponent = gf_bs_read_int(bs, expLength-1);
+		u32 expSign = gf_bs_read_int(bs, 1);
+		u32 exponent = gf_bs_read_int(bs, expLength-1);
 		exp += (1-2*expSign)*( (1 << (expLength-1) ) + exponent);
 	}
 
@@ -126,7 +124,7 @@ Bool Q_IsTypeOn(M_QuantizationParameter *qp, u32 q_type, u32 *NbBits, SFVec3f *b
 {
 	switch (q_type) {
 	case QC_3DPOS:
-		if (!qp->position3DQuant) return 0;
+		if (!qp->position3DQuant) return GF_FALSE;
 		*NbBits = qp->position3DNbBits;
 		b_min->x = MAX(b_min->x, qp->position3DMin.x);
 		b_min->y = MAX(b_min->y, qp->position3DMin.y);
@@ -134,47 +132,47 @@ Bool Q_IsTypeOn(M_QuantizationParameter *qp, u32 q_type, u32 *NbBits, SFVec3f *b
 		b_max->x = MIN(b_max->x, qp->position3DMax.x);
 		b_max->y = MIN(b_max->y, qp->position3DMax.y);
 		b_max->z = MIN(b_max->z, qp->position3DMax.z);
-		return 1;
+		return GF_TRUE;
 	case QC_2DPOS:
-		if (!qp->position2DQuant) return 0;
+		if (!qp->position2DQuant) return GF_FALSE;
 		*NbBits = qp->position2DNbBits;
 		b_min->x = MAX(b_min->x, qp->position2DMin.x);
 		b_min->y = MAX(b_min->y, qp->position2DMin.y);
 		b_max->x = MIN(b_max->x, qp->position2DMax.x);
 		b_max->y = MIN(b_max->y, qp->position2DMax.y);
-		return 1;
+		return GF_TRUE;
 	case QC_ORDER:
-		if (!qp->drawOrderQuant) return 0;
+		if (!qp->drawOrderQuant) return GF_FALSE;
 		*NbBits = qp->drawOrderNbBits;
 		b_min->x = MAX(b_min->x, qp->drawOrderMin);
 		b_max->x = MIN(b_max->x, qp->drawOrderMax);
-		return 1;
+		return GF_TRUE;
 	case QC_COLOR:
-		if (!qp->colorQuant) return 0;
+		if (!qp->colorQuant) return GF_FALSE;
 		*NbBits = qp->colorNbBits;
 		b_min->x = b_min->y = b_min->z = MAX(b_min->x, qp->colorMin);
 		b_max->x = b_max->y = b_max->z = MIN(b_max->x, qp->colorMax);
-		return 1;
+		return GF_TRUE;
 	case QC_TEXTURE_COORD:
-		if (!qp->textureCoordinateQuant) return 0;
+		if (!qp->textureCoordinateQuant) return GF_FALSE;
 		*NbBits = qp->textureCoordinateNbBits;
 		b_min->x = b_min->y = b_min->z = MAX(b_min->x, qp->textureCoordinateMin);
 		b_max->x = b_max->y = b_max->z = MIN(b_max->x, qp->textureCoordinateMax);
-		return 1;
+		return GF_TRUE;
 	case QC_ANGLE:
-		if (!qp->angleQuant) return 0;
+		if (!qp->angleQuant) return GF_FALSE;
 		*NbBits = qp->angleNbBits;
 		b_min->x = b_min->y = b_min->z = MAX(b_min->x, qp->angleMin);
 		b_max->x = b_max->y = b_max->z = MIN(b_max->x, qp->angleMax);
-		return 1;
+		return GF_TRUE;
 	case QC_SCALE:
-		if (!qp->scaleQuant) return 0;
+		if (!qp->scaleQuant) return GF_FALSE;
 		*NbBits = qp->scaleNbBits;
 		b_min->x = b_min->y = b_min->z = MAX(b_min->x, qp->scaleMin);
 		b_max->x = b_max->y = b_max->z = MIN(b_max->x, qp->scaleMax);
-		return 1;
+		return GF_TRUE;
 	case QC_INTERPOL_KEYS:
-		if (!qp->keyQuant) return 0;
+		if (!qp->keyQuant) return GF_FALSE;
 		*NbBits = qp->keyNbBits;
 		b_min->x = MAX(b_min->x, qp->keyMin);
 		b_min->y = MAX(b_min->y, qp->keyMin);
@@ -182,44 +180,44 @@ Bool Q_IsTypeOn(M_QuantizationParameter *qp, u32 q_type, u32 *NbBits, SFVec3f *b
 		b_max->x = MIN(b_max->x, qp->keyMax);
 		b_max->y = MIN(b_max->y, qp->keyMax);
 		b_max->z = MIN(b_max->z, qp->keyMax);
-		return 1;
+		return GF_TRUE;
 	case QC_NORMALS:
-		if (!qp->normalQuant) return 0;
+		if (!qp->normalQuant) return GF_FALSE;
 		*NbBits = qp->normalNbBits;
 		b_min->x = b_min->y = b_min->z = 0;
 		b_max->x = b_max->y = b_max->z = FIX_ONE;
-		return 1;
+		return GF_TRUE;
 	case QC_ROTATION:
-		if (!qp->normalQuant) return 0;
+		if (!qp->normalQuant) return GF_FALSE;
 		*NbBits = qp->normalNbBits;
 		b_min->x = b_min->y = b_min->z = 0;
 		b_max->x = b_max->y = b_max->z = FIX_ONE;
-		return 1;
+		return GF_TRUE;
 	case QC_SIZE_3D:
-		if (!qp->sizeQuant) return 0;
+		if (!qp->sizeQuant) return GF_FALSE;
 		*NbBits = qp->sizeNbBits;
 		b_min->x = b_min->y = b_min->z = MAX(b_min->x, qp->sizeMin);
 		b_max->x = b_max->y = b_max->z = MIN(b_max->x, qp->sizeMax);
-		return 1;
+		return GF_TRUE;
 	case QC_SIZE_2D:
-		if (!qp->sizeQuant) return 0;
+		if (!qp->sizeQuant) return GF_FALSE;
 		*NbBits = qp->sizeNbBits;
 		b_min->x = b_min->y = b_min->z = MAX(b_min->x, qp->sizeMin);
 		b_max->x = b_max->y = b_max->z = MIN(b_max->x, qp->sizeMax);
-		return 1;
+		return GF_TRUE;
 
 	//cf specs, from here ALWAYS ON
 	case QC_LINEAR_SCALAR:
 		//nbBits is the one from the FCT - DO NOT CHANGE IT
-		return 1;
+		return GF_TRUE;
 	case QC_COORD_INDEX:
 		//nbBits has to be recomputed on the fly
-		return 1;
+		return GF_TRUE;
 	case QC_RESERVED:
 		*NbBits = 0;
-		return 1;
+		return GF_TRUE;
 	default:
-		return 0;
+		return GF_FALSE;
 	}
 }
 
@@ -282,8 +280,8 @@ GF_Err Q_DecInt(GF_BifsDecoder *codec, GF_BitStream *bs, u32 QType, SFInt32 b_mi
 //in the UnitSphere (R=1.0)
 GF_Err Q_DecCoordOnUnitSphere(GF_BifsDecoder *codec, GF_BitStream *bs, u32 NbBits, u32 NbComp, Fixed *m_ft)
 {
-    u32 i, orient, sign;
-    s32 value;
+	u32 i, orient, sign;
+	s32 value;
 	Fixed tang[4], delta;
 	s32 dir;
 

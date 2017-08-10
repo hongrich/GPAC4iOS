@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -32,7 +32,7 @@
 #ifndef GPAC_DISABLE_VRML
 
 
-static u32 script_get_nb_static_field(GF_Node *node) 
+static u32 script_get_nb_static_field(GF_Node *node)
 {
 	return (node->sgprivate->tag==TAG_MPEG4_Script) ? 3 : 4;
 }
@@ -41,11 +41,11 @@ void Script_PreDestroy(GF_Node *node, void *eff, Bool is_destroy)
 {
 	GF_ScriptPriv *priv;
 	GF_ScriptField *field;
-	
+
 	if (!is_destroy) return;
 
 	priv = (GF_ScriptPriv *)node->sgprivate->UserPrivate;
-	
+
 	if (priv->JS_PreDestroy) priv->JS_PreDestroy(node);
 
 	//destroy extra fields
@@ -175,6 +175,10 @@ void gf_sg_script_init(GF_Node *node)
 
 
 	GF_SAFEALLOC(priv, GF_ScriptPriv)
+	if (!priv) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_SCENE, ("[VRML] Failed to create script node\n"));
+		return;
+	}
 	priv->fields = gf_list_new();
 
 	gf_node_set_private(node, priv);
@@ -191,17 +195,21 @@ GF_ScriptField *gf_sg_script_field_new(GF_Node *node, u32 eventType, u32 fieldTy
 {
 	GF_ScriptPriv *priv;
 	GF_ScriptField *field;
-	if (!name || ((node->sgprivate->tag != TAG_MPEG4_Script) 
+	if (!name || ((node->sgprivate->tag != TAG_MPEG4_Script)
 #ifndef GPAC_DISABLE_X3D
-		&& (node->sgprivate->tag != TAG_X3D_Script)
+	              && (node->sgprivate->tag != TAG_X3D_Script)
 #endif
-		))
+	             ))
 		return NULL;
 
 	if (eventType > GF_SG_SCRIPT_TYPE_EVENT_OUT) return NULL;
 	priv = (GF_ScriptPriv *)gf_node_get_private(node);
 
 	GF_SAFEALLOC(field, GF_ScriptField)
+	if (!field) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_SCENE, ("[VRML] Failed to create script field\n"));
+		return NULL;
+	}
 	field->fieldType = fieldType;
 	field->name = gf_strdup(name);
 
@@ -231,7 +239,7 @@ GF_ScriptField *gf_sg_script_field_new(GF_Node *node, u32 eventType, u32 fieldTy
 	if ((fieldType != GF_SG_VRML_SFNODE) && (fieldType != GF_SG_VRML_MFNODE) ) {
 		field->pField = gf_sg_vrml_field_pointer_new(fieldType);
 	}
-	
+
 	return field;
 }
 

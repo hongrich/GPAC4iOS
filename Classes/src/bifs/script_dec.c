@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -113,7 +113,7 @@ GF_Err ParseScriptField(ScriptParser *parser)
 	gf_list_add(parser->identifiers, gf_strdup(name));
 
 	if (parser->codec->pCurrentProto) {
-		Bool isISfield = gf_bs_read_int(parser->bs, 1);
+		Bool isISfield = (Bool)gf_bs_read_int(parser->bs, 1);
 		if (isISfield) {
 			u32 numProtoField = gf_sg_proto_get_field_count(parser->codec->pCurrentProto);
 			u32 numBits = gf_get_bit_size(numProtoField - 1);
@@ -129,16 +129,22 @@ GF_Err ParseScriptField(ScriptParser *parser)
 		if (gf_bs_read_int(parser->bs, 1)) {
 			e = gf_sg_script_field_get_info(field, &info);
 			if (e) return e;
-			gf_bifs_dec_field(parser->codec, parser->bs, parser->script, &info, 0);
+			gf_bifs_dec_field(parser->codec, parser->bs, parser->script, &info, GF_FALSE);
 		}
 	}
 
 	return parser->codec->LastError;
 }
 
-static void SFS_IncIndent(ScriptParser *pars) { pars->indent++; }
-static void SFS_DecIndent(ScriptParser *pars) { pars->indent--; }
-static void SFS_Space(ScriptParser *pars) { if (pars->new_line) SFS_AddString(pars, " ");}
+static void SFS_IncIndent(ScriptParser *pars) {
+	pars->indent++;
+}
+static void SFS_DecIndent(ScriptParser *pars) {
+	pars->indent--;
+}
+static void SFS_Space(ScriptParser *pars) {
+	if (pars->new_line) SFS_AddString(pars, " ");
+}
 static void SFS_Indent(ScriptParser *pars)
 {
 	u32 i;
@@ -177,7 +183,7 @@ GF_Err SFScript_Parse(GF_BifsDecoder *codec, SFScript *script_field, GF_BitStrea
 
 	if (gf_bs_read_int(bs, 1)) {
 		//endFlag
-		while (!gf_bs_read_int(bs, 1)){
+		while (!gf_bs_read_int(bs, 1)) {
 			e = ParseScriptField(&parser);
 			if (e) goto exit;
 		}
@@ -199,9 +205,9 @@ GF_Err SFScript_Parse(GF_BifsDecoder *codec, SFScript *script_field, GF_BitStrea
 	while (gf_bs_read_int(bs, 1)) {
 		SFS_AddString(&parser, "function ");
 		SFS_Identifier(&parser);
-		SFS_Arguments(&parser, 0);
+		SFS_Arguments(&parser, GF_FALSE);
 		SFS_Space(&parser);
-		SFS_StatementBlock(&parser, 1);
+		SFS_StatementBlock(&parser, GF_TRUE);
 		SFS_Line(&parser);
 	}
 
@@ -237,7 +243,7 @@ void SFS_Identifier(ScriptParser *parser)
 		SFS_AddString(parser, (char *)gf_list_get(parser->identifiers, index));
 	}
 	//parse
-	else{
+	else {
 		gf_bifs_dec_name(parser->bs, name);
 		gf_list_add(parser->identifiers, gf_strdup(name));
 		SFS_AddString(parser, name);
@@ -263,7 +269,7 @@ void SFS_StatementBlock(ScriptParser *parser, Bool funcBody)
 {
 	if (parser->codec->LastError) return;
 
-    if (gf_bs_read_int(parser->bs, 1)) {
+	if (gf_bs_read_int(parser->bs, 1)) {
 		SFS_AddString(parser, "{");
 		SFS_IncIndent(parser);
 
@@ -327,13 +333,13 @@ void SFS_IfStatement(ScriptParser *parser)
 	SFS_AddString(parser, "if (");
 	SFS_CompoundExpression(parser);
 	SFS_AddString(parser, ") ");
-	SFS_StatementBlock(parser, 0);
+	SFS_StatementBlock(parser, GF_FALSE);
 	//has else
 	if (gf_bs_read_int(parser->bs, 1)) {
 		SFS_Line(parser);
 		SFS_Indent(parser);
 		SFS_AddString(parser, "else ");
-		SFS_StatementBlock(parser, 0);
+		SFS_StatementBlock(parser, GF_FALSE);
 	}
 }
 
@@ -357,7 +363,7 @@ void SFS_SwitchStatement(ScriptParser *parser)
 		SFS_AddString(parser, ":");
 		SFS_Line(parser);
 		SFS_Indent(parser);
-		SFS_StatementBlock(parser, 0);
+		SFS_StatementBlock(parser, GF_FALSE);
 		SFS_Line(parser);
 	}
 	while (gf_bs_read_int(parser->bs, 1));
@@ -366,7 +372,7 @@ void SFS_SwitchStatement(ScriptParser *parser)
 	if (gf_bs_read_int(parser->bs, 1)) {
 		SFS_AddString(parser, "default:");
 		SFS_Line(parser);
-		SFS_StatementBlock(parser, 0);
+		SFS_StatementBlock(parser, GF_FALSE);
 	}
 	SFS_AddString(parser, "}");
 }
@@ -382,7 +388,7 @@ void SFS_ForStatement(ScriptParser *parser)
 	SFS_OptionalExpression(parser);
 	SFS_AddString(parser, ")");
 
-	SFS_StatementBlock(parser, 0);
+	SFS_StatementBlock(parser, GF_FALSE);
 }
 
 void SFS_WhileStatement(ScriptParser *parser)
@@ -392,7 +398,7 @@ void SFS_WhileStatement(ScriptParser *parser)
 	SFS_CompoundExpression(parser);
 	SFS_AddString(parser, ")");
 
-	SFS_StatementBlock(parser, 0);
+	SFS_StatementBlock(parser, GF_FALSE);
 }
 
 void SFS_ReturnStatement(ScriptParser *parser)
@@ -486,16 +492,16 @@ void SFS_Expression(ScriptParser *parser)
 		SFS_FunctionCall(parser);
 		break;
 	case ET_NEW:
-        SFS_NewObject(parser);
+		SFS_NewObject(parser);
 		break;
 	case ET_OBJECT_MEMBER_ACCESS:
-   		SFS_ObjectMemberAccess(parser);
+		SFS_ObjectMemberAccess(parser);
 		break;
 	case ET_OBJECT_METHOD_CALL:
-        SFS_ObjectMethodCall(parser);
+		SFS_ObjectMethodCall(parser);
 		break;
 	case ET_ARRAY_DEREFERENCE:
-        SFS_ArrayDeref(parser);
+		SFS_ArrayDeref(parser);
 		break;
 
 	case ET_MULTIPLY:
@@ -653,17 +659,17 @@ void SFS_Expression(ScriptParser *parser)
 		SFS_AddString(parser, "|=");
 		SFS_Expression(parser);
 		break;
-    case ET_BOOLEAN:
+	case ET_BOOLEAN:
 		SFS_GetBoolean(parser);
-        break;
+		break;
 	case ET_VAR:
 		SFS_AddString(parser, "var ");
-		SFS_Arguments(parser, 1);
+		SFS_Arguments(parser, GF_TRUE);
 		break;
 	case ET_FUNCTION_ASSIGN:
 		SFS_AddString(parser, "function ");
-		SFS_Arguments(parser, 0);
-		SFS_StatementBlock(parser, 1);
+		SFS_Arguments(parser, GF_FALSE);
+		SFS_StatementBlock(parser, GF_TRUE);
 		break;
 	default:
 		assert(0);
@@ -675,7 +681,7 @@ void SFS_NewObject(ScriptParser *parser)
 {
 	if (parser->codec->LastError) return;
 	SFS_AddString(parser, "new ");
-    SFS_Identifier(parser);
+	SFS_Identifier(parser);
 	SFS_AddString(parser, "(");
 	SFS_Params(parser);
 	SFS_AddString(parser, ") ");
@@ -685,7 +691,7 @@ void SFS_ArrayDeref(ScriptParser *parser)
 {
 	if (parser->codec->LastError) return;
 	SFS_Expression(parser);
-    SFS_AddString(parser, "[");
+	SFS_AddString(parser, "[");
 	SFS_CompoundExpression(parser);
 	SFS_AddString(parser, "]");
 }
@@ -704,7 +710,7 @@ void SFS_ObjectMemberAccess(ScriptParser *parser)
 	if (parser->codec->LastError) return;
 	SFS_Expression(parser);
 	SFS_AddString(parser, ".");
-    SFS_Identifier(parser);
+	SFS_Identifier(parser);
 }
 
 
@@ -752,7 +758,7 @@ void SFS_GetNumber(ScriptParser *parser)
 			SFS_AddChar(parser, '.');
 		} else if (val==11) {
 			SFS_AddChar(parser, 'E');
-		} else if (val==12){
+		} else if (val==12) {
 			SFS_AddChar(parser, '-');
 		}
 		val = gf_bs_read_int(parser->bs, 4);

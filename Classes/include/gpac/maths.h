@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,49 +11,42 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
-#ifndef _GPAC_MATH_H_
-#define _GPAC_MATH_H_
+#ifndef _GF_MATH_H_
+#define _GF_MATH_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /*!
- *	\file <gpac/math.h>
- *	\brief math and trigo functions.
+ *	\file <gpac/maths.h>
+ *	\brief Mathematics and Trigonometric.
  */
 
 #include <gpac/setup.h>
-	
-/*NOTE: there is a conflict on Win32 VC6 with C++ and gpac headers when including <math.h>*/
-#if !defined(__cplusplus) || defined(__SYMBIAN32__)
-#include <math.h>
-#endif
 
-#ifdef __OBJC__
-#include <MacTypes.h>
-#endif
+#include <math.h>
 
 
 /*!
- *\addtogroup math_grp math
+ *\addtogroup math_grp Math
  *\ingroup utils_grp
- *\brief Mathematics and Trigonometric functions
+ *\brief Mathematics and Trigonometric
  *
  *This section documents the math and trigo functions used in the GPAC framework. GPAC can be compiled with
- *fixed-point support, representing float values on a 16.16 signed integer, which implies a developer 
+ *fixed-point support, representing float values on a 16.16 signed integer, which implies a developer
  *must take care of float computations when using GPAC.\n
  *A developper should not need to know in which mode the framework has been compiled as long as he uses
  *the math functions of GPAC which work in both float and fixed-point mode.\n
@@ -77,11 +70,7 @@ extern "C" {
  *\hideinitializer
  \note This documentation has been generated for a fixed-point version of the GPAC framework.
  */
-#ifndef __OBJC__
-    typedef s32 Fixed;
-#endif
-    
-    
+typedef s32 Fixed;
 #define FIX_ONE			0x10000L
 #define INT2FIX(v)		((Fixed)( ((s32) (v) ) << 16))
 #define FLT2FIX(v)		((Fixed) ((v) * FIX_ONE))
@@ -121,18 +110,13 @@ Fixed gf_asin(Fixed angle);
 /*!\return atan(y, x), expressed as fixed number*/
 Fixed gf_atan2(Fixed y, Fixed x);
 
-
 #else
 
-    
 
 /*!Fixed is 32bit float number
  \note This documentation has been generated for a float version of the GPAC framework.
 */
-#ifndef __OBJC__
-    typedef Float Fixed;
-#endif
-
+typedef Float Fixed;
 #define FIX_ONE			1.0f
 #define INT2FIX(v)		((Float) (v))
 #define FLT2FIX(v)		((Float) (v))
@@ -150,9 +134,9 @@ Fixed gf_atan2(Fixed y, Fixed x);
 /*!\hideinitializer _a*_b, expressed as fixed number*/
 #define gf_mulfix(_a, _b)		((_a)*(_b))
 /*!\hideinitializer _a*_b/_c, expressed as fixed number*/
-#define gf_muldiv(_a, _b, _c)	((_c) ? (_a)*(_b)/(_c) : GF_MAX_FLOAT)
+#define gf_muldiv(_a, _b, _c)	(((_c != 0)) ? (_a)*(_b)/(_c) : GF_MAX_FLOAT)
 /*!\hideinitializer _a/_b, expressed as fixed number*/
-#define gf_divfix(_a, _b)		((_b) ? (_a)/(_b) : GF_MAX_FLOAT)
+#define gf_divfix(_a, _b)		(((_b != 0)) ? (_a)/(_b) : GF_MAX_FLOAT)
 /*!\hideinitializer sqrt(_a), expressed as fixed number*/
 #define gf_sqrt(_a) ((Float) sqrt(_a))
 /*!\hideinitializer ceil(_a), expressed as fixed number*/
@@ -222,7 +206,7 @@ Fixed gf_atan2(Fixed y, Fixed x);
 Fixed gf_angle_diff(Fixed a, Fixed b);
 
 /*!
- *	\brief Field bit-size 
+ *	\brief Field bit-size
  *
  *	Gets the number of bits needed to represent the value.
  *	\param MaxVal Maximum value to be represented.
@@ -240,9 +224,9 @@ u32 gf_get_bit_size(u32 MaxVal);
 u32 gf_get_next_pow2(u32 val);
 
 /*!
- *\addtogroup math2d_grp math2d
+ *\addtogroup math2d_grp Math 2d
  *\ingroup math_grp
- *\brief 2D Mathematics functions
+ *\brief 2D Mathematics
  *
  *This section documents mathematic tools for 2D geometry and color matrices operations
  *	@{
@@ -289,7 +273,7 @@ typedef struct
 {
 	/*!the left coordinate of the rectangle*/
 	Fixed x;
-	/*!the top coordinate of the rectangle, regardless of the canvas orientation. In other words, y is always the 
+	/*!the top coordinate of the rectangle, regardless of the canvas orientation. In other words, y is always the
 	greatest coordinate value, 	even if the rectangle is presented bottom-up. This insures proper rectangles testing*/
 	Fixed y;
 	/*!the width of the rectangle. Width must be greater than or equal to 0*/
@@ -343,7 +327,7 @@ typedef struct
 {
 	/*!the left coordinate of the rectangle*/
 	s32 x;
-	/*!the top coordinate of the rectangle, regardless of the canvas orientation. In other words, y is always the 
+	/*!the top coordinate of the rectangle, regardless of the canvas orientation. In other words, y is always the
 	greatest coordinate value, even if the rectangle is presented bottom-up. This insures proper rectangles operations*/
 	s32 y;
 	/*!the width of the rectangle. Width must be greater than or equal to 0*/
@@ -470,7 +454,7 @@ void gf_mx2d_add_skew_x(GF_Matrix2D *_this, Fixed angle);
 void gf_mx2d_add_skew_y(GF_Matrix2D *_this, Fixed angle);
 /*!\brief matrix inversing
  *
- *Inverses a 2D matrix 
+ *Inverses a 2D matrix
  *\param _this matrix being transformed. Once the function is called, _this contains the result matrix
 */
 void gf_mx2d_inverse(GF_Matrix2D *_this);
@@ -512,9 +496,9 @@ Bool gf_mx2d_decompose(GF_Matrix2D *_this, GF_Point2D *scale, Fixed *rotate, GF_
 
 
 /*!
- *\addtogroup math3d_grp math3d
+ *\addtogroup math3d_grp Math 3d
  *\ingroup math_grp
- *\brief 3D Mathematics functions
+ *\brief 3D Mathematics
  *
  *This section documents mathematic tools for 3D geometry operations
  *	@{
@@ -603,11 +587,11 @@ typedef struct __vec4f
 
 /*!\brief 3D matrix
  *
- *The 3D matrix object used in GPAC. The matrix is oriented like OpenGL matrices (column-major ordering), with 
+ *The 3D matrix object used in GPAC. The matrix is oriented like OpenGL matrices (column-major ordering), with
  the translation part at the end of the coefficients list.
  \note Unless specified otherwise, the matrix object is always expected to represent an affine transformation.
  */
-typedef struct
+typedef struct __matrix
 {
 	Fixed m[16];
 } GF_Matrix;
@@ -620,7 +604,7 @@ typedef struct
 	Fixed __mag = gf_quat_len(v);	\
 	(v).x = gf_divfix((v).x, __mag); (v).y = gf_divfix((v).y, __mag); (v).z = gf_divfix((v).z, __mag); (v).q = gf_divfix((v).q, __mag);	\
 	}	\
-
+ 
 /*!\brief quaternion to rotation
  *
  *Transforms a quaternion to a Rotation, expressed as a 4 dimension vector with x,y,z for axis and q for rotation angle
@@ -647,7 +631,7 @@ GF_Vec4 gf_quat_get_inv(GF_Vec4 *quat);
 GF_Vec4 gf_quat_multiply(GF_Vec4 *q1, GF_Vec4 *q2);
 /*!\brief quaternion vector rotating
  *
- *Rotates a vector with a quaternion 
+ *Rotates a vector with a quaternion
  *\param quat the quaternion modelizing the rotation
  *\param vec the vector to rotate
  *\return the resulting vector
@@ -673,7 +657,7 @@ GF_Vec4 gf_quat_slerp(GF_Vec4 q1, GF_Vec4 q2, Fixed frac);
 
 /*!\brief 3D Bounding Box
  *
- *The 3D Bounding Box is a 3D Axis-Aligned Bounding Box used to in various tools of the GPAC framework for bounds 
+ *The 3D Bounding Box is a 3D Axis-Aligned Bounding Box used to in various tools of the GPAC framework for bounds
  estimation of a 3D object. It features an axis-aligned box and a sphere bounding volume for fast intersection tests.
  */
 typedef struct
@@ -711,8 +695,8 @@ Bool gf_bbox_equal(GF_BBox *b1, GF_BBox *b2);
 Bool gf_bbox_point_inside(GF_BBox *box, GF_Vec *p);
 /*!\brief get box vertices
  *
- *Returns the 8 bounding box vertices given the minimum and maximum edge. Vertices are ordered to respect 
- "p-vertex indexes", (vertex from a box closest to plane) and so that n-vertex (vertex from a box farthest from plane) 
+ *Returns the 8 bounding box vertices given the minimum and maximum edge. Vertices are ordered to respect
+ "p-vertex indexes", (vertex from a box closest to plane) and so that n-vertex (vertex from a box farthest from plane)
  is 7-p_vx_idx
  *\param bmin minimum edge of the box
  *\param bmax maximum edge of the box
@@ -727,6 +711,9 @@ void gf_bbox_get_vertices(GF_Vec bmin, GF_Vec bmax, GF_Vec *vecs);
  *Inits the matrix to the identity matrix
 */
 #define gf_mx_init(_obj) { memset((_obj).m, 0, sizeof(Fixed)*16); (_obj).m[0] = (_obj).m[5] = (_obj).m[10] = (_obj).m[15] = FIX_ONE; }
+
+#define gf_mx_is_identity(_obj) ((!(_obj).m[1] && !(_obj).m[2] && !(_obj).m[3] && !(_obj).m[4] && !(_obj).m[6] && !(_obj).m[7] && !(_obj).m[8] && !(_obj).m[9] && !(_obj).m[11] && !(_obj).m[12] && !(_obj).m[13] && !(_obj).m[14] && ((_obj).m[0]==FIX_ONE) && ((_obj).m[5]==FIX_ONE)&& ((_obj).m[10]==FIX_ONE)&& ((_obj).m[15]==FIX_ONE)) ? 1 : 0)
+
 /*!\brief matrix copy
  *\hideinitializer
  *
@@ -746,7 +733,7 @@ void gf_mx_from_mx2d(GF_Matrix *mx, GF_Matrix2D *mat2D);
 Bool gf_mx_equal(GF_Matrix *mx1, GF_Matrix *mx2);
 /*!\brief matrix translation
  *
- *Translates a matrix 
+ *Translates a matrix
  *\param mx the matrix being transformed. Once the function is called, contains the result matrix
  *\param tx horizontal translation
  *\param ty vertical translation
@@ -755,7 +742,7 @@ Bool gf_mx_equal(GF_Matrix *mx1, GF_Matrix *mx2);
 void gf_mx_add_translation(GF_Matrix *mx, Fixed tx, Fixed ty, Fixed tz);
 /*!\brief matrix scaling
  *
- *Scales a matrix 
+ *Scales a matrix
  *\param mx the matrix being transformed. Once the function is called, contains the result matrix
  *\param sx horizontal translation scaling
  *\param sy vertical translation scaling
@@ -764,7 +751,7 @@ void gf_mx_add_translation(GF_Matrix *mx, Fixed tx, Fixed ty, Fixed tz);
 void gf_mx_add_scale(GF_Matrix *mx, Fixed sx, Fixed sy, Fixed sz);
 /*!\brief matrix rotating
  *
- *Rotates a matrix 
+ *Rotates a matrix
  *\param mx the matrix being transformed. Once the function is called, contains the result matrix
  *\param angle rotation angle in radians
  *\param x horizontal coordinate of rotation axis
@@ -772,7 +759,7 @@ void gf_mx_add_scale(GF_Matrix *mx, Fixed sx, Fixed sy, Fixed sz);
  *\param z depth coordinate of rotation axis
 */
 void gf_mx_add_rotation(GF_Matrix *mx, Fixed angle, Fixed x, Fixed y, Fixed z);
-/*!\brief matrices multiplication 
+/*!\brief matrices multiplication
  *
  *Multiplies a matrix with another one mx = mx*mul
  *\param mx the matrix being transformed. Once the function is called, contains the result matrix
@@ -782,7 +769,7 @@ void gf_mx_add_matrix(GF_Matrix *mx, GF_Matrix *mul);
 /*!\brief 2D matrix multiplication
  *
  *Adds a 2D affine matrix to a matrix
- *\param mx the matrix 
+ *\param mx the matrix
  *\param mat2D the matrix to premultiply
  */
 void gf_mx_add_matrix_2d(GF_Matrix *mx, GF_Matrix2D *mat2D);
@@ -793,6 +780,12 @@ void gf_mx_add_matrix_2d(GF_Matrix *mx, GF_Matrix2D *mat2D);
  *\param mx the matrix to inverse
  */
 void gf_mx_inverse(GF_Matrix *mx);
+/*!\brief transpose 4x4 matrix
+ *
+ *Transposes a 4x4 matrix
+ *\param mx the matrix to transpose
+ */
+void gf_mx_transpose(GF_Matrix *mx);
 /*!\brief matrix point transformation
  *
  *Applies a 3D matrix transformation to a 3D point
@@ -823,12 +816,12 @@ void gf_mx_ortho(GF_Matrix *mx, Fixed left, Fixed right, Fixed bottom, Fixed top
  *
  *Creates a perspective projection matrix
  *\param mx matrix to initialize
- *\param foc camera field of view angle in radian
+ *\param fov camera field of view angle in radian
  *\param aspect_ratio viewport aspect ratio
  *\param z_near min depth coordinate of viewport
  *\param z_far max depth coordinate of viewport
 */
-void gf_mx_perspective(GF_Matrix *mx, Fixed foc, Fixed aspect_ratio, Fixed z_near, Fixed z_far);
+void gf_mx_perspective(GF_Matrix *mx, Fixed fov, Fixed aspect_ratio, Fixed z_near, Fixed z_far);
 /*!\brief creates look matrix
  *
  *Creates a transformation matrix looking at a given direction from a given point (camera matrix).
@@ -849,7 +842,7 @@ void gf_mx_apply_bbox(GF_Matrix *mx, GF_BBox *b);
  *
  *Applies a 3D matrix transformation to a bounding box, computing only the enclosing sphere of the transformed one.
  *\param mx transformation matrix
- *\param b pointer to bounding box. Once the function is called, contains the transformed bounding sphere
+ *\param box pointer to bounding box. Once the function is called, contains the transformed bounding sphere
 */
 void gf_mx_apply_bbox_sphere(GF_Matrix *mx, GF_BBox *box);
 /*!\brief non-affine matrix multiplication
@@ -896,7 +889,7 @@ void gf_mx_rotate_vector(GF_Matrix *mx, GF_Vec *pt);
  \param z_axis target normalized Z axis
 */
 void gf_mx_rotation_matrix_from_vectors(GF_Matrix *mx, GF_Vec x_axis, GF_Vec y_axis, GF_Vec z_axis);
-/*!\brief matrix to 2D matrix 
+/*!\brief matrix to 2D matrix
  *
  *Inits a 2D matrix by removing all depth info from a 3D matrix
  *\param mx2d 2D matrix to initialize
@@ -938,7 +931,7 @@ Fixed gf_plane_get_distance(GF_Plane *plane, GF_Vec *p);
 GF_Vec gf_closest_point_to_line(GF_Vec line_pt, GF_Vec line_vec, GF_Vec pt);
 /*!\brief box p-vertex index
  *
- *Gets the p-vertex index for a given plane. The p-vertex index is the index of the closest vertex of a bounding box to the plane. The vertices of a box are always 
+ *Gets the p-vertex index for a given plane. The p-vertex index is the index of the closest vertex of a bounding box to the plane. The vertices of a box are always
  *ordered in GPAC? cf \ref gf_bbox_get_vertices
  *\param p the plane to check
  *\return the p-vertex index value, ranging from 0 to 7
@@ -956,8 +949,8 @@ u32 gf_plane_get_p_vertex_idx(GF_Plane *p);
 Bool gf_plane_intersect_line(GF_Plane *plane, GF_Vec *linepoint, GF_Vec *linevec, GF_Vec *outPoint);
 
 /*!Classification types for box/plane position used in \ref gf_bbox_plane_relation*/
-enum 
-{	
+enum
+{
 	/*!box is in front of the plane*/
 	GF_BBOX_FRONT,
 	/*!box intersects the plane*/
@@ -1048,5 +1041,5 @@ Bool gf_ray_hit_triangle_backcull(GF_Ray *ray, GF_Vec *v0, GF_Vec *v1, GF_Vec *v
 #endif
 
 
-#endif		/*_GPAC_MATH_H_*/
+#endif		/*_GF_MATH_H_*/
 

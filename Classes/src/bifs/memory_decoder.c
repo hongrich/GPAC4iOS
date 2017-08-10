@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -48,7 +48,7 @@ static GF_Err BM_ParseMultipleIndexedReplace(GF_BifsDecoder *codec, GF_BitStream
 	GF_Command *com;
 	GF_CommandField *inf;
 	GF_FieldInfo field;
-	
+
 	ID = 1 + gf_bs_read_int(bs, codec->info->config.NodeIDBits);
 	node = gf_sg_find_node(codec->current_graph, ID);
 	if (!node) return GF_NON_COMPLIANT_BITSTREAM;
@@ -62,7 +62,7 @@ static GF_Err BM_ParseMultipleIndexedReplace(GF_BifsDecoder *codec, GF_BitStream
 	lenpos = gf_bs_read_int(bs, 5);
 	lennum = gf_bs_read_int(bs, 5);
 	count = gf_bs_read_int(bs, lennum);
-	
+
 	com = gf_sg_command_new(codec->current_graph, GF_SG_MULTIPLE_INDEXED_REPLACE);
 	BM_SetCommandNode(com, node);
 	field.fieldType = gf_sg_vrml_get_sf_type(field.fieldType);
@@ -72,7 +72,7 @@ static GF_Err BM_ParseMultipleIndexedReplace(GF_BifsDecoder *codec, GF_BitStream
 		inf->pos = gf_bs_read_int(bs, lenpos);
 		inf->fieldIndex = field.fieldIndex;
 		inf->fieldType = field.fieldType;
-		
+
 		if (field.fieldType==GF_SG_VRML_SFNODE) {
 			inf->new_node = gf_bifs_dec_node(codec, bs, field.NDTtype);
 			if (codec->LastError) goto err;
@@ -80,7 +80,7 @@ static GF_Err BM_ParseMultipleIndexedReplace(GF_BifsDecoder *codec, GF_BitStream
 			gf_node_register(inf->new_node, NULL);
 		} else {
 			field.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(inf->fieldType);
-			e = gf_bifs_dec_sf_field(codec, bs, node, &field, 1);
+			e = gf_bifs_dec_sf_field(codec, bs, node, &field, GF_TRUE);
 			if (e) goto err;
 		}
 		count--;
@@ -104,7 +104,7 @@ static GF_Err BM_ParseMultipleReplace(GF_BifsDecoder *codec, GF_BitStream *bs, G
 	NodeID = 1 + gf_bs_read_int(bs, codec->info->config.NodeIDBits);
 	node = gf_sg_find_node(codec->current_graph, NodeID);
 	if (!node) return GF_NON_COMPLIANT_BITSTREAM;
-	
+
 	e = GF_OK;
 	com = gf_sg_command_new(codec->current_graph, GF_SG_MULTIPLE_REPLACE);
 	BM_SetCommandNode(com, node);
@@ -127,7 +127,7 @@ static GF_Err BM_ParseMultipleReplace(GF_BifsDecoder *codec, GF_BitStream *bs, G
 			} else {
 				field.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(inf->fieldType);
 			}
-			e = gf_bifs_dec_field(codec, bs, node, &field, 1);
+			e = gf_bifs_dec_field(codec, bs, node, &field, GF_TRUE);
 			if (e) goto exit;
 		}
 	} else {
@@ -149,13 +149,13 @@ static GF_Err BM_ParseMultipleReplace(GF_BifsDecoder *codec, GF_BitStream *bs, G
 			} else {
 				field.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(inf->fieldType);
 			}
-			e = gf_bifs_dec_field(codec, bs, node, &field, 1);
+			e = gf_bifs_dec_field(codec, bs, node, &field, GF_TRUE);
 			if (e) goto exit;
 			flag = gf_bs_read_int(bs, 1);
 		}
 	}
 
-	
+
 exit:
 	if (e) gf_sg_command_del(com);
 	else gf_list_add(com_list, com);
@@ -168,6 +168,7 @@ static GF_Err BM_ParseGlobalQuantizer(GF_BifsDecoder *codec, GF_BitStream *bs, G
 	GF_Command *com;
 	GF_CommandField *inf;
 	node = gf_bifs_dec_node(codec, bs, NDT_SFWorldNode);
+	if (!node) return GF_NON_COMPLIANT_BITSTREAM;
 
 	/*reset global QP*/
 	if (codec->scenegraph->global_qp) {
@@ -175,7 +176,7 @@ static GF_Err BM_ParseGlobalQuantizer(GF_BifsDecoder *codec, GF_BitStream *bs, G
 	}
 	codec->ActiveQP = NULL;
 	codec->scenegraph->global_qp = NULL;
-	
+
 	if (node && (gf_node_get_tag(node) != TAG_MPEG4_QuantizationParameter)) {
 		gf_node_unregister(node, NULL);
 		return GF_NON_COMPLIANT_BITSTREAM;
@@ -239,8 +240,7 @@ static GF_Err BM_XReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *com_
 	id = 1 + gf_bs_read_int(bs, codec->info->config.NodeIDBits);
 	target = gf_sg_find_node(codec->current_graph, id);
 	if (!target) return GF_SG_UNKNOWN_NODE;
-	
-	e = GF_OK;
+
 	com = gf_sg_command_new(codec->current_graph, GF_SG_XREPLACE);
 	BM_SetCommandNode(com, target);
 
@@ -343,7 +343,7 @@ static GF_Err BM_XReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *com_
 	} else {
 		decfield.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(inf->fieldType);
 	}
-	e = gf_bifs_dec_sf_field(codec, bs, target, &decfield, 1);
+	e = gf_bifs_dec_sf_field(codec, bs, target, &decfield, GF_TRUE);
 	if (e) return e;
 
 	gf_list_add(com_list, com);
@@ -364,7 +364,7 @@ static GF_Err BM_ParseExtendedUpdates(GF_BifsDecoder *codec, GF_BitStream *bs, G
 		if (e) gf_sg_command_del(com);
 		else gf_list_add(com_list, com);
 	}
-		return e;
+	return e;
 	case 1:
 		return BM_ParseProtoDelete(codec, bs, com_list);
 	case 2:
@@ -388,7 +388,7 @@ static GF_Err BM_ParseExtendedUpdates(GF_BifsDecoder *codec, GF_BitStream *bs, G
 		BM_SetCommandNode(com, n);
 		gf_list_add(com_list, com);
 	}
-		return GF_OK;
+	return GF_OK;
 	case 7:
 		return BM_XReplace(codec, bs, com_list);
 
@@ -512,7 +512,7 @@ GF_Err BM_ParseIndexInsert(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *com
 		inf->fieldIndex = field_ind;
 		inf->fieldType = sffield.fieldType;
 		sffield.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(sffield.fieldType);
-		codec->LastError = gf_bifs_dec_sf_field(codec, bs, def, &sffield, 1);
+		codec->LastError = gf_bifs_dec_sf_field(codec, bs, def, &sffield, GF_TRUE);
 		gf_list_add(com_list, com);
 	}
 	return codec->LastError;
@@ -545,6 +545,7 @@ GF_Err BM_ParseRouteInsert(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *com
 	numBits = gf_get_bit_size(numBits);
 	ind = gf_bs_read_int(bs, numBits);
 	e = gf_bifs_get_field_index(OutNode, ind, GF_SG_FIELD_CODING_OUT, &outField);
+	if (e) return e;
 
 	/*target*/
 	node_id = 1 + gf_bs_read_int(bs, codec->info->config.NodeIDBits);
@@ -599,7 +600,7 @@ GF_Err BM_ParseIndexDelete(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *com
 	GF_Err e;
 	GF_CommandField *inf;
 	GF_FieldInfo field;
-	
+
 	NodeID = 1 + gf_bs_read_int(bs, codec->info->config.NodeIDBits);
 	node = gf_sg_find_node(codec->current_graph, NodeID);
 	if (!node) return GF_NON_COMPLIANT_BITSTREAM;
@@ -675,7 +676,7 @@ GF_Err BM_ParseNodeReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *com
 	GF_Command *com;
 	GF_Node *node;
 	GF_CommandField *inf;
-	
+
 	NodeID = 1 + gf_bs_read_int(bs, codec->info->config.NodeIDBits);
 	/*this is delete / new on a DEF node: replace ALL instances*/
 	node = gf_sg_find_node(codec->current_graph, NodeID);
@@ -710,6 +711,7 @@ GF_Err BM_ParseFieldReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *co
 	if (e) return e;
 
 	e = gf_node_get_field(node, field_ind, &field);
+	if (e) return e;
 
 	com = gf_sg_command_new(codec->current_graph, GF_SG_FIELD_REPLACE);
 	BM_SetCommandNode(com, node);
@@ -724,7 +726,7 @@ GF_Err BM_ParseFieldReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *co
 		field.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(field.fieldType);
 	}
 	/*parse the field*/
-	codec->LastError = gf_bifs_dec_field(codec, bs, node, &field, 1);
+	codec->LastError = gf_bifs_dec_field(codec, bs, node, &field, GF_TRUE);
 
 	gf_list_add(com_list, com);
 	return codec->LastError;
@@ -751,6 +753,7 @@ GF_Err BM_ParseIndexValueReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_Lis
 	if (e) return e;
 
 	e = gf_node_get_field(node, field_ind, &field);
+	if (e) return e;
 	if (gf_sg_vrml_is_sf_field(field.fieldType)) return GF_NON_COMPLIANT_BITSTREAM;
 
 	type = gf_bs_read_int(bs, 2);
@@ -767,7 +770,7 @@ GF_Err BM_ParseIndexValueReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_Lis
 	default:
 		return GF_NON_COMPLIANT_BITSTREAM;
 	}
-	
+
 	com = gf_sg_command_new(codec->current_graph, GF_SG_INDEXED_REPLACE);
 	BM_SetCommandNode(com, node);
 	inf = gf_sg_command_field_new(com);
@@ -784,7 +787,7 @@ GF_Err BM_ParseIndexValueReplace(GF_BifsDecoder *codec, GF_BitStream *bs, GF_Lis
 		sffield.fieldType = gf_sg_vrml_get_sf_type(field.fieldType);
 		inf->fieldType = sffield.fieldType;
 		sffield.far_ptr = inf->field_ptr = gf_sg_vrml_field_pointer_new(sffield.fieldType);
-		codec->LastError = gf_bifs_dec_sf_field(codec, bs, node, &sffield, 1);
+		codec->LastError = gf_bifs_dec_sf_field(codec, bs, node, &sffield, GF_TRUE);
 	}
 	gf_list_add(com_list, com);
 	return codec->LastError;
@@ -918,7 +921,7 @@ GF_Err BM_ParseCommand(GF_BifsDecoder *codec, GF_BitStream *bs, GF_List *com_lis
 
 	}
 	while (gf_list_count(codec->QPs)) {
-		gf_bifs_dec_qp_remove(codec, 1);
+		gf_bifs_dec_qp_remove(codec, GF_TRUE);
 	}
 	return GF_OK;
 }

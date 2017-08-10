@@ -11,21 +11,22 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
 #include <gpac/scene_manager.h>
 #include <gpac/constants.h>
 #include <gpac/utf.h>
+#include <gpac/network.h>
 #include <gpac/xml.h>
 #include <gpac/internal/bifs_dev.h>
 #include <gpac/internal/scenegraph_dev.h>
@@ -67,7 +68,7 @@ enum
 
 
 typedef struct
-{	
+{
 	/*1: XMT-A, 2: X3D, 3: XMT-O (not supported yet) */
 	u32 doc_type;
 	/*0: not init, 1: header, 2: body*/
@@ -78,7 +79,7 @@ typedef struct
 	GF_Err last_error;
 	GF_SAXParser *sax_parser;
 	XMTNodeStack *x3d_root;
-	
+
 	/* stack of nodes for SAX parsing*/
 	GF_List *nodes;
 	/* stack of descriptors for SAX parsing*/
@@ -155,7 +156,7 @@ static void xmt_progress(void *cbk, u64 done, u64 total)
 {
 	gf_set_progress("XMT Parsing", done, total);
 }
-static Bool xmt_esid_available(GF_XMTParser *parser, u16 ESID) 
+static Bool xmt_esid_available(GF_XMTParser *parser, u16 ESID)
 {
 	u32 i;
 	XMT_ESDLink *esdl;
@@ -166,7 +167,7 @@ static Bool xmt_esid_available(GF_XMTParser *parser, u16 ESID)
 	return 1;
 }
 
-static char *xmt_get_es_name(GF_XMTParser *parser, u16 ESID) 
+static char *xmt_get_es_name(GF_XMTParser *parser, u16 ESID)
 {
 	u32 i;
 	XMT_ESDLink *esdl;
@@ -201,9 +202,9 @@ static void xmt_new_od_link(GF_XMTParser *parser, GF_ObjectDescriptor *od, char 
 	for (i=0; i<count; i++) {
 		odl = (XMT_ODLink*)gf_list_get(parser->od_links, i);
 		if ( (ID && (odl->ID == ID))
-			|| (odl->od == od)
-			|| (odl->desc_name && name && !strcmp(odl->desc_name, name))
-		) {
+		        || (odl->od == od)
+		        || (odl->desc_name && name && !strcmp(odl->desc_name, name))
+		   ) {
 			if (!odl->od) odl->od = od;
 			if (!odl->desc_name && name) odl->desc_name = gf_strdup(name);
 			if (!od->objectDescriptorID) {
@@ -211,7 +212,7 @@ static void xmt_new_od_link(GF_XMTParser *parser, GF_ObjectDescriptor *od, char 
 			} else if (ID && (od->objectDescriptorID != ID)) {
 				xmt_report(parser, GF_BAD_PARAM, "Conflicting OD IDs %d vs %d\n", ID, od->objectDescriptorID);
 			}
-			
+
 			for (j=i+1; j<count; j++) {
 				XMT_ODLink *l2 = (XMT_ODLink*)gf_list_get(parser->od_links, j);
 				if (l2->od == od) {
@@ -227,6 +228,8 @@ static void xmt_new_od_link(GF_XMTParser *parser, GF_ObjectDescriptor *od, char 
 		}
 	}
 	GF_SAFEALLOC(odl, XMT_ODLink);
+	if (!odl) return;
+	
 	odl->mf_urls = gf_list_new();
 	odl->od = od;
 	if (ID) od->objectDescriptorID = ID;
@@ -260,18 +263,20 @@ static void xmt_new_od_link_from_node(GF_XMTParser *parser, char *name, MFURL *u
 	i = url->count - 1;
 	url->vals[i].OD_ID = 0;
 	url->vals->OD_ID = ID;
-	
+
 	i=0;
 	while ((odl = (XMT_ODLink*)gf_list_enum(parser->od_links, &i))) {
 		if ( (name && odl->desc_name && !strcmp(odl->desc_name, name))
-			|| (ID && odl->od && odl->od->objectDescriptorID==ID)
-			|| (ID && (odl->ID==ID))
-			) {
+		        || (ID && odl->od && odl->od->objectDescriptorID==ID)
+		        || (ID && (odl->ID==ID))
+		   ) {
 			if (url && (gf_list_find(odl->mf_urls, url)<0) ) gf_list_add(odl->mf_urls, url);
 			return;
 		}
 	}
 	GF_SAFEALLOC(odl, XMT_ODLink);
+	if (!odl) return;
+	
 	odl->mf_urls = gf_list_new();
 	if (url) gf_list_add(odl->mf_urls, url);
 	if (ID) odl->ID = ID;
@@ -311,6 +316,8 @@ static void xmt_new_esd_link(GF_XMTParser *parser, GF_ESD *esd, char *desc_name,
 		return;
 	}
 	GF_SAFEALLOC(esdl, XMT_ESDLink);
+	if (!esdl) return;
+	
 	esdl->esd = esd;
 	esd->ESID = esdl->ESID = binID;
 	if (desc_name) {
@@ -405,7 +412,7 @@ static u32 xmt_locate_stream(GF_XMTParser *parser, char *stream_name)
 	gf_list_add(parser->esd_links, esdl);
 	return esdl->ESID;
 }
-static Bool xmt_odid_available(GF_XMTParser *parser, u16 ODID) 
+static Bool xmt_odid_available(GF_XMTParser *parser, u16 ODID)
 {
 	u32 i;
 	XMT_ODLink *l;
@@ -452,7 +459,7 @@ static void xmt_resolve_od_links(GF_XMTParser *parser)
 
 		esdl->esd->OCRESID = 0;
 		if (!esdl->OCR_Name) continue;
-		
+
 		use_old_fmt = 0;
 		ocr_id = atoi(esdl->OCR_Name);
 		sprintf(szTest, "%d", ocr_id);
@@ -485,7 +492,7 @@ static void xmt_resolve_od_links(GF_XMTParser *parser)
 
 		esdl->esd->dependsOnESID = 0;
 		if (!esdl->Depends_Name) continue;
-		
+
 		use_old_fmt = 0;
 		dep_id = atoi(esdl->Depends_Name);
 		sprintf(szTest, "%d", dep_id);
@@ -561,7 +568,7 @@ static void xmt_resolve_od_links(GF_XMTParser *parser)
 			if (l->ID) {
 				if (l->desc_name) {
 					xmt_report(parser, GF_OK, "WARNING: OD \"%s\" (ID %d) not assigned", l->desc_name, l->ID);
-				} else{
+				} else {
 					xmt_report(parser, GF_OK, "WARNING: OD ID %d not assigned", l->ID);
 				}
 			}
@@ -601,7 +608,7 @@ static u32 xmt_get_next_node_id(GF_XMTParser *parser)
 	GF_SceneGraph *sc = parser->load->scene_graph;
 	if (parser->parsing_proto) sc = gf_sg_proto_get_graph(parser->parsing_proto);
 	ID = gf_sg_get_next_available_node_id(sc);
-	if (parser->load->ctx && (ID>parser->load->ctx->max_node_id)) 
+	if (parser->load->ctx && (ID>parser->load->ctx->max_node_id))
 		parser->load->ctx->max_node_id = ID;
 	return ID;
 }
@@ -611,7 +618,7 @@ static u32 xmt_get_node_id(GF_XMTParser *parser, char *name)
 	u32 ID = 0;
 	if (sscanf(name, "N%u", &ID) == 1) {
 		u32 k=1;
-		while (name[k]) {
+		while (name && name[k]) {
 			if (strchr("0123456789", name[k])==0) {
 				ID = 0;
 				break;
@@ -626,7 +633,7 @@ static u32 xmt_get_node_id(GF_XMTParser *parser, char *name)
 				return ID;
 			}
 		}
-	} 
+	}
 	ID = xmt_get_next_node_id(parser);
 	if (n) {
 		GF_LOG(GF_LOG_WARNING, GF_LOG_PARSER, ("[XMT Parsing] (line %d) Binary ID %s already assigned to %s - keeping internal ID %d\n", gf_xml_sax_get_line(parser->sax_parser), name, gf_node_get_name(n), ID));
@@ -634,14 +641,14 @@ static u32 xmt_get_node_id(GF_XMTParser *parser, char *name)
 	return ID;
 }
 
-static u32 xmt_get_node_tag(GF_XMTParser *parser, const char *node_name) 
+static u32 xmt_get_node_tag(GF_XMTParser *parser, const char *node_name)
 {
 	u32 tag;
 	/*if VRML and allowing non MPEG4 nodes, use X3D*/
 	if ((parser->doc_type==2) && !(parser->load->flags & GF_SM_LOAD_MPEG4_STRICT)) {
 #ifndef GPAC_DISABLE_X3D
 		tag = gf_node_x3d_type_by_class_name(node_name);
-		if (!tag) 
+		if (!tag)
 #endif
 			tag = gf_node_mpeg4_type_by_class_name(node_name);
 	} else {
@@ -659,7 +666,9 @@ static GF_Node *xmt_find_node(GF_XMTParser *parser, char *ID)
 	u32 i, count, tag;
 	Bool is_proto;
 	char *node_class;
-	GF_Node *n = gf_sg_find_node_by_name(parser->load->scene_graph, ID);
+	GF_Node *n;
+	if (!ID) return NULL;
+	n = gf_sg_find_node_by_name(parser->load->scene_graph, ID);
 	if (n) return n;
 
 	count = gf_list_count(parser->peeked_nodes);
@@ -764,7 +773,7 @@ static u32 xmt_parse_string(GF_XMTParser *parser, const char *name, SFString *va
 		return len+1;
 	}
 
-	/*now this is the REAL pain: 
+	/*now this is the REAL pain:
 		X3D allows '"String1" "String2"' and therefore '"String &quot;test&quot;"'
 		XMT allows '&quot;String1&quot; &quot;String2&quot;' and therefore '&quot;String \&quot;test\&quot;&quot;'
 	thus translating the string from xml to UTF may screw up the separators !! We need to identify them
@@ -804,7 +813,7 @@ static u32 xmt_parse_string(GF_XMTParser *parser, const char *name, SFString *va
 	}
 	value[k] = 0;
 	len = (u32) strlen(sep) + i;
-	
+
 	if (val->buffer) gf_free(val->buffer);
 	val->buffer = NULL;
 	if (strlen(value)) val->buffer = gf_strdup(value);
@@ -870,7 +879,7 @@ static void xmt_check_time_offset(GF_XMTParser *parser, GF_Node *n, GF_FieldInfo
 {
 	if (!(parser->load->flags & GF_SM_LOAD_FOR_PLAYBACK)) return;
 	if (gf_node_get_tag(n) != TAG_ProtoNode) {
-		if (!stricmp(info->name, "startTime") || !stricmp(info->name, "stopTime")) 
+		if (!stricmp(info->name, "startTime") || !stricmp(info->name, "stopTime"))
 			xmt_offset_time(parser, (Double *)info->far_ptr);
 	} else if (gf_sg_proto_field_is_sftime_offset(n, info)) {
 		xmt_offset_time(parser, (Double *)info->far_ptr);
@@ -882,46 +891,46 @@ static u32 xmt_parse_sf_field(GF_XMTParser *parser, GF_FieldInfo *info, GF_Node 
 	u32 res = 0;
 	switch (info->fieldType) {
 	case GF_SG_VRML_SFINT32:
-		res = xmt_parse_int(parser, info->name, (SFInt32 *)info->far_ptr, a_value); 
+		res = xmt_parse_int(parser, info->name, (SFInt32 *)info->far_ptr, a_value);
 		break;
 	case GF_SG_VRML_SFBOOL:
-		res = xmt_parse_bool(parser, info->name, (SFBool *)info->far_ptr, a_value); 
+		res = xmt_parse_bool(parser, info->name, (SFBool *)info->far_ptr, a_value);
 		break;
 	case GF_SG_VRML_SFFLOAT:
-		res = xmt_parse_float(parser, info->name, (SFFloat *)info->far_ptr, a_value); 
+		res = xmt_parse_float(parser, info->name, (SFFloat *)info->far_ptr, a_value);
 		break;
 	case GF_SG_VRML_SFTIME:
-		res = xmt_parse_time(parser, info->name, (SFTime *)info->far_ptr, a_value); 
-		xmt_check_time_offset(parser, n, info);
+		res = xmt_parse_time(parser, info->name, (SFTime *)info->far_ptr, a_value);
+		if (n) xmt_check_time_offset(parser, n, info);
 		break;
 	case GF_SG_VRML_SFCOLOR:
-		res = xmt_parse_float(parser, info->name, & ((SFColor *)info->far_ptr)->red, a_value); 
-		res += xmt_parse_float(parser, info->name, & ((SFColor *)info->far_ptr)->green, a_value + res); 
-		res += xmt_parse_float(parser, info->name, & ((SFColor *)info->far_ptr)->blue, a_value + res); 
+		res = xmt_parse_float(parser, info->name, & ((SFColor *)info->far_ptr)->red, a_value);
+		res += xmt_parse_float(parser, info->name, & ((SFColor *)info->far_ptr)->green, a_value + res);
+		res += xmt_parse_float(parser, info->name, & ((SFColor *)info->far_ptr)->blue, a_value + res);
 		break;
 	case GF_SG_VRML_SFVEC2F:
-		res = xmt_parse_float(parser, info->name, & ((SFVec2f *)info->far_ptr)->x, a_value); 
-		res += xmt_parse_float(parser, info->name, & ((SFVec2f *)info->far_ptr)->y, a_value + res); 
+		res = xmt_parse_float(parser, info->name, & ((SFVec2f *)info->far_ptr)->x, a_value);
+		res += xmt_parse_float(parser, info->name, & ((SFVec2f *)info->far_ptr)->y, a_value + res);
 		break;
 	case GF_SG_VRML_SFVEC3F:
-		res = xmt_parse_float(parser, info->name, & ((SFVec3f *)info->far_ptr)->x, a_value); 
-		res += xmt_parse_float(parser, info->name, & ((SFVec3f *)info->far_ptr)->y, a_value + res); 
-		res += xmt_parse_float(parser, info->name, & ((SFVec3f *)info->far_ptr)->z, a_value + res); 
+		res = xmt_parse_float(parser, info->name, & ((SFVec3f *)info->far_ptr)->x, a_value);
+		res += xmt_parse_float(parser, info->name, & ((SFVec3f *)info->far_ptr)->y, a_value + res);
+		res += xmt_parse_float(parser, info->name, & ((SFVec3f *)info->far_ptr)->z, a_value + res);
 		break;
 	case GF_SG_VRML_SFROTATION:
-		res = xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->x, a_value); 
-		res += xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->y, a_value + res); 
-		res += xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->z, a_value + res); 
-		res += xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->q, a_value + res); 
+		res = xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->x, a_value);
+		res += xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->y, a_value + res);
+		res += xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->z, a_value + res);
+		res += xmt_parse_float(parser, info->name, & ((SFRotation *)info->far_ptr)->q, a_value + res);
 		break;
 	case GF_SG_VRML_SFSTRING:
-		res = xmt_parse_string(parser, info->name, (SFString*)info->far_ptr, 0, a_value); 
+		res = xmt_parse_string(parser, info->name, (SFString*)info->far_ptr, 0, a_value);
 		if (n && (n->sgprivate->tag==TAG_MPEG4_BitWrapper)) {
 			gf_sm_update_bitwrapper_buffer(n, parser->load->fileName);
 		}
 		break;
 	case GF_SG_VRML_SFSCRIPT:
-		res = xmt_parse_script(parser, info->name, (SFScript *)info->far_ptr, 0, a_value); 
+		res = xmt_parse_script(parser, info->name, (SFScript *)info->far_ptr, 0, a_value);
 		break;
 	case GF_SG_VRML_SFCOMMANDBUFFER:
 	{
@@ -933,7 +942,7 @@ static u32 xmt_parse_sf_field(GF_XMTParser *parser, GF_FieldInfo *info, GF_Node 
 		}
 		parser->command_buffer = cb;
 	}
-		break;
+	break;
 
 	case GF_SG_VRML_SFIMAGE:
 	{
@@ -983,7 +992,7 @@ static u32 xmt_parse_sf_field(GF_XMTParser *parser, GF_FieldInfo *info, GF_Node 
 			a_value += i;
 		}
 	}
-		break;
+	break;
 
 	default:
 		parser->last_error = GF_NOT_SUPPORTED;
@@ -1012,11 +1021,11 @@ static void xmt_parse_mf_field(GF_XMTParser *parser, GF_FieldInfo *info, GF_Node
 		/*special case for MF type based on string (MFString, MFURL and MFScript), we need to take care
 		of all possible forms of XML multi string encoding*/
 		if (sfInfo.fieldType == GF_SG_VRML_SFSTRING) {
-			res = xmt_parse_string(parser, info->name, (SFString*)sfInfo.far_ptr, 1, value); 
+			res = xmt_parse_string(parser, info->name, (SFString*)sfInfo.far_ptr, 1, value);
 		} else if (sfInfo.fieldType == GF_SG_VRML_SFURL) {
-			res = xmt_parse_url(parser, info->name, (MFURL *)info->far_ptr, n, 1, value); 
+			res = xmt_parse_url(parser, info->name, (MFURL *)info->far_ptr, n, 1, value);
 		} else if (sfInfo.fieldType == GF_SG_VRML_SFSCRIPT) {
-			res = xmt_parse_script(parser, info->name, (SFScript*)sfInfo.far_ptr, 1, value); 
+			res = xmt_parse_script(parser, info->name, (SFScript*)sfInfo.far_ptr, 1, value);
 		} else {
 			res = xmt_parse_sf_field(parser, &sfInfo, n, value);
 		}
@@ -1039,13 +1048,13 @@ static Bool xmt_has_been_def(GF_XMTParser *parser, char *node_name)
 	return 0;
 }
 
-static u32 xmt_get_route(GF_XMTParser *parser, char *name, Bool del_com) 
+static u32 xmt_get_route(GF_XMTParser *parser, char *name, Bool del_com)
 {
 	u32 i;
 	GF_Command *com;
 	GF_Route *r = gf_sg_route_find_by_name(parser->load->scene_graph, name);
 	if (r) return r->ID;
-	i=0; 
+	i=0;
 	while ((com = (GF_Command *)gf_list_enum(parser->inserted_routes, &i))) {
 		if (com->def_name && !strcmp(com->def_name, name)) {
 			if (del_com) gf_list_rem(parser->inserted_routes, i);
@@ -1074,7 +1083,7 @@ static u32 xmt_get_next_route_id(GF_XMTParser *parser)
 	if (parser->parsing_proto) sc = gf_sg_proto_get_graph(parser->parsing_proto);
 
 	ID = gf_sg_get_next_available_route_id(sc);
-	if (parser->load->ctx && (ID>parser->load->ctx->max_route_id)) 
+	if (parser->load->ctx && (ID>parser->load->ctx->max_route_id))
 		parser->load->ctx->max_route_id = ID;
 	return ID;
 }
@@ -1145,7 +1154,7 @@ static void xmt_parse_route(GF_XMTParser *parser, const GF_XMLAttribute *attribu
 		return;
 	}
 	e = gf_node_get_field_by_name(dest, toNF, &dest_field);
-	if ((e != GF_OK) && !strnicmp(toNF, "set_", 4)) e = gf_node_get_field_by_name(dest, &toNF[4], &dest_field);
+	if ((e != GF_OK) && toNF && !strnicmp(toNF, "set_", 4)) e = gf_node_get_field_by_name(dest, &toNF[4], &dest_field);
 	if (e != GF_OK) {
 		xmt_report(parser, GF_BAD_PARAM, "%s is not an attribute of node %s", toNF, toN);
 		return;
@@ -1226,7 +1235,7 @@ static void xmt_update_timenode(GF_XMTParser *parser, GF_Node *node)
 			xmt_check_time_offset(parser, node, &inf);
 		}
 	}
-		break;
+	break;
 	}
 }
 
@@ -1309,9 +1318,9 @@ static void xmt_parse_script_field(GF_XMTParser *parser, GF_Node *node, const GF
 	for (i=0; i<nb_attributes; i++) {
 		GF_XMLAttribute *att = (GF_XMLAttribute *)&attributes[i];
 		if (!att->value || !strlen(att->value)) continue;
-		if (!strcmp(att->name, "name")) fieldName = att->value; 
-		else if (!strcmp(att->name, "type")) fieldType = xmt_get_ft_by_name(att->value); 
-		else if (!strcmp(att->name, "vrml97Hint") || !strcmp(att->name, "accessType")) eventType = xmt_get_script_et_by_name(att->value); 
+		if (!strcmp(att->name, "name")) fieldName = att->value;
+		else if (!strcmp(att->name, "type")) fieldType = xmt_get_ft_by_name(att->value);
+		else if (!strcmp(att->name, "vrml97Hint") || !strcmp(att->name, "accessType")) eventType = xmt_get_script_et_by_name(att->value);
 		else if (strstr(att->name, "value") || strstr(att->name, "Value")) val = att->value;
 	}
 	scfield = gf_sg_script_field_new(node, eventType, fieldType, fieldName);
@@ -1336,7 +1345,7 @@ static u32 xmt_get_next_proto_id(GF_XMTParser *parser)
 	GF_SceneGraph *sc = parser->load->scene_graph;
 	if (parser->parsing_proto) sc = gf_sg_proto_get_graph(parser->parsing_proto);
 	ID = gf_sg_get_next_available_proto_id(sc);
-	if (parser->load->ctx && (ID>parser->load->ctx->max_node_id)) 
+	if (parser->load->ctx && (ID>parser->load->ctx->max_node_id))
 		parser->load->ctx->max_proto_id = ID;
 	return ID;
 }
@@ -1348,13 +1357,12 @@ static void xmt_parse_proto(GF_XMTParser *parser, const GF_XMLAttribute *attribu
 	char *szName, *extURL;
 	u32 ID, i;
 
-	ID = 0;
 	szName = extURL = NULL;
 	for (i=0; i<nb_attributes; i++) {
 		GF_XMLAttribute *att = (GF_XMLAttribute *)&attributes[i];
 		if (!att->value || !strlen(att->value)) continue;
-		if (!strcmp(att->name, "name")) szName = att->value; 
-		else if (!strcmp(att->name, "protoID")) ID = atoi(att->value); 
+		if (!strcmp(att->name, "name")) szName = att->value;
+//		else if (!strcmp(att->name, "protoID")) ID = atoi(att->value);
 		else if (!strcmp(att->name, "locations")) extURL = att->value;
 		else if (!strcmp(att->name, "url")) extURL = att->value;
 	}
@@ -1437,11 +1445,11 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 		}
 		return NULL;
 	}
-	if (parent && parent->node && ((parent->node->sgprivate->tag==TAG_MPEG4_Script) 
+	if (parent && parent->node && ((parent->node->sgprivate->tag==TAG_MPEG4_Script)
 #ifndef GPAC_DISABLE_X3D
-		|| (parent->node->sgprivate->tag==TAG_X3D_Script)
+	                               || (parent->node->sgprivate->tag==TAG_X3D_Script)
 #endif
-		) ) {
+	                              ) ) {
 		is_script = 1;
 		if (!strcmp(name, "field")) {
 			xmt_parse_script_field(parser, parent->node, attributes, nb_attributes);
@@ -1458,9 +1466,9 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 	}
 	/*proto parsing*/
 	if (parser->parsing_proto) {
-		if (!strcmp(name, "IS")) 
+		if (!strcmp(name, "IS"))
 			return NULL;
-		
+
 		if (!strcmp(name, "field")) {
 			char *fieldName = NULL;
 			char *value = NULL;
@@ -1486,7 +1494,7 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 				}
 			} else if (gf_sg_vrml_get_sf_type(fType) != GF_SG_VRML_SFNODE) {
 				/*value not specified for exter proto*/
-			} 
+			}
 			/*SF/MFNode proto field: push node stack with container info but no parent*/
 			else {
 				XMTNodeStack *pf_stack;
@@ -1496,12 +1504,12 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 			}
 			return NULL;
 		}
-		
+
 		/*X3D style*/
-		if (!strcmp(name, "ProtoInterface") || !strcmp(name, "ProtoBody")) 
+		if (!strcmp(name, "ProtoInterface") || !strcmp(name, "ProtoBody"))
 			return NULL;
 		/*XMT1 decl for SFNode proto fields*/
-		if (parser->proto_field && (!strcmp(name, "node") || !strcmp(name, "nodes")) ) 
+		if (parser->proto_field && (!strcmp(name, "node") || !strcmp(name, "nodes")) )
 			return NULL;
 		/*anim & QP info */
 		if (parser->proto_field  && !strcmp(name, "InterfaceCodingParameters")) {
@@ -1514,11 +1522,11 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 				if (!att->value || !strlen(att->value)) continue;
 				if (!strcmp(att->name, "quantCategory")) qp_type = xmt_get_protofield_qp_type(att->value);
 				else if (!strcmp(att->name, "nbBits")) nbBits = atoi(att->value);
-				else if (!strncmp(att->name, "position3DM", 11) || !strncmp(att->name, "position2DM", 11)  
-					|| !strncmp(att->name, "drawOrderM", 10) || !strncmp(att->name, "colorM", 6) 
-					|| !strncmp(att->name, "textureCoordinateM", 18) || !strncmp(att->name, "angleM", 6) 
-					|| !strncmp(att->name, "scaleM", 6) || !strncmp(att->name, "keyM", 4) || !strncmp(att->name, "sizeM", 5) 
-					) {
+				else if (!strncmp(att->name, "position3DM", 11) || !strncmp(att->name, "position2DM", 11)
+				         || !strncmp(att->name, "drawOrderM", 10) || !strncmp(att->name, "colorM", 6)
+				         || !strncmp(att->name, "textureCoordinateM", 18) || !strncmp(att->name, "angleM", 6)
+				         || !strncmp(att->name, "scaleM", 6) || !strncmp(att->name, "keyM", 4) || !strncmp(att->name, "sizeM", 5)
+				        ) {
 					hasMinMax = 1;
 					if (strstr(att->name, "Min")) xmt_parse_float(parser, att->name, &ftMin, att->value);
 					else xmt_parse_float(parser, att->name, &ftMax, att->value);
@@ -1560,11 +1568,11 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 			}
 			if ( (e = gf_node_get_field_by_name(last->node, atField, &nfield)) != GF_OK) {
 				u32 l_tag = gf_node_get_tag(last->node);
-				if ((l_tag!=TAG_MPEG4_Script) 
+				if ((l_tag!=TAG_MPEG4_Script)
 #ifndef GPAC_DISABLE_X3D
-					&& (l_tag!=TAG_X3D_Script)
+				        && (l_tag!=TAG_X3D_Script)
 #endif
-					) {
+				   ) {
 					xmt_report(parser, e, "connect: %s not an field of node %s", atField, gf_node_get_class_name(last->node) );
 					return NULL;
 				}
@@ -1624,45 +1632,52 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 	if (parent && parent->node && (parent->node->sgprivate->tag == TAG_ProtoNode) && (!strcmp(name, "node") || !strcmp(name, "nodes")) ) {
 		return NULL;
 	}
-	
+
 	ID = 0;
 	def_name = NULL;
 	tag = 0;
 
 	if (!strcmp(name, "ProtoInstance")) {
+		char *proto_name = NULL;
+		char *proto_use = NULL;
+		node = NULL;
 		for (i=0; i<nb_attributes; i++) {
 			GF_XMLAttribute *att = (GF_XMLAttribute *)&attributes[i];
 			if (!att->value || !strlen(att->value)) continue;
 			if (!strcmp(att->name, "name")) {
-				GF_SceneGraph *sg = parser->load->scene_graph;
-				while (1) {
-					proto = gf_sg_find_proto(sg, 0, att->value);
-					if (proto) break;
-					sg = sg->parent_scene;
-					if (!sg) break;
-				}
-				if (!proto) {
-					xmt_report(parser, GF_BAD_PARAM, "%s: not a valid/supported proto", att->value);
-					return NULL;
-				}
-				node = gf_sg_proto_create_instance(parser->load->scene_graph, proto);
+				proto_name = att->value;
 				att->value = NULL;
+			} else if (!strcmp(att->name, "USE")) {
+				proto_use = att->value;
 			}
-			else if (!strcmp(att->name, "USE")) {
-				node = xmt_find_node(parser, att->value);
-				e = GF_OK;
-				if (!node) 
-					e = xmt_report(parser, GF_BAD_PARAM, "Warning: Cannot find node %s referenced in USE - skipping", att->value);
-
-				if (e) return NULL;
-				ID = 0;
-				register_def = 0;
-				tag = 0;
+		}
+		if (proto_use) {
+			node = xmt_find_node(parser, proto_use);
+			e = GF_OK;
+			if (!node)
+				e = xmt_report(parser, GF_BAD_PARAM, "Warning: Cannot find node %s referenced in USE - skipping", proto_use);
+			
+			if (e) return NULL;
+			ID = 0;
+			register_def = 0;
+			tag = 0;
+		} else if (proto_name) {
+			GF_SceneGraph *sg = parser->load->scene_graph;
+			while (1) {
+				proto = gf_sg_find_proto(sg, 0, proto_name);
+				if (proto) break;
+				sg = sg->parent_scene;
+				if (!sg) break;
 			}
+			if (!proto) {
+				xmt_report(parser, GF_BAD_PARAM, "%s: not a valid/supported proto", proto_name);
+				return NULL;
+			}
+			node = gf_sg_proto_create_instance(parser->load->scene_graph, proto);
 		}
 	} else {
 		tag = xmt_get_node_tag(parser, name);
-	
+
 		if (!tag) {
 			/*XMT-A weird syntax*/
 			if (parent) {
@@ -1724,7 +1739,7 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 	parser->current_node_tag = tag;
 
 	if (parent) container = parent->container_field;
-	else { 
+	else {
 		container.far_ptr = NULL;
 		container.fieldIndex = 0;
 		container.fieldType = 0;
@@ -1739,7 +1754,6 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 			register_def = 1;
 			if (undef_node) {
 				gf_list_del_item(parser->peeked_nodes, undef_node);
-				ID = gf_node_get_id(undef_node);
 				/*if we see twice a DEF N1 then force creation of a new node*/
 				if (xmt_has_been_def(parser, att->value)) {
 					ID = xmt_get_node_id(parser, att->value);
@@ -1764,7 +1778,7 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 			def_node = xmt_find_node(parser, att->value);
 
 			e = GF_OK;
-			if (!def_node) 
+			if (!def_node)
 				e = xmt_report(parser, GF_BAD_PARAM, "Warning: Cannot find node %s referenced in USE - skipping", att->value);
 			else if (tag != gf_node_get_tag(def_node)) {
 				xmt_report(parser, GF_OK, "Warning: Node type %s doesn't match type %s of node %s", gf_node_get_class_name(node), gf_node_get_class_name(def_node), att->value);
@@ -1793,7 +1807,7 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 		}
 		/*ignored ones*/
 		else if (!strcmp(att->name, "bboxCenter") || !strcmp(att->name, "bboxSize")) {
-		}		
+		}
 		/*all other fields*/
 		else {
 			e = gf_node_get_field_by_name(node, att->name, &info);
@@ -1814,7 +1828,7 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 	if (is_script) {
 		u32 last_field = gf_node_get_field_count(parent->node);
 		gf_node_get_field(parent->node, last_field-1, &container);
-	} 
+	}
 
 	if (parent) {
 		if (!container.far_ptr) {
@@ -1841,7 +1855,7 @@ static GF_Node *xmt_parse_element(GF_XMTParser *parser, char *name, const char *
 		assert(parent->node);
 		gf_node_changed(parent->node, NULL);
 	}
-		
+
 	if (!parser->parsing_proto && (tag || proto) )
 		gf_node_init(node);
 
@@ -1916,19 +1930,19 @@ GF_Descriptor *xmt_parse_descriptor(GF_XMTParser *parser, char *name, const GF_X
 		else if (!strcmp(att->name, "ES_ID")) xmt_desc_name = att->value;
 		else if (!strcmp(att->name, "OCR_ES_ID")) ocr_ref = att->value;
 		else if (!strcmp(att->name, "dependsOn_ES_ID")) dep_ref = att->value;
-		else if ((desc->tag==GF_ODF_MUXINFO_TAG) && (!stricmp(att->name, "fileName") || !stricmp(att->name, "url"))) {
-			char *res_name = gf_url_concatenate(parser->load->fileName, att->value);
-			e = gf_odf_set_field(desc, att->name, res_name ? res_name : att->value);
-			if (e) xmt_report(parser, e, "Warning: %s not a valid attribute for descriptor %s", att->name, name);
-			if (res_name)
-				gf_free(res_name);
-		} else {
+		else {
 			e = gf_odf_set_field(desc, att->name, att->value);
 			if (e) xmt_report(parser, e, "Warning: %s not a valid attribute for descriptor %s", att->name, name);
+			//store src path but do not concatenate, othewise we break BT<->XMT conversion ...
+			if ((desc->tag==GF_ODF_MUXINFO_TAG) && (!stricmp(att->name, "fileName") || !stricmp(att->name, "url"))) {
+				GF_MuxInfo *mux = (GF_MuxInfo *) desc;
+				if (!mux->src_url)
+					mux->src_url = gf_strdup(parser->load->src_url ? parser->load->src_url : parser->load->fileName);
+			}
 		}
 	}
 	if (binaryID || xmt_desc_name) {
-		if ((tag == GF_ODF_IOD_TAG) || (tag == GF_ODF_OD_TAG)) 
+		if ((tag == GF_ODF_IOD_TAG) || (tag == GF_ODF_OD_TAG))
 			xmt_new_od_link(parser, (GF_ObjectDescriptor *)desc, xmt_desc_name, binaryID);
 		else if (tag == GF_ODF_ESD_TAG) {
 			xmt_new_esd_link(parser, (GF_ESD *) desc, xmt_desc_name, binaryID);
@@ -1976,7 +1990,7 @@ GF_Descriptor *xmt_parse_descriptor(GF_XMTParser *parser, char *name, const GF_X
 						else if (!parser->base_od_id && (esd->decoderConfig->streamType==GF_STREAM_OD)) parser->base_od_id = esd->ESID;
 
 						name = xmt_get_es_name(parser, esd->ESID);
-						if (name && !sc->name) sc->name = gf_strdup(name);
+						if (sc && name && !sc->name) sc->name = gf_strdup(name);
 					}
 					break;
 				}
@@ -2217,9 +2231,9 @@ static void xmt_parse_command(GF_XMTParser *parser, const char *name, const GF_X
 			au_is_rap = 1;
 			gf_list_reset(parser->def_nodes);
 		}
-		else if (!strcmp(name, "Insert")) 
+		else if (!strcmp(name, "Insert"))
 			tag = GF_SG_ROUTE_INSERT;
-		
+
 		if (extended) {
 			if (!strcmp(extended, "globalQuant")) {
 				tag = GF_SG_GLOBAL_QUANTIZER;
@@ -2353,10 +2367,10 @@ static void xmt_parse_command(GF_XMTParser *parser, const char *name, const GF_X
 							field->fieldType = GF_SG_VRML_MFNODE;
 						} else {
 							field->fieldType = GF_SG_VRML_SFNODE;
-						} 
+						}
 						parser->state = XMT_STATE_ELEMENTS;
 					}
-				}	
+				}
 			} else if (tag==GF_SG_NODE_INSERT) {
 				field = gf_sg_command_field_new(parser->command);
 				field->fieldType = GF_SG_VRML_SFNODE;
@@ -2402,8 +2416,8 @@ static void xmt_parse_command(GF_XMTParser *parser, const char *name, const GF_X
 
 	/*OD commands*/
 	if (!strcmp(name, "ObjectDescriptorUpdate") || !strcmp(name, "ObjectDescriptorRemove")
-			|| !strcmp(name, "ES_DescriptorUpdate") || !strcmp(name, "ES_DescriptorRemove")
-			|| !strcmp(name, "IPMP_DescriptorUpdate") || !strcmp(name, "IPMP_DescriptorRemove") ) {
+	        || !strcmp(name, "ES_DescriptorUpdate") || !strcmp(name, "ES_DescriptorRemove")
+	        || !strcmp(name, "IPMP_DescriptorUpdate") || !strcmp(name, "IPMP_DescriptorRemove") ) {
 		u32 stream_id;
 		u8 tag = 0;
 		GF_StreamContext *stream;
@@ -2447,7 +2461,7 @@ static void xmt_parse_command(GF_XMTParser *parser, const char *name, const GF_X
 		parser->od_au = gf_sm_stream_au_new(parser->od_es, 0, au_time, au_is_rap);
 		parser->od_command = gf_odf_com_new(tag);
 		gf_list_add(parser->od_au->commands, parser->od_command);
-	
+
 		if (tag == GF_ODF_ESD_REMOVE_TAG) {
 			char *sep;
 			GF_ESDRemove *esdR = (GF_ESDRemove *) parser->od_command ;
@@ -2484,7 +2498,7 @@ static void xmt_parse_command(GF_XMTParser *parser, const char *name, const GF_X
 				}
 				if (!sep) break;
 				sep[0] = ' ';
-				es_ids = sep+1;
+				od_ids = sep+1;
 			}
 		}
 	}
@@ -2498,7 +2512,7 @@ static void xmt_node_start(void *sax_cbck, const char *name, const char *name_sp
 
 	if (parser->last_error) {
 		gf_xml_sax_suspend(parser->sax_parser, 1);
-		if (parser->command_buffer) 
+		if (parser->command_buffer)
 			parser->command_buffer->buffer = NULL;
 		return;
 	}
@@ -2540,13 +2554,13 @@ static void xmt_node_start(void *sax_cbck, const char *name, const char *name_sp
 	}
 	if (parser->state==XMT_STATE_END) {
 		if (!strcmp(name, "head")) {
-			 parser->state = XMT_STATE_HEAD;
+			parser->state = XMT_STATE_HEAD;
 		} else {
 			parser->state = XMT_STATE_COMMANDS;
 		}
 	}
 
-	/*scene content*/	
+	/*scene content*/
 	if (parser->state==XMT_STATE_BODY) {
 		/*XMT-A body*/
 		if ((parser->doc_type == 1) && !strcmp(name, "Body")) parser->state = XMT_STATE_COMMANDS;
@@ -2587,6 +2601,8 @@ static void xmt_node_start(void *sax_cbck, const char *name, const char *name_sp
 	elt = xmt_parse_element(parser, (char *) name, name_space, attributes, nb_attributes, top);
 	if (!elt) return;
 	GF_SAFEALLOC(new_top, XMTNodeStack);
+	if (!new_top) return;
+	
 	new_top->node = elt;
 	gf_list_add(parser->nodes, new_top);
 
@@ -2626,7 +2642,7 @@ static void xmt_node_end(void *sax_cbck, const char *name, const char *name_spac
 
 			if ((parser->doc_type==1) && (parser->state==XMT_STATE_HEAD) && parser->load->ctx && !parser->load->ctx->root_od) {
 				parser->load->ctx->root_od = (GF_ObjectDescriptor *)desc;
-			} 
+			}
 			else if (!parser->od_command) {
 				xmt_report(parser, GF_OK, "Warning: descriptor %s defined outside scene scope - skipping", name);
 				gf_odf_desc_del(desc);
@@ -2659,6 +2675,10 @@ static void xmt_node_end(void *sax_cbck, const char *name, const char *name_spac
 
 				/*create a default top for X3D*/
 				GF_SAFEALLOC(parser->x3d_root, XMTNodeStack);
+				if (!parser->x3d_root) {
+					GF_LOG(GF_LOG_ERROR, GF_LOG_PARSER, ("Failed to allocate X3D root\n"));
+					return;
+				}
 				parser->x3d_root->node = node;
 			}
 			/*XMT-O header*/
@@ -2704,7 +2724,7 @@ static void xmt_node_end(void *sax_cbck, const char *name, const char *name_spac
 					parser->command_buffer = NULL;
 				} else {
 					//empty <Insert>
-					if ((parser->command->tag==GF_SG_ROUTE_INSERT) && !parser->command->fromNodeID) {
+					if (parser->command && (parser->command->tag==GF_SG_ROUTE_INSERT) && !parser->command->fromNodeID) {
 						gf_list_del_item(parser->scene_au->commands, parser->command);
 					}
 					parser->command = NULL;
@@ -2712,8 +2732,8 @@ static void xmt_node_end(void *sax_cbck, const char *name, const char *name_spac
 			}
 			/*end OD command*/
 			else if (!strcmp(name, "ObjectDescriptorUpdate") || !strcmp(name, "ObjectDescriptorRemove")
-					|| !strcmp(name, "ES_DescriptorUpdate") || !strcmp(name, "ES_DescriptorRemove")
-					|| !strcmp(name, "IPMP_DescriptorUpdate") || !strcmp(name, "IPMP_DescriptorRemove") ) {
+			         || !strcmp(name, "ES_DescriptorUpdate") || !strcmp(name, "ES_DescriptorRemove")
+			         || !strcmp(name, "IPMP_DescriptorUpdate") || !strcmp(name, "IPMP_DescriptorRemove") ) {
 				parser->od_command = NULL;
 			}
 
@@ -2873,7 +2893,7 @@ attach_node:
 					break;
 
 				}
-			} 
+			}
 			/*X3D*/
 			else if (parser->doc_type == 2) {
 				if (parser->parsing_proto) {
@@ -2904,11 +2924,11 @@ attach_node:
 		if (parser->load->flags & GF_SM_LOAD_FOR_PLAYBACK) {
 			/*load scripts*/
 			if (!parser->parsing_proto) {
-				if ((tag==TAG_MPEG4_Script) 
+				if ((tag==TAG_MPEG4_Script)
 #ifndef GPAC_DISABLE_X3D
-					|| (tag==TAG_X3D_Script) 
+				        || (tag==TAG_X3D_Script)
 #endif
-				) {
+				   ) {
 					/*it may happen that the script uses itself as a field (not sure this is compliant since this
 					implies a cyclic structure, but happens in some X3D conformance seq)*/
 					if (!top || (top->node != node)) {
@@ -2974,6 +2994,8 @@ static GF_XMTParser *xmt_new_parser(GF_SceneLoader *load)
 	GF_XMTParser *parser;
 	if ((load->type==GF_SM_LOAD_XSR) && !load->ctx) return NULL;
 	GF_SAFEALLOC(parser, GF_XMTParser);
+	if (!parser) return NULL;
+	
 	parser->nodes = gf_list_new();
 	parser->descriptors = gf_list_new();
 	parser->od_links = gf_list_new();
@@ -3000,18 +3022,18 @@ static GF_Err xmt_restore_context(GF_SceneLoader *load)
 
 	/*restore context - note that base layer are ALWAYS declared BEFORE enhancement layers with gpac parsers*/
 	i=0;
-	while ((sc = (GF_StreamContext*)gf_list_enum(load->ctx->streams, &i))){
+	while ((sc = (GF_StreamContext*)gf_list_enum(load->ctx->streams, &i))) {
 		switch (sc->streamType) {
 		case GF_STREAM_SCENE:
 		case GF_STREAM_PRIVATE_SCENE:
-			if (!parser->scene_es) 
-				parser->scene_es = sc; 
+			if (!parser->scene_es)
+				parser->scene_es = sc;
 			break;
-		case GF_STREAM_OD: 
-			if (!parser->od_es) 
-				parser->od_es = sc; 
+		case GF_STREAM_OD:
+			if (!parser->od_es)
+				parser->od_es = sc;
 			break;
-		default: 
+		default:
 			break;
 		}
 	}
@@ -3082,6 +3104,8 @@ static GF_Err load_xmt_run(GF_SceneLoader *load)
 	if (!parser) {
 		e = load_xmt_initialize(load, NULL);
 		if (e) return e;
+		parser = (GF_XMTParser *)load->loader_priv;
+		if (!parser) return GF_OUT_OF_MEM;
 	}
 
 	e = gf_xml_sax_parse_file(parser->sax_parser, (const char *)load->fileName, xmt_progress);

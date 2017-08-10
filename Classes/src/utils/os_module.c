@@ -46,14 +46,14 @@ void gf_modules_free_module(ModuleInstance *inst)
 	}
 
 #ifdef WIN32
-	if (inst->lib_handle) FreeLibrary(inst->lib_handle);
+	if (inst->lib_handle) FreeLibrary((HMODULE)inst->lib_handle);
 #else
 	if (inst->lib_handle) dlclose(inst->lib_handle);
 #endif
 	if (inst->interfaces)
 		gf_list_del(inst->interfaces);
 	inst->interfaces = NULL;
-	
+
 	if (inst->name && !inst->ifce_reg) {
 		gf_free(inst->name);
 		inst->name = NULL;
@@ -141,20 +141,22 @@ Bool gf_modules_load_library(ModuleInstance *inst)
 		return 0;
 	}
 	error = dlerror();    /* Clear any existing error */
+	if (error)
+		GF_LOG(GF_LOG_DEBUG, GF_LOG_CORE, ("[Core] Cleaning up previous dlerror %s\n", error));
 	inst->query_func = (QueryInterfaces) dlsym(inst->lib_handle, "QueryInterfaces");
 	error = dlerror();
 	if (error)
-	  GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot resolve symbol QueryInterfaces in module file %s, error is %s\n", path, error));
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot resolve symbol QueryInterfaces in module file %s, error is %s\n", path, error));
 	inst->load_func = (LoadInterface) dlsym(inst->lib_handle, "LoadInterface");
 	error = dlerror();
 	if (error)
-	  GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot resolve symbol LoadInterface in module file %s, error is %s\n", path, error));
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot resolve symbol LoadInterface in module file %s, error is %s\n", path, error));
 	inst->destroy_func = (ShutdownInterface) dlsym(inst->lib_handle, "ShutdownInterface");
 	error = dlerror();
 	if (error)
-	  GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot resolve symbol ShutdownInterface in module file %s, error is %s\n", path, error));
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot resolve symbol ShutdownInterface in module file %s, error is %s\n", path, error));
 #endif
-        GF_LOG(GF_LOG_INFO, GF_LOG_CORE, ("[Core] Load module file %s : DONE\n", inst->name));
+	GF_LOG(GF_LOG_INFO, GF_LOG_CORE, ("[Core] Load module file %s : DONE\n", inst->name));
 	return GF_TRUE;
 }
 
@@ -166,7 +168,8 @@ void gf_modules_unload_library(ModuleInstance *inst)
 		return;
 
 #ifdef WIN32
-	FreeLibrary((HMODULE)inst->lib_handle);
+	if (strcmp(inst->name, "gm_openhevc_dec.dll"))
+		FreeLibrary((HMODULE)inst->lib_handle);
 #else
 	dlclose(inst->lib_handle);
 #endif
@@ -177,7 +180,7 @@ void gf_modules_unload_library(ModuleInstance *inst)
 }
 
 
-Bool enum_modules(void *cbck, char *item_name, char *item_path)
+static Bool enum_modules(void *cbck, char *item_name, char *item_path, GF_FileEnumInfo *file_info)
 {
 	ModuleInstance *inst;
 #if CHECK_MODULE
@@ -195,9 +198,9 @@ Bool enum_modules(void *cbck, char *item_name, char *item_path)
 
 	GF_ModuleManager *pm = (GF_ModuleManager*)cbck;
 
-	if (strstr(item_name, "nposmozilla")) return 0;
-	if (strncmp(item_name, "gm_", 3) && strncmp(item_name, "libgm_", 6)) return 0;
-	if (gf_module_is_loaded(pm, item_name) ) return 0;
+	if (strstr(item_name, "nposmozilla")) return GF_FALSE;
+	if (strncmp(item_name, "gm_", 3) && strncmp(item_name, "libgm_", 6)) return GF_FALSE;
+	if (gf_module_is_loaded(pm, item_name) ) return GF_FALSE;
 
 #if CHECK_MODULE
 
@@ -205,7 +208,7 @@ Bool enum_modules(void *cbck, char *item_name, char *item_path)
 	ModuleLib = LoadLibrary(item_path);
 	if (!ModuleLib) {
 		GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot load module file %s\n", item_name));
-		return 0;
+		return GF_FALSE;
 	}
 
 #ifdef _WIN32_WCE
@@ -228,10 +231,10 @@ Bool enum_modules(void *cbck, char *item_name, char *item_path)
 #endif
 
 	ModuleLib = dlopen(item_name, _flags);
-        if (!ModuleLib) {
-                GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot load module file %s, error is %s\n", item_name, dlerror()));
-                goto next;
-        }
+	if (!ModuleLib) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CORE, ("[Core] Cannot load module file %s, error is %s\n", item_name, dlerror()));
+		goto next;
+	}
 
 	query_func = (QueryInterface) dlsym(ModuleLib, "QueryInterface");
 	load_func = (LoadInterface) dlsym(ModuleLib, "LoadInterface");
@@ -239,21 +242,25 @@ Bool enum_modules(void *cbck, char *item_name, char *item_path)
 	dlclose(ModuleLib);
 #endif
 
-	if (!load_func || !query_func || !del_func){
-          GF_LOG(GF_LOG_WARNING, GF_LOG_CORE,
-                 ("[Core] Could not find some signatures in module %s: QueryInterface=%p, LoadInterface=%p, ShutdownInterface=%p\n",
-                  item_name, load_func, query_func, del_func));
-          return 0;
-        }
+	if (!load_func || !query_func || !del_func) {
+		GF_LOG(GF_LOG_WARNING, GF_LOG_CORE,
+		       ("[Core] Could not find some signatures in module %s: QueryInterface=%p, LoadInterface=%p, ShutdownInterface=%p\n",
+		        item_name, load_func, query_func, del_func));
+		return GF_FALSE;
+	}
 #endif
 
-
 	GF_SAFEALLOC(inst, ModuleInstance);
+	if (!inst) return GF_FALSE;
 	inst->interfaces = gf_list_new();
+	if (!inst->interfaces) {
+		gf_free(inst);
+		return GF_FALSE;
+	}
 	inst->plugman = pm;
 	inst->name = gf_strdup(item_name);
 	inst->dir = gf_strdup(item_path);
-	gf_url_get_resource_path(item_path, inst->dir); 
+	gf_url_get_resource_path(item_path, inst->dir);
 	GF_LOG(GF_LOG_INFO, GF_LOG_CORE, ("[Core] Added module %s.\n", inst->name));
 	gf_list_add(pm->plug_list, inst);
 	return GF_FALSE;
@@ -269,7 +276,12 @@ static void load_static_modules(GF_ModuleManager *pm)
 		if (gf_module_is_loaded(pm, (char *) ifce_reg->name) ) continue;
 
 		GF_SAFEALLOC(inst, ModuleInstance);
+		if (!inst) continue;
 		inst->interfaces = gf_list_new();
+		if (!inst->interfaces) {
+			gf_free(inst);
+			continue;
+		}
 		inst->plugman = pm;
 		inst->name = (char *) ifce_reg->name;
 		inst->ifce_reg = ifce_reg;
@@ -287,18 +299,24 @@ u32 gf_modules_refresh(GF_ModuleManager *pm)
 	/*load all static modules*/
 	load_static_modules(pm);
 
-	for (i =0; i < pm->num_dirs; i++){
+	for (i =0; i < pm->num_dirs; i++) {
 #ifdef WIN32
-	gf_enum_directory(pm->dirs[i], GF_FALSE, enum_modules, pm, ".dll");
+		gf_enum_directory(pm->dirs[i], GF_FALSE, enum_modules, pm, ".dll");
 #elif defined(__APPLE__)
 #if defined(TARGET_OS_IPHONE) || defined(TARGET_IPHONE_SIMULATOR)
-	/*we are in static build for modules by default*/
+		/*we are in static build for modules by default*/
 #else
-	gf_enum_directory(pm->dirs[i], 0, enum_modules, pm, ".dylib");
+		gf_enum_directory(pm->dirs[i], 0, enum_modules, pm, ".dylib");
 #endif
 #else
-	GF_LOG(GF_LOG_INFO, GF_LOG_CORE, ("Refreshing list of modules in directory %s...\n", pm->dirs[i]));
-	gf_enum_directory(pm->dirs[i], 0, enum_modules, pm, ".so");
+		GF_LOG(GF_LOG_INFO, GF_LOG_CORE, ("Refreshing list of modules in directory %s...\n", pm->dirs[i]));
+
+#if defined(GPAC_CONFIG_WIN32)
+		gf_enum_directory(pm->dirs[i], 0, enum_modules, pm, ".dll");
+#else
+		gf_enum_directory(pm->dirs[i], 0, enum_modules, pm, ".so");
+#endif
+
 #endif
 	}
 

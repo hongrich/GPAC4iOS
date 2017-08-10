@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -40,12 +40,14 @@ GF_Err gf_rtsp_read_reply(GF_RTSPSession *sess)
 	while (1) {
 		//Locate header / body
 		if (!BodyStart) gf_rtsp_get_body_info(sess, &BodyStart, &body_size);
-		
-		//enough data
-		res = sess->CurrentSize - sess->CurrentPos;
-		if (!body_size || (res >= body_size + BodyStart)) {
-			//done
-			break;
+
+		if (BodyStart) {
+			//enough data
+			res = sess->CurrentSize - sess->CurrentPos;
+			if (!body_size || (res >= body_size + BodyStart)) {
+				//done
+				break;
+			}
 		}
 		//this is the tricky part: if we do NOT have a body start -> we refill
 		e = gf_rtsp_refill_buffer(sess);
@@ -57,34 +59,36 @@ GF_Err gf_rtsp_read_reply(GF_RTSPSession *sess)
 void gf_rtsp_get_body_info(GF_RTSPSession *sess, u32 *body_start, u32 *body_size)
 {
 	u32 i;
+	s32 start;
 	char *buffer;
 	char *cl_str, val[30];
 
 	*body_start = *body_size = 0;
 
 	buffer = sess->TCPBuffer + sess->CurrentPos;
-	*body_start = gf_token_find(buffer, 0, sess->CurrentSize - sess->CurrentPos, "\r\n\r\n");
+	start = gf_token_find(buffer, 0, sess->CurrentSize - sess->CurrentPos, "\r\n\r\n");
+	if (start<=0) {
+		return;
+	}
 
 	//if found add the 2 "\r\n" and parse it
-	if (*body_start) {
-		*body_start += 4;
-		
-		//get the content length
-		cl_str = strstr(buffer, "Content-Length: ");
-		if (!cl_str) cl_str = strstr(buffer, "Content-length: ");
-		
-		if (cl_str) {
-			cl_str += 16;
-			i = 0;
-			while (cl_str[i] != '\r') {
-				val[i] = cl_str[i];
-				i += 1;
-			}
-			val[i] = 0;
-			*body_size = atoi(val);
-		} else {
-			*body_size = 0;
+	*body_start = start + 4;
+
+	//get the content length
+	cl_str = strstr(buffer, "Content-Length: ");
+	if (!cl_str) cl_str = strstr(buffer, "Content-length: ");
+
+	if (cl_str) {
+		cl_str += 16;
+		i = 0;
+		while (cl_str[i] != '\r') {
+			val[i] = cl_str[i];
+			i += 1;
 		}
+		val[i] = 0;
+		*body_size = atoi(val);
+	} else {
+		*body_size = 0;
 	}
 }
 
@@ -110,9 +114,9 @@ GF_Err gf_rtsp_refill_buffer(GF_RTSPSession *sess)
 	sess->CurrentSize = res;
 
 	//now read from current pos
-	e = gf_sk_receive(sess->connection, sess->TCPBuffer + sess->CurrentSize, 
-				RTSP_TCP_BUF_SIZE - sess->CurrentSize, 
-				0, &res);
+	e = gf_sk_receive(sess->connection, sess->TCPBuffer + sess->CurrentSize,
+	                  RTSP_TCP_BUF_SIZE - sess->CurrentSize,
+	                  0, &res);
 
 	if (!e) {
 		sess->CurrentSize += res;
@@ -144,29 +148,29 @@ GF_RTSPTransport *gf_rtsp_transport_parse(char *buffer)
 	s32 pos, nPos;
 	u32 v1, v2;
 	GF_RTSPTransport *tmp;
-	pos = 0;
 	if (!buffer) return NULL;
 	//only support for RTP/AVP for now
 	if (strnicmp(buffer, "RTP/AVP", 7) && strnicmp(buffer, "RTP/SAVP", 8)) return NULL;
 
 	GF_SAFEALLOC(tmp, GF_RTSPTransport);
+	if (!tmp) return NULL;
 
-	IsFirst = 1;
+	IsFirst = GF_TRUE;
 	pos = 0;
-	while (1) {	
+	while (1) {
 		pos = gf_token_get(buffer, pos, " ;", buf, 100);
 		if (pos <= 0) break;
 		if (strstr(buf, "=")) {
 			nPos = gf_token_get(buf, 0, "=", param_name, 100);
-			nPos = gf_token_get(buf, nPos, "=", param_val, 100);
+			/*nPos = */gf_token_get(buf, nPos, "=", param_val, 100);
 		} else {
 			strcpy(param_name, buf);
 		}
-		
+
 		//very first param is the profile
 		if (IsFirst) {
 			tmp->Profile = gf_strdup(param_name);
-			IsFirst = 0;
+			IsFirst = GF_FALSE;
 			continue;
 		}
 
@@ -178,12 +182,12 @@ GF_RTSPTransport *gf_rtsp_transport_parse(char *buffer)
 			if (tmp->source) gf_free(tmp->source);
 			tmp->source = gf_strdup(param_val);
 		}
-		else if (!stricmp(param_name, "unicast")) tmp->IsUnicast = 1;
-		else if (!stricmp(param_name, "RECORD")) tmp->IsRecord = 1;
-		else if (!stricmp(param_name, "append")) tmp->Append = 1;
+		else if (!stricmp(param_name, "unicast")) tmp->IsUnicast = GF_TRUE;
+		else if (!stricmp(param_name, "RECORD")) tmp->IsRecord = GF_TRUE;
+		else if (!stricmp(param_name, "append")) tmp->Append = GF_TRUE;
 		else if (!stricmp(param_name, "interleaved")) {
 			u32 rID, rcID;
-			tmp->IsInterleaved = 1;
+			tmp->IsInterleaved = GF_TRUE;
 			if (sscanf(param_val, "%u-%u", &rID, &rcID) == 1) {
 				sscanf(param_val, "%u", &rID);
 				tmp->rtcpID = tmp->rtpID = (u8) rID;
@@ -229,13 +233,12 @@ GF_Err gf_rtsp_parse_header(char *buffer, u32 BufferSize, u32 BodyStart, GF_RTSP
 	LinePos = 0;
 	strcpy(HeaderBuf, "");
 	while (1) {
-		HeaderLine = 0;
 		LinePos = gf_token_get_line(buffer, LinePos, BufferSize, LineBuffer, 1024);
 		if (LinePos <= 0) return GF_REMOTE_SERVICE_ERROR;
-		
-		//extract field header and value. Warning: some params (transport, ..) may be on several lines 
+
+		//extract field header and value. Warning: some params (transport, ..) may be on several lines
 		Pos = gf_token_get(LineBuffer, 0, ":\r\n", temp, 400);
-		
+
 		//end of header
 		if (Pos <= 0) {
 			HeaderLine = 2;
@@ -294,9 +297,9 @@ const char *gf_rtsp_nc_to_string(u32 ErrCode)
 	switch (ErrCode) {
 	case NC_RTSP_Continue:
 		return "Continue";
-	case NC_RTSP_OK:	
+	case NC_RTSP_OK:
 		return "OK";
-	case NC_RTSP_Created:	
+	case NC_RTSP_Created:
 		return "Created";
 	case NC_RTSP_Low_on_Storage_Space:
 		return "Low on Storage Space";

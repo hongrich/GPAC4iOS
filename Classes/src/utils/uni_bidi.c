@@ -34,36 +34,36 @@
 ------------------------------------------------------------------------*/
 enum
 {
-    // input types
-			 // ON MUST be zero, code relies on ON = N = 0
-    ON = 0,  // Other Neutral
-    L,       // Left Letter
-    R,       // Right Letter
-    AN,      // Arabic Number
-    EN,      // European Number
-    AL,      // Arabic Letter (Right-to-left)
-    NSM,     // Non-spacing Mark
-    CS,      // Common Separator
-    ES,      // European Separator
-    ET,      // European Terminator (post/prefix e.g. $ and %)
+	// input types
+	// ON MUST be zero, code relies on ON = N = 0
+	ON = 0,  // Other Neutral
+	L,       // Left Letter
+	R,       // Right Letter
+	AN,      // Arabic Number
+	EN,      // European Number
+	AL,      // Arabic Letter (Right-to-left)
+	NSM,     // Non-spacing Mark
+	CS,      // Common Separator
+	ES,      // European Separator
+	ET,      // European Terminator (post/prefix e.g. $ and %)
 
 	// resolved types
-    BN,      // Boundary neutral (type of RLE etc after explicit levels)
+	BN,      // Boundary neutral (type of RLE etc after explicit levels)
 
 	// input types,
-    S,       // Segment Separator (TAB)		// used only in L1
-    WS,      // White space					// used only in L1
-    B,       // Paragraph Separator (aka as PS)
+	S,       // Segment Separator (TAB)		// used only in L1
+	WS,      // White space					// used only in L1
+	B,       // Paragraph Separator (aka as PS)
 
 	// types for explicit controls
-    RLO,     // these are used only in X1-X9
-    RLE,
-    LRO,
-    LRE,
-    PDF,
+	RLO,     // these are used only in X1-X9
+	RLE,
+	LRO,
+	LRE,
+	PDF,
 
 	// resolved types, also resolved directions
-    N = ON,  // alias, where ON, WS and S are treated the same
+	N = ON,  // alias, where ON, WS and S are treated the same
 };
 
 /*----------------------------------------------------------------------
@@ -92,18 +92,24 @@ Bool gf_utf8_is_right_to_left(u16 *utf_string)
 	u32 i = 0;
 	while (1) {
 		u32 c = utf_string[i];
-		if (!c) return 0;
+		if (!c) return GF_FALSE;
 		switch (bidi_get_class(c)) {
-		case L: return 0;
-		case R: return 1;
-		case AN: return 1;
-		case EN: return 0;
-		case AL: return 1;
-		default: break;
+		case L:
+			return GF_FALSE;
+		case R:
+			return GF_TRUE;
+		case AN:
+			return GF_TRUE;
+		case EN:
+			return GF_FALSE;
+		case AL:
+			return GF_TRUE;
+		default:
+			break;
 		}
 		i++;
 	}
-	return 0;
+	return GF_FALSE;
 }
 
 
@@ -126,22 +132,22 @@ Bool gf_utf8_reorder_bidi(u16 *utf_string, u32 len)
 	}
 	cur_dir = rev ? 1 : 0;
 	main_dir = cur_dir;
-	is_start = 1;
+	is_start = GF_TRUE;
 
 	start = stop = 0;
 
 	for (i=0; i<len; i++) {
-		Bool rtl = cur_dir;
+		Bool rtl;
 		u32 c = bidi_get_class(utf_string[i]);
 		switch (c) {
 		case R:
 		case AN:
 		case AL:
-			rtl = 1;
+			rtl = GF_TRUE;
 			break;
 		case L:
 		case EN:
-			rtl = 0;
+			rtl = GF_FALSE;
 			break;
 		default:
 			if (is_start) {
@@ -156,9 +162,9 @@ Bool gf_utf8_reorder_bidi(u16 *utf_string, u32 len)
 				stop = i;
 
 			if (is_start) {
-				is_start = 0;
+				is_start = GF_FALSE;
 			} else {
-				is_start = 1;
+				is_start = GF_TRUE;
 
 				if (main_dir != cur_dir) {
 					slen = stop-start+1;

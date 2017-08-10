@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2006-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -30,6 +30,21 @@
 extern "C" {
 #endif
 
+
+/*!
+ *	\file <gpac/laser.h>
+ *	\brief MPEG-4 LASeR encoding and decoding.
+ */
+	
+/*!
+ *	\addtogroup laser_grp MPEG-4 LASER
+ *	\ingroup mpeg4sys_grp
+ *	\brief MPEG-4 LASeR encoding and decoding
+ *
+ *This section documents the LASeR encoding and decoding functions of the GPAC framework. For scene graph documentation, check scenegraph.h
+ *	@{
+ */
+	
 #include <gpac/nodes_svg.h>
 
 #ifndef GPAC_DISABLE_LASER
@@ -79,6 +94,8 @@ GF_Err gf_laser_encoder_get_rap(GF_LASeRCodec *codec, char **out_data, u32 *out_
 
 
 #endif /*GPAC_DISABLE_LASER*/
+
+/*! @} */
 
 #ifdef __cplusplus
 }

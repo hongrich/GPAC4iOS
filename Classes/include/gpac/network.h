@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -32,17 +32,17 @@ extern "C" {
 
 /*!
  *	\file <gpac/network.h>
- *	\brief IP network functions.
+ *	\brief Networking.
  */
 
- /*!
- *	\addtogroup net_grp network
- *	\ingroup utils_grp
- *	\brief IP Network Functions
- *
- *This section documents the IP network functions of the GPAC framework.
- *	@{
- */
+/*!
+*	\addtogroup net_grp Network
+*	\ingroup utils_grp
+*	\brief Networking tools (URL resolution, TCP/UDP sockets)
+*
+*This section documents the IP network functions of the GPAC framework.
+*	@{
+*/
 
 #include <gpac/tools.h>
 
@@ -61,7 +61,7 @@ Bool gf_url_is_local(const char *url);
  *
  *Gets the absolute file path from a relative path and its parent absolute one. This can only be used with file paths.
  *\param pathName the relative path name of a file
- *\param parentPath the absolute parent path name 
+ *\param parentPath the absolute parent path name
  *\return absolute path name of the file, or NULL if bad paths are provided.
  \note the returned string must be freed by user
  */
@@ -102,7 +102,7 @@ void gf_url_to_fs_path(char *url);
  *\brief Extract resource name from URL
  *
  * Extracts the resource name from the URL
- *\param url input url 
+ *\param url input url
  *\return resource name.
  */
 const char *gf_url_get_resource_name(const char *url);
@@ -111,7 +111,7 @@ const char *gf_url_get_resource_name(const char *url);
  *\brief Extract resource path from URL
  *
  *Extracts the reource path from the URL
- *\param url input url 
+ *\param url input url
  *\param res_path buffer for resulting path storage
  *\return 1 if path was extracted, 0 if url is a single file name.
  */
@@ -121,7 +121,7 @@ Bool gf_url_get_resource_path(const char *url, char *res_path);
  *\brief Remove last delimenter from URL
  *
  * Remove last delimenter from URL
- *\param url input url 
+ *\param sURL input url
  *\param res_path buffer for resulting path storage
  *\return GF_TRUE if delimiter was extracted, otherwise GF_FALSE.
  */
@@ -131,13 +131,19 @@ Bool gf_url_remove_last_delimiter(const char *sURL, char *res_path);
  *\brief Extract extension from a resource path in URL
  *
  * Extract a resource path of URL and analyze its extension
- *\param url input url 
+ *\param sURL input url
  *\return The corresponding extension if exists, otherwise NULL.
  */
 const char* gf_url_get_ressource_extension(const char *sURL);
 
 /*!
- *\brief gets UTC time 
+ *\brief Portable version of UNIX gettimeofday()
+ */
+struct timeval;
+s32 gf_gettimeofday(struct timeval *tp, void *tz);
+
+/*!
+ *\brief gets UTC time
  *
  *Gets UTC time since midnight Jan 1970
  *\param sec number of seconds
@@ -155,13 +161,37 @@ void gf_utc_time_since_1970(u32 *sec, u32 *msec);
 #define GF_NTP_SEC_1900_TO_1970 2208988800ul
 
 /*!
- *\brief gets NTP time 
+ *\brief gets NTP time
  *
  *Gets NTP (Network Time Protocol) in seconds and fractional side
  \param sec NTP time in seconds
  \param frac fractional NTP time expressed in 1 / (1<<32 - 1) seconds units
  */
 void gf_net_get_ntp(u32 *sec, u32 *frac);
+
+/*!
+ *\brief offsets NTP time by a given amount of seconds
+ *
+ *Offsets NTP time of the system by a given amount of seconds in the future or the past (default value is 0).
+ \param sec seconds to add or remove to the system NTP
+ */
+void gf_net_set_ntp_shift(s32 sec);
+
+/*!
+ *\brief gets NTP time
+ *
+ *Gets NTP (Network Time Protocol) timestamp (high 32 bit is seconds, low 32 bit is fraction)
+ \return NTP timestamp
+ */
+u64 gf_net_get_ntp_ts();
+
+/*!
+ *
+ *Gets diff in milliseconds between NTP time and current time
+ \param ntp NTP timestamp
+ \return diff in milliseconds with the current time
+ */
+s32 gf_net_get_ntp_diff_ms(u64 ntp);
 
 /*!
  * Socket options
@@ -228,7 +258,7 @@ GF_Err gf_sk_set_buffer_size(GF_Socket *sock, Bool send_buffer, u32 new_size);
 /*!
  *\brief blocking mode control
  *
- *Sets the blocking mode of a socket on or off. A blocking socket will wait for the net operation to be possible 
+ *Sets the blocking mode of a socket on or off. A blocking socket will wait for the net operation to be possible
  *while a non-blocking one would return an error. By default, sockets are created in blocking mode
  *\param sock the socket object
  *\param NonBlockingOn set to 1 to use on-blocking sockets, 0 otherwise
@@ -247,9 +277,9 @@ GF_Err gf_sk_set_block_mode(GF_Socket *sock, Bool NonBlockingOn);
  */
 GF_Err gf_sk_bind(GF_Socket *sock, const char *local_ip, u16 port, const char *peer_name, u16 peer_port, u32 options);
 /*!
- *\brief connects a socket 
+ *\brief connects a socket
  *
- *Connects a socket to a remote peer on a given port 
+ *Connects a socket to a remote peer on a given port
  *\param sock the socket object
  *\param peer_name the remote server address (IP or DNS)
  *\param port remote port number to connect the socket to
@@ -267,10 +297,10 @@ GF_Err gf_sk_connect(GF_Socket *sock, const char *peer_name, u16 port, const cha
 GF_Err gf_sk_send(GF_Socket *sock, const char *buffer, u32 length);
 /*!
  *\brief data reception
- * 
+ *
  *Fetches data on a socket. The socket must be in a bound or connected state
  *\param sock the socket object
- *\param buffer the recpetion buffer where data is written
+ *\param buffer the reception buffer where data is written
  *\param length the allocated size of the reception buffer
  *\param start_from the offset in the reception buffer where to start writing
  *\param read the actual number of bytes received
@@ -279,7 +309,7 @@ GF_Err gf_sk_receive(GF_Socket *sock, char *buffer, u32 length, u32 start_from, 
 /*!
  *\brief socket listening
  *
- *Sets the socket in a listening state. This socket must have been bound to a port before 
+ *Sets the socket in a listening state. This socket must have been bound to a port before
  *\param sock the socket object
  *\param max_conn the maximum number of simultaneous connection this socket will accept
  */
@@ -287,16 +317,16 @@ GF_Err gf_sk_listen(GF_Socket *sock, u32 max_conn);
 /*!
  *\brief socket accept
  *
- *Accepts an incomming connection on a listening socket
+ *Accepts an incoming connection on a listening socket
  *\param sock the socket object
  *\param new_conn the resulting connection socket object
  */
 GF_Err gf_sk_accept(GF_Socket *sock, GF_Socket **new_conn);
 
 /*!
- *\brief server socket mode 
+ *\brief server socket mode
  *
- *Disable the Nable algo (e.g. set TCP_NODELAY) and set the KEEPALIVE on 
+ *Disable the Nable algo (e.g. set TCP_NODELAY) and set the KEEPALIVE on
  *\param sock the socket object
  *\param server_on sets server mode on or off
 */
@@ -377,7 +407,7 @@ u32 gf_sk_is_multicast_address(const char *multi_ip_add);
  *\param buffer the data buffer to send
  *\param length the data length to send
  *\param delay_sec the maximum delay in second to wait before aborting
- *\return If the operation timeed out, the function will return a GF_IP_SOCK_WOULD_BLOCK error.
+ *\return If the operation timed out, the function will return a GF_IP_SOCK_WOULD_BLOCK error.
  */
 GF_Err gf_sk_send_wait(GF_Socket *sock, const char *buffer, u32 length, u32 delay_sec);
 /* receive data with a max wait delay of Second - used for http / ftp sockets mainly*/
@@ -386,12 +416,12 @@ GF_Err gf_sk_send_wait(GF_Socket *sock, const char *buffer, u32 length, u32 dela
  *
  *Fetches data with a max wait delay. This is used for http / ftp sockets mainly. The socket must be connected.
  *\param sock the socket object
- *\param buffer the recpetion buffer where data is written
+ *\param buffer the reception buffer where data is written
  *\param length the allocated size of the reception buffer
  *\param start_from the offset in the reception buffer where to start writing
  *\param read the actual number of bytes received
  *\param delay_sec the maximum delay in second to wait before aborting
- *\return If the operation timeed out, the function will return a GF_IP_SOCK_WOULD_BLOCK error.
+ *\return If the operation timed out, the function will return a GF_IP_SOCK_WOULD_BLOCK error.
  */
 GF_Err gf_sk_receive_wait(GF_Socket *sock, char *buffer, u32 length, u32 start_from, u32 *read, u32 delay_sec);
 
@@ -418,15 +448,45 @@ u32 gf_net_has_ipv6();
  *\brief checks address type
  *
  *Checks if an address is an IPV6 or IPV4 one.
+ *\param address Adress to check
  *\return true 1 if address is IPV6 one, 0 otherwise
  */
 Bool gf_net_is_ipv6(const char *address);
 
 
 /*!
+ *host to network conversion of integer
+ *
+ *\param val integrer to convert
+ *\return converted integer
+ */
+u32 gf_htonl(u32 val);
+/*!
+ *network to host conversion of integer
+ *
+ *\param val integrer to convert
+ *\return converted integer
+ */
+u32 gf_ntohl(u32 val);
+/*!
+ *host to network conversion of short integer
+ *
+ *\param val short integrer to convert
+ *\return converted integer
+ */
+u16 gf_htons(u16 val);
+/*!
+ *network to host conversion of short integer
+ *
+ *\param val short integrer to convert
+ *\return converted integer
+ */
+u16 gf_tohs(u16 val);
+
+/*!
  *	\brief MobileIP Callback
  *
- * The gf_net_mobileip_ctrl_cbk type is the type for the callback of the \ref gf_net_set_mobileip_callback function. By default no mobileip is used
+ * The gf_net_mobileip_ctrl_cbk type is the type for the callback of the \ref gf_net_mobileip_set_callback function. By default no mobileip is used
  *	\param cbck Opaque user data.
  *	\param start boolean indicating wether the MobileIP subsystem should be started or stopped.
  *	\return Error code if needed.
@@ -439,6 +499,7 @@ typedef GF_Err (*gf_net_mobileip_ctrl_cbk)(Bool start);
  *
  *Assigns the MobileIP control callback.
  *\param _mobip_cbk MobileIP control callback
+ *\param MobileIP MobileIP address
  */
 void gf_net_mobileip_set_callback(gf_net_mobileip_ctrl_cbk _mobip_cbk, const char *MobileIP);
 

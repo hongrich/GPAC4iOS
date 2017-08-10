@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -49,7 +49,14 @@ GF_Route *gf_sg_route_new(GF_SceneGraph *sg, GF_Node *fromNode, u32 fromField, G
 	r->ToField.fieldIndex = toField;
 	r->graph = sg;
 
-	if (!fromNode->sgprivate->interact) GF_SAFEALLOC(fromNode->sgprivate->interact, struct _node_interactive_ext);
+	if (!fromNode->sgprivate->interact) {
+		GF_SAFEALLOC(fromNode->sgprivate->interact, struct _node_interactive_ext);
+		if (!fromNode->sgprivate->interact) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_SCENE, ("[VRML] Failed to create interact storage\n"));
+			gf_free(r);
+			return NULL;
+		}
+	}
 	if (!fromNode->sgprivate->interact->routes) fromNode->sgprivate->interact->routes = gf_list_new();
 	gf_list_add(fromNode->sgprivate->interact->routes, r);
 	gf_list_add(sg->Routes, r);
@@ -207,7 +214,7 @@ GF_Err gf_sg_route_set_id(GF_Route *route, u32 ID)
 	route->ID = ID;
 	return GF_OK;
 }
-u32 gf_sg_route_get_id(GF_Route *route) 
+u32 gf_sg_route_get_id(GF_Route *route)
 {
 	return route->ID;
 }
@@ -227,7 +234,7 @@ char *gf_sg_route_get_name(GF_Route *route)
 	return route->name;
 }
 
-void gf_sg_route_setup(GF_Route *r) 
+void gf_sg_route_setup(GF_Route *r)
 {
 	gf_node_get_field(r->FromNode, r->FromField.fieldIndex, &r->FromField);
 	gf_node_get_field(r->ToNode, r->ToField.fieldIndex, &r->ToField);
@@ -248,9 +255,9 @@ void gf_node_event_out_proto(GF_Node *node, u32 FieldIndex)
 	u32 i;
 	GF_Route *r;
 	if (!node) return;
-	
+
 	if (!node->sgprivate->interact) return;
-	
+
 	//search for routes to activate in the order they where declared
 	i=0;
 	while ((r = (GF_Route*)gf_list_enum(node->sgprivate->interact->routes, &i))) {
@@ -275,27 +282,29 @@ Bool gf_sg_route_activate(GF_Route *r)
 			if (r->FromField.eventType == GF_SG_EVENT_OUT) return 0;
 			if (r->ToField.eventType == GF_SG_EVENT_OUT) return 0;
 		}
-		if (r->IS_route && ((r->ToNode->sgprivate->tag==TAG_MPEG4_Script) 
+		if (r->IS_route && ((r->ToNode->sgprivate->tag==TAG_MPEG4_Script)
 #ifndef GPAC_DISABLE_X3D
-			|| (r->ToNode->sgprivate->tag==TAG_X3D_Script)
+		                    || (r->ToNode->sgprivate->tag==TAG_X3D_Script)
 #endif
-			) && ((r->ToField.eventType==GF_SG_EVENT_IN) /*|| (r->ToField.eventType==GF_SG_EVENT_FIELD)*/)
-			&& r->FromField.eventType==GF_SG_EVENT_IN) {
-				return 0;
+		                   ) && ((r->ToField.eventType==GF_SG_EVENT_IN) /*|| (r->ToField.eventType==GF_SG_EVENT_FIELD)*/)
+		        && r->FromField.eventType==GF_SG_EVENT_IN) {
+			return 0;
 		}
 	}
 #ifndef GPAC_DISABLE_LOG
-	if (r->IS_route) {
-		GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("[VRML Event] executing %s.%s IS %s.%s", gf_node_get_name(r->FromNode), r->FromField.name, gf_node_get_name(r->ToNode), r->ToField.name));
-	} else {
-		GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("[VRML Event] executing ROUTE %s.%s TO %s.%s", gf_node_get_name(r->FromNode), r->FromField.name, gf_node_get_name(r->ToNode), r->ToField.name));
-	}
-	if (r->FromField.fieldType==GF_SG_VRML_SFBOOL) {
-		GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("\tBOOL VAL: %d\n", *((SFBool*)r->FromField.far_ptr)));
-	} else if (r->FromField.fieldType==GF_SG_VRML_SFINT32) {
-		GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("\tINT VAL: %d\n", *((SFInt32*)r->FromField.far_ptr)));
-	} else {
-		GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("\n"));
+	if (gf_log_tool_level_on(GF_LOG_INTERACT, GF_LOG_DEBUG)) {
+		if (r->IS_route) {
+			GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("[VRML Event] executing %s.%s IS %s.%s", gf_node_get_name(r->FromNode), r->FromField.name, gf_node_get_name(r->ToNode), r->ToField.name));
+		} else {
+			GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("[VRML Event] executing ROUTE %s.%s TO %s.%s", gf_node_get_name(r->FromNode), r->FromField.name, gf_node_get_name(r->ToNode), r->ToField.name));
+		}
+		if (r->FromField.fieldType==GF_SG_VRML_SFBOOL) {
+			GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("\tBOOL VAL: %d\n", *((SFBool*)r->FromField.far_ptr)));
+		} else if (r->FromField.fieldType==GF_SG_VRML_SFINT32) {
+			GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("\tINT VAL: %d\n", *((SFInt32*)r->FromField.far_ptr)));
+		} else {
+			GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("\n"));
+		}
 	}
 #endif
 
@@ -329,7 +338,7 @@ Bool gf_sg_route_activate(GF_Route *r)
 			orig = orig->next;
 		}
 	}
-		break;
+	break;
 
 	default:
 		if (r->ToField.fieldType==r->FromField.fieldType) {
@@ -339,7 +348,7 @@ Bool gf_sg_route_activate(GF_Route *r)
 			} else {
 				gf_sg_vrml_field_copy(r->ToField.far_ptr, r->FromField.far_ptr, r->FromField.fieldType);
 			}
-		} 
+		}
 		/*typecast URL <-> string if needed*/
 		else {
 			VRML_FieldCopyCast(r->ToField.far_ptr, r->ToField.fieldType, r->FromField.far_ptr, r->FromField.fieldType);
@@ -347,16 +356,27 @@ Bool gf_sg_route_activate(GF_Route *r)
 		break;
 	}
 
+	//don't notify dest change for generic function since the dest is not a node
+	if (r->ToField.fieldType==GF_SG_VRML_GENERIC_FUNCTION) {
+		ret = 0;
+	}
+
+#ifndef GPAC_DISABLE_LOG
+	if (gf_log_tool_level_on(GF_LOG_INTERACT, GF_LOG_DEBUG)) {
+		GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("[VRML Route] field copy/casted\n"));
+	}
+#endif
+
 	//if this is a supported eventIn call watcher
 	if (r->ToField.on_event_in) {
 		r->ToField.on_event_in(r->ToNode, r);
 	}
 	//if this is a script eventIn call directly script
-	else if (((r->ToNode->sgprivate->tag==TAG_MPEG4_Script) 
+	else if (((r->ToNode->sgprivate->tag==TAG_MPEG4_Script)
 #ifndef GPAC_DISABLE_X3D
-		|| (r->ToNode->sgprivate->tag==TAG_X3D_Script)
+	          || (r->ToNode->sgprivate->tag==TAG_X3D_Script)
 #endif
-	) && ((r->ToField.eventType==GF_SG_EVENT_IN) /*|| (r->ToField.eventType==GF_SG_EVENT_FIELD)*/) ) {
+	         ) && ((r->ToField.eventType==GF_SG_EVENT_IN) /*|| (r->ToField.eventType==GF_SG_EVENT_FIELD)*/) ) {
 		gf_sg_script_event_in(r->ToNode, &r->ToField);
 	}
 	//check if ISed or not - this will notify the node of any changes
@@ -366,17 +386,24 @@ Bool gf_sg_route_activate(GF_Route *r)
 		if (r->ToField.eventType != GF_SG_EVENT_EXPOSED_FIELD)
 			gf_sg_proto_propagate_event(r->ToNode, r->ToField.fieldIndex, r->FromNode);
 		/*only happen on proto, an eventOut may route to an eventOut*/
-		if (r->IS_route && r->ToField.eventType==GF_SG_EVENT_OUT) 
+		if (r->IS_route && r->ToField.eventType==GF_SG_EVENT_OUT)
 			gf_node_event_out(r->ToNode, r->ToField.fieldIndex);
 	}
 
 	/*and signal routes on exposed fields if field changed*/
-	if (r->ToField.eventType == GF_SG_EVENT_EXPOSED_FIELD){
+	if (r->ToField.eventType == GF_SG_EVENT_EXPOSED_FIELD) {
 		if (r->IS_route)
 			gf_node_event_out_proto(r->ToNode, r->ToField.fieldIndex);
 		else
 			gf_node_event_out(r->ToNode, r->ToField.fieldIndex);
 	}
+
+#ifndef GPAC_DISABLE_LOG
+	if (gf_log_tool_level_on(GF_LOG_INTERACT, GF_LOG_DEBUG)) {
+		GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("[VRML Route] done executing (res %d)\n", ret));
+	}
+#endif
+
 	return ret;
 }
 
@@ -387,10 +414,10 @@ void gf_node_event_out(GF_Node *node, u32 FieldIndex)
 	u32 i;
 	GF_Route *r;
 	if (!node) return;
-	
+
 	/*node has no routes*/
 	if (!node->sgprivate->interact || !node->sgprivate->interact->routes) return;
-	
+
 	//search for routes to activate in the order they where declared
 	i=0;
 	while ((r = (GF_Route*)gf_list_enum(node->sgprivate->interact->routes, &i))) {
@@ -399,7 +426,7 @@ void gf_node_event_out(GF_Node *node, u32 FieldIndex)
 
 		/*no postpone for IS routes*/
 		if (r->IS_route) {
-			if (gf_sg_route_activate(r)) 
+			if (gf_sg_route_activate(r))
 				gf_node_changed(r->ToNode, &r->ToField);
 		}
 		//queue
@@ -434,6 +461,55 @@ void gf_node_event_out_str(GF_Node *node, const char *eventName)
 		}
 	}
 }
+
+typedef struct
+{
+	GF_Route r;
+	void ( *route_callback) (void *param, GF_FieldInfo *from_field);
+} GF_RouteToFunction;
+
+static void on_route_to_function(GF_Node *node, GF_Route *r)
+{
+	GF_RouteToFunction *rf = (GF_RouteToFunction *)r;
+	rf->route_callback(r->ToNode, &r->FromField);
+}
+
+GF_EXPORT
+void gf_sg_route_new_to_callback(GF_SceneGraph *sg, GF_Node *fromNode, u32 fromField, void *cbk, void ( *route_callback) (void *param, GF_FieldInfo *from_field) )
+{
+	GF_Route *r;
+	GF_RouteToFunction *rf;
+	GF_SAFEALLOC(rf, GF_RouteToFunction);
+	if (!rf) return;
+	rf->route_callback = route_callback;
+
+	r = (GF_Route *)rf;
+	r->FromNode = fromNode;
+	r->FromField.fieldIndex = fromField;
+	gf_node_get_field(r->FromNode, fromField, &r->FromField);
+
+	r->ToNode = (GF_Node *) cbk;
+	r->ToField.fieldType = GF_SG_VRML_GENERIC_FUNCTION;
+	r->ToField.on_event_in = on_route_to_function;
+	r->ToField.eventType = GF_SG_EVENT_IN;
+	r->ToField.far_ptr = NULL;
+
+	r->is_setup = 1;
+	r->graph = sg;
+
+	if (!fromNode->sgprivate->interact) {
+		GF_SAFEALLOC(fromNode->sgprivate->interact, struct _node_interactive_ext);
+		if (!fromNode->sgprivate->interact) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_SCENE, ("[VRML] Failed to create interact storage\n"));
+			gf_free(r);
+			return;
+		}
+	}
+	if (!fromNode->sgprivate->interact->routes) fromNode->sgprivate->interact->routes = gf_list_new();
+	gf_list_add(fromNode->sgprivate->interact->routes, r);
+	gf_list_add(fromNode->sgprivate->scenegraph->Routes, r);
+}
+
 
 #endif	/*GPAC_DISABLE_VRML*/
 

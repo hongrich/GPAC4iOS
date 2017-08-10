@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -36,9 +36,9 @@ extern "C" {
  */
 
 /*!
- *	\addtogroup utf_grp UTF
- *	\ingroup utils_grp
- *	\brief UTF encoding functions
+ * \addtogroup uni_grp
+ * \ingroup utfuni_grp
+ * \brief UTF encoding functions
  *
  *This section documents the UTF functions of the GPAC framework.\n
  *The wide characters in GPAC are unsignad shorts, in other words GPAC only supports UTF8 and UTF16 coding styles.
@@ -63,7 +63,7 @@ converted if not enough space*/
 /*!
  *\brief multibyte to wide-char conversion
  *
- *Converts a multibyte string to a wide-char string 
+ *Converts a multibyte string to a wide-char string
  *\param dst wide-char destination buffer
  *\param dst_len wide-char destination buffer size
  *\param srcp address of the multibyte character buffer. This will be set to the next char to be converted in the input buffer if not enough space in the destination, or NULL if conversion was completed.
@@ -88,6 +88,8 @@ size_t gf_utf8_wcslen(const unsigned short *s);
  *\return 1 if the main direction is right-to-left, 0 otherwise
  */
 Bool gf_utf8_reorder_bidi(u16 *utf_string, u32 len);
+
+static const size_t UTF8_MAX_BYTES_PER_CHAR = 4;
 
 /*! @} */
 

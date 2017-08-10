@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -32,18 +32,18 @@ extern "C" {
 
 /*!
  *	\file <gpac/thread.h>
- *	\brief threading functions.
+ *	\brief Threading and Mutual Exclusion
  */
 
- /*!
- *	\addtogroup thr_grp threading
- *	\ingroup utils_grp
- *	\brief Threading and Mutual Exclusion Functions
- *
- *This section documents the threading of the GPAC framework. These provide an easy way to implement
- *safe multithreaded tools.
- *	@{
- */
+/*!
+*	\addtogroup thr_grp Threading
+*	\ingroup utils_grp
+*	\brief Threading and Mutual Exclusion
+*
+*This section documents the threading of the GPAC framework. These provide an easy way to implement
+*safe multithreaded tools.
+*	@{
+*/
 
 #include <gpac/tools.h>
 
@@ -73,7 +73,7 @@ typedef struct __tag_thread GF_Thread;
  *\brief thread constructor
  *
  *Constructs a new thread object
- *\param log name of the thread if any
+ *\param name log name of the thread if any
  */
 GF_Thread *gf_th_new(const char *name);
 /*!
@@ -105,7 +105,7 @@ typedef u32 (*gf_thread_run)(void *par);
  */
 GF_Err gf_th_run(GF_Thread *th, gf_thread_run run, void *par);
 /*!
- *\brief thread stoping
+ *\brief thread stopping
  *
  *Waits for the thread exit until return
  *\param th the thread object
@@ -220,7 +220,7 @@ Bool gf_mx_try_lock(GF_Mutex *mx);
 /*
  *\brief get mutex number of locks
  *
- *Returns the number of locks on the mutex if the caller thread is holding the mutex. 
+ *Returns the number of locks on the mutex if the caller thread is holding the mutex.
  *\param mx the mutex object
  *\return -1 if the mutex is not hold by the calling thread, or the number of locks (possibly 0) otherwise.
  */
@@ -254,14 +254,14 @@ GF_Semaphore *gf_sema_new(u32 MaxCount, u32 InitCount);
  */
 void gf_sema_del(GF_Semaphore *sm);
 /*
- *\brief semaphore notifivation
+ *\brief semaphore notification.
  *
  *Notifies the semaphore of a certain amount of releases.
  *\param sm the semaphore object
  *\param nb_rel sm the number of release to notify
- *\return the number of previous notification count in the semaphore
+ *\return GF_TRUE if success, GF_FALSE otherwise
 */
-u32 gf_sema_notify(GF_Semaphore *sm, u32 nb_rel);
+Bool gf_sema_notify(GF_Semaphore *sm, u32 nb_rel);
 /*
  *\brief semaphore wait
  *

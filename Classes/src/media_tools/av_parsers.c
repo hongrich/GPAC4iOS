@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre, Romain Bouqueau, Cyril Concolato 
+ *			Authors: Jean Le Feuvre, Romain Bouqueau, Cyril Concolato
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,30 +11,32 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
 #include <gpac/internal/media_dev.h>
 #include <gpac/constants.h>
 #include <gpac/mpeg4_odf.h>
+#include <gpac/maths.h>
 
 #ifndef GPAC_DISABLE_OGG
 #include <gpac/internal/ogg.h>
-#include <gpac/math.h>
 #endif
 
-static const struct { u32 w, h; } std_par[ ] =
+static const struct {
+	u32 w, h;
+} std_par[ ] =
 {
-	{ 4, 3}, {3, 2}, {16, 9}, {5, 3}, {5, 4}, {8, 5}, 
+	{ 4, 3}, {3, 2}, {16, 9}, {5, 3}, {5, 4}, {8, 5}, {2, 1},
 	{0, 0},
 };
 
@@ -60,9 +62,12 @@ void gf_media_get_reduced_frame_rate(u32 *timescale, u32 *sample_dur)
 	u32 res;
 	if (! *sample_dur) return;
 	res = *timescale / *sample_dur;
-	if (res * *sample_dur == *timescale) {
+	if (res **sample_dur == *timescale) {
 		*timescale = res;
 		*sample_dur = 1;
+	} else if ((double)(*timescale * 1001 - (res+1) * *sample_dur * 1000) / ((res+1) * *sample_dur * 1000) < 0.001) {
+		*timescale = (res+1) * 1000;
+		*sample_dur = 1001;
 	}
 }
 
@@ -70,69 +75,132 @@ GF_EXPORT
 const char *gf_m4v_get_profile_name(u8 video_pl)
 {
 	switch (video_pl) {
-	case 0x00: return "Reserved (0x00) Profile";
-	case 0x01: return "Simple Profile @ Level 1";
-	case 0x02: return "Simple Profile @ Level 2";
-	case 0x03: return "Simple Profile @ Level 3";
-	case 0x08: return "Simple Profile @ Level 0";
-	case 0x10: return "Simple Scalable Profile @ Level 0";
-	case 0x11: return "Simple Scalable Profile @ Level 1";
-	case 0x12: return "Simple Scalable Profile @ Level 2";
-	case 0x15: return "AVC/H264 Profile";
-	case 0x21: return "Core Profile @ Level 1";
-	case 0x22: return "Core Profile @ Level 2";
-	case 0x32: return "Main Profile @ Level 2";
-	case 0x33: return "Main Profile @ Level 3";
-	case 0x34: return "Main Profile @ Level 4";
-	case 0x42: return "N-bit Profile @ Level 2";
-	case 0x51: return "Scalable Texture Profile @ Level 1";
-	case 0x61: return "Simple Face Animation Profile @ Level 1";
-	case 0x62: return "Simple Face Animation Profile @ Level 2";
-	case 0x63: return "Simple FBA Profile @ Level 1";
-	case 0x64: return "Simple FBA Profile @ Level 2";
-	case 0x71: return "Basic Animated Texture Profile @ Level 1";
-	case 0x72: return "Basic Animated Texture Profile @ Level 2";
-	case 0x81: return "Hybrid Profile @ Level 1";
-	case 0x82: return "Hybrid Profile @ Level 2";
-	case 0x91: return "Advanced Real Time Simple Profile @ Level 1";
-	case 0x92: return "Advanced Real Time Simple Profile @ Level 2";
-	case 0x93: return "Advanced Real Time Simple Profile @ Level 3";
-	case 0x94: return "Advanced Real Time Simple Profile @ Level 4";
-	case 0xA1: return "Core Scalable Profile @ Level1";
-	case 0xA2: return "Core Scalable Profile @ Level2";
-	case 0xA3: return "Core Scalable Profile @ Level3";
-	case 0xB1: return "Advanced Coding Efficiency Profile @ Level 1";
-	case 0xB2: return "Advanced Coding Efficiency Profile @ Level 2";
-	case 0xB3: return "Advanced Coding Efficiency Profile @ Level 3";
-	case 0xB4: return "Advanced Coding Efficiency Profile @ Level 4";
-	case 0xC1: return "Advanced Core Profile @ Level 1";
-	case 0xC2: return "Advanced Core Profile @ Level 2";
-	case 0xD1: return "Advanced Scalable Texture @ Level1";
-	case 0xD2: return "Advanced Scalable Texture @ Level2";
-	case 0xE1: return "Simple Studio Profile @ Level 1";
-	case 0xE2: return "Simple Studio Profile @ Level 2";
-	case 0xE3: return "Simple Studio Profile @ Level 3";
-	case 0xE4: return "Simple Studio Profile @ Level 4";
-	case 0xE5: return "Core Studio Profile @ Level 1";
-	case 0xE6: return "Core Studio Profile @ Level 2";
-	case 0xE7: return "Core Studio Profile @ Level 3";
-	case 0xE8: return "Core Studio Profile @ Level 4";
-	case 0xF0: return "Advanced Simple Profile @ Level 0";
-	case 0xF1: return "Advanced Simple Profile @ Level 1";
-	case 0xF2: return "Advanced Simple Profile @ Level 2";
-	case 0xF3: return "Advanced Simple Profile @ Level 3";
-	case 0xF4: return "Advanced Simple Profile @ Level 4";
-	case 0xF5: return "Advanced Simple Profile @ Level 5";
-	case 0xF7: return "Advanced Simple Profile @ Level 3b";
-	case 0xF8: return "Fine Granularity Scalable Profile @ Level 0";
-	case 0xF9: return "Fine Granularity Scalable Profile @ Level 1";
-	case 0xFA: return "Fine Granularity Scalable Profile @ Level 2";
-	case 0xFB: return "Fine Granularity Scalable Profile @ Level 3";
-	case 0xFC: return "Fine Granularity Scalable Profile @ Level 4";
-	case 0xFD: return "Fine Granularity Scalable Profile @ Level 5";
-	case 0xFE: return "Not part of MPEG-4 Visual profiles";
-	case 0xFF: return "No visual capability required";
-	default: return "ISO Reserved Profile";
+	case 0x00:
+		return "Reserved (0x00) Profile";
+	case 0x01:
+		return "Simple Profile @ Level 1";
+	case 0x02:
+		return "Simple Profile @ Level 2";
+	case 0x03:
+		return "Simple Profile @ Level 3";
+	case 0x08:
+		return "Simple Profile @ Level 0";
+	case 0x10:
+		return "Simple Scalable Profile @ Level 0";
+	case 0x11:
+		return "Simple Scalable Profile @ Level 1";
+	case 0x12:
+		return "Simple Scalable Profile @ Level 2";
+	case 0x21:
+		return "Core Profile @ Level 1";
+	case 0x22:
+		return "Core Profile @ Level 2";
+	case 0x32:
+		return "Main Profile @ Level 2";
+	case 0x33:
+		return "Main Profile @ Level 3";
+	case 0x34:
+		return "Main Profile @ Level 4";
+	case 0x42:
+		return "N-bit Profile @ Level 2";
+	case 0x51:
+		return "Scalable Texture Profile @ Level 1";
+	case 0x61:
+		return "Simple Face Animation Profile @ Level 1";
+	case 0x62:
+		return "Simple Face Animation Profile @ Level 2";
+	case 0x63:
+		return "Simple FBA Profile @ Level 1";
+	case 0x64:
+		return "Simple FBA Profile @ Level 2";
+	case 0x71:
+		return "Basic Animated Texture Profile @ Level 1";
+	case 0x72:
+		return "Basic Animated Texture Profile @ Level 2";
+	case 0x7F:
+		return "AVC/H264 Profile";
+	case 0x81:
+		return "Hybrid Profile @ Level 1";
+	case 0x82:
+		return "Hybrid Profile @ Level 2";
+	case 0x91:
+		return "Advanced Real Time Simple Profile @ Level 1";
+	case 0x92:
+		return "Advanced Real Time Simple Profile @ Level 2";
+	case 0x93:
+		return "Advanced Real Time Simple Profile @ Level 3";
+	case 0x94:
+		return "Advanced Real Time Simple Profile @ Level 4";
+	case 0xA1:
+		return "Core Scalable Profile @ Level1";
+	case 0xA2:
+		return "Core Scalable Profile @ Level2";
+	case 0xA3:
+		return "Core Scalable Profile @ Level3";
+	case 0xB1:
+		return "Advanced Coding Efficiency Profile @ Level 1";
+	case 0xB2:
+		return "Advanced Coding Efficiency Profile @ Level 2";
+	case 0xB3:
+		return "Advanced Coding Efficiency Profile @ Level 3";
+	case 0xB4:
+		return "Advanced Coding Efficiency Profile @ Level 4";
+	case 0xC1:
+		return "Advanced Core Profile @ Level 1";
+	case 0xC2:
+		return "Advanced Core Profile @ Level 2";
+	case 0xD1:
+		return "Advanced Scalable Texture @ Level1";
+	case 0xD2:
+		return "Advanced Scalable Texture @ Level2";
+	case 0xE1:
+		return "Simple Studio Profile @ Level 1";
+	case 0xE2:
+		return "Simple Studio Profile @ Level 2";
+	case 0xE3:
+		return "Simple Studio Profile @ Level 3";
+	case 0xE4:
+		return "Simple Studio Profile @ Level 4";
+	case 0xE5:
+		return "Core Studio Profile @ Level 1";
+	case 0xE6:
+		return "Core Studio Profile @ Level 2";
+	case 0xE7:
+		return "Core Studio Profile @ Level 3";
+	case 0xE8:
+		return "Core Studio Profile @ Level 4";
+	case 0xF0:
+		return "Advanced Simple Profile @ Level 0";
+	case 0xF1:
+		return "Advanced Simple Profile @ Level 1";
+	case 0xF2:
+		return "Advanced Simple Profile @ Level 2";
+	case 0xF3:
+		return "Advanced Simple Profile @ Level 3";
+	case 0xF4:
+		return "Advanced Simple Profile @ Level 4";
+	case 0xF5:
+		return "Advanced Simple Profile @ Level 5";
+	case 0xF7:
+		return "Advanced Simple Profile @ Level 3b";
+	case 0xF8:
+		return "Fine Granularity Scalable Profile @ Level 0";
+	case 0xF9:
+		return "Fine Granularity Scalable Profile @ Level 1";
+	case 0xFA:
+		return "Fine Granularity Scalable Profile @ Level 2";
+	case 0xFB:
+		return "Fine Granularity Scalable Profile @ Level 3";
+	case 0xFC:
+		return "Fine Granularity Scalable Profile @ Level 4";
+	case 0xFD:
+		return "Fine Granularity Scalable Profile @ Level 5";
+	case 0xFE:
+		return "Not part of MPEG-4 Visual profiles";
+	case 0xFF:
+		return "No visual capability required";
+	default:
+		return "ISO Reserved Profile";
 	}
 }
 
@@ -152,24 +220,24 @@ const char *gf_m4v_get_profile_name(u8 video_pl)
 
 s32 gf_mv12_next_start_code(unsigned char *pbuffer, u32 buflen, u32 *optr, u32 *scode)
 {
-  u32 value;
-  u32 offset;
+	u32 value;
+	u32 offset;
 
-  if (buflen < 4) return -1;
-  for (offset = 0; offset < buflen - 3; offset++, pbuffer++) {
+	if (buflen < 4) return -1;
+	for (offset = 0; offset < buflen - 3; offset++, pbuffer++) {
 #ifdef GPAC_BIG_ENDIAN
-	value = *(u32 *)pbuffer >> 8;
+		value = *(u32 *)pbuffer >> 8;
 #else
-	value = (pbuffer[0] << 16) | (pbuffer[1] << 8) | (pbuffer[2] << 0); 
+		value = (pbuffer[0] << 16) | (pbuffer[1] << 8) | (pbuffer[2] << 0);
 #endif
 
-	if (value == MPEG12_START_CODE_PREFIX) {
-	  *optr = offset;
-	  *scode = (value << 8) | pbuffer[3];
-	  return 0;
+		if (value == MPEG12_START_CODE_PREFIX) {
+			*optr = offset;
+			*scode = (value << 8) | pbuffer[3];
+			return 0;
+		}
 	}
-  }
-  return -1;
+	return -1;
 }
 
 s32 gf_mv12_next_slice_start(unsigned char *pbuffer, u32 startoffset, u32 buflen, u32 *slice_offset)
@@ -219,6 +287,7 @@ GF_M4VParser *gf_m4v_parser_new(char *data, u64 data_size, Bool mpeg12video)
 	GF_M4VParser *tmp;
 	if (!data || !data_size) return NULL;
 	GF_SAFEALLOC(tmp, GF_M4VParser);
+	if (!tmp) return NULL;
 	tmp->bs = gf_bs_new(data, data_size, GF_BITSTREAM_READ);
 	tmp->mpeg12 = mpeg12video;
 	return tmp;
@@ -228,6 +297,7 @@ GF_M4VParser *gf_m4v_parser_bs_new(GF_BitStream *bs, Bool mpeg12video)
 {
 	GF_M4VParser *tmp;
 	GF_SAFEALLOC(tmp, GF_M4VParser);
+	if (!tmp) return NULL;
 	tmp->bs = bs;
 	tmp->mpeg12 = mpeg12video;
 	return tmp;
@@ -341,35 +411,73 @@ static GF_Err gf_m4v_parse_config_mpeg12(GF_M4VParser *m4v, GF_M4VDecSpecInfo *d
 			dsi->VideoPL = GPAC_OTI_VIDEO_MPEG1;
 			par = (p[3] >> 4) & 0xf;
 			switch (par) {
-			case 2: dsi->par_num = dsi->height/3; dsi->par_den = dsi->width/4; break;
-			case 3: dsi->par_num = dsi->height/9; dsi->par_den = dsi->width/16; break;
-			case 4: dsi->par_num = dsi->height/2; dsi->par_den = dsi->width/21; break;
-			default: dsi->par_den = dsi->par_num = 0; break;
+			case 2:
+				dsi->par_num = dsi->height/3;
+				dsi->par_den = dsi->width/4;
+				break;
+			case 3:
+				dsi->par_num = dsi->height/9;
+				dsi->par_den = dsi->width/16;
+				break;
+			case 4:
+				dsi->par_num = dsi->height/2;
+				dsi->par_den = dsi->width/21;
+				break;
+			default:
+				dsi->par_den = dsi->par_num = 0;
+				break;
 			}
 			switch (p[3] & 0xf) {
-			case 0: break;
-			case 1: dsi->fps = 24000.0/1001.0; break;
-			case 2: dsi->fps = 24.0; break;
-			case 3: dsi->fps = 25.0; break;
-			case 4: dsi->fps = 30000.0/1001.0; break;
-			case 5: dsi->fps = 30.0; break;
-			case 6: dsi->fps = 50.0; break;
-			case 7: dsi->fps = ((60.0*1000.0)/1001.0); break;
-			case 8: dsi->fps = 60.0; break;
-			case 9: dsi->fps = 1; break;
-			case 10: dsi->fps = 5; break;
-			case 11: dsi->fps = 10; break;
-			case 12: dsi->fps = 12; break;
-			case 13: dsi->fps = 15; break;
+			case 0:
+				break;
+			case 1:
+				dsi->fps = 24000.0/1001.0;
+				break;
+			case 2:
+				dsi->fps = 24.0;
+				break;
+			case 3:
+				dsi->fps = 25.0;
+				break;
+			case 4:
+				dsi->fps = 30000.0/1001.0;
+				break;
+			case 5:
+				dsi->fps = 30.0;
+				break;
+			case 6:
+				dsi->fps = 50.0;
+				break;
+			case 7:
+				dsi->fps = ((60.0*1000.0)/1001.0);
+				break;
+			case 8:
+				dsi->fps = 60.0;
+				break;
+			case 9:
+				dsi->fps = 1;
+				break;
+			case 10:
+				dsi->fps = 5;
+				break;
+			case 11:
+				dsi->fps = 10;
+				break;
+			case 12:
+				dsi->fps = 12;
+				break;
+			case 13:
+				dsi->fps = 15;
+				break;
 			}
 			break;
 		case M2V_EXT_START_CODE:
 			gf_bs_read_data(m4v->bs,  (char *) p, 4);
 			ext_type = ((p[0] >> 4) & 0xf);
 			if (ext_type == 1) {
-			  dsi->VideoPL = 0x65;
-			  dsi->height = ((p[1] & 0x1) << 13) | ((p[2] & 0x80) << 5) | (dsi->height & 0x0fff);
-			  dsi->width = (((p[2] >> 5) & 0x3) << 12) | (dsi->width & 0x0fff);
+				dsi->VideoPL = 0x65;
+				dsi->height = ((p[1] & 0x1) << 13) | ((p[2] & 0x80) << 5) | (dsi->height & 0x0fff);
+				dsi->width = (((p[2] >> 5) & 0x3) << 12) | (dsi->width & 0x0fff);
 			}
 			break;
 		case M2V_PIC_START_CODE:
@@ -389,7 +497,9 @@ static GF_Err gf_m4v_parse_config_mpeg12(GF_M4VParser *m4v, GF_M4VDecSpecInfo *d
 }
 
 
-static const struct { u32 w, h; } m4v_sar[6] = { { 0,   0 }, { 1,   1 }, { 12, 11 }, { 10, 11 }, { 16, 11 }, { 40, 33 } };
+static const struct {
+	u32 w, h;
+} m4v_sar[6] = { { 0,   0 }, { 1,   1 }, { 12, 11 }, { 10, 11 }, { 16, 11 }, { 40, 33 } };
 
 static u8 m4v_get_sar_idx(u32 w, u32 h)
 {
@@ -450,14 +560,14 @@ static GF_Err gf_m4v_parse_config_mpeg4(GF_M4VParser *m4v, GF_M4VDecSpecInfo *ds
 			clock_rate = dsi->clock_rate-1;
 			if (clock_rate >= 65536) clock_rate = 65535;
 			if (clock_rate > 0) {
-				for (dsi->NumBitsTimeIncrement = 1; dsi->NumBitsTimeIncrement < 16; dsi->NumBitsTimeIncrement++)	{	
+				for (dsi->NumBitsTimeIncrement = 1; dsi->NumBitsTimeIncrement < 16; dsi->NumBitsTimeIncrement++)	{
 					if (clock_rate == 1) break;
 					clock_rate = (clock_rate >> 1);
 				}
 			} else {
 				/*fix from vivien for divX*/
 				dsi->NumBitsTimeIncrement = 1;
-			}			
+			}
 			/*fixed FPS stream*/
 			dsi->time_increment = 0;
 			if (gf_bs_read_int(m4v->bs, 1)) {
@@ -513,13 +623,13 @@ static GF_Err gf_m4v_parse_frame_mpeg12(GF_M4VParser *m4v, GF_M4VDecSpecInfo dsi
 	*size = 0;
 	firstObj = 1;
 	hasVOP = 0;
-	*is_coded = 0;
+	*is_coded = GF_FALSE;
 	m4v->current_object_type = (u32) -1;
 	*frame_type = 0;
 
 	M4V_Reset(m4v, m4v->current_object_start);
 	go = 1;
-	
+
 	while (go) {
 		o_type = M4V_LoadObject(m4v);
 		switch (o_type) {
@@ -536,7 +646,7 @@ static GF_Err gf_m4v_parse_frame_mpeg12(GF_M4VParser *m4v, GF_M4VDecSpecInfo dsi
 			hasVOP = 1;
 			*is_coded = 1;
 
-			val = gf_bs_read_u8(m4v->bs);
+			/*val = */gf_bs_read_u8(m4v->bs);
 			val = gf_bs_read_u8(m4v->bs);
 			*frame_type = ( (val >> 3) & 0x7 ) - 1;
 			break;
@@ -618,7 +728,7 @@ static GF_Err gf_m4v_parse_frame_mpeg4(GF_M4VParser *m4v, GF_M4VDecSpecInfo dsi,
 			/*vop_time_inc*/
 			if (dsi.NumBitsTimeIncrement)
 				vop_inc = gf_bs_read_int(m4v->bs, dsi.NumBitsTimeIncrement);
-			
+
 			m4v->prev_tc_dec = m4v->tc_dec;
 			m4v->prev_tc_disp = m4v->tc_disp;
 			if (dsi.enh_layer || *frame_type!=2) {
@@ -683,7 +793,7 @@ GF_Err gf_m4v_rewrite_par(char **o_data, u32 *o_dataLen, s32 par_n, s32 par_d)
 	m4v = gf_m4v_parser_new(*o_data, *o_dataLen, 0);
 	mod = gf_bs_new(NULL, 0, GF_BITSTREAM_WRITE);
 
-	end = start = 0;
+	start = 0;
 	while (go) {
 		u32 type = M4V_LoadObject(m4v);
 
@@ -735,7 +845,7 @@ GF_Err gf_m4v_rewrite_par(char **o_data, u32 *o_dataLen, s32 par_n, s32 par_d)
 		u32 b = gf_bs_read_int(m4v->bs, 1);
 		gf_bs_write_int(mod, b, 1);
 	}
-	
+
 	gf_m4v_parser_del(m4v);
 	gf_free(*o_data);
 	gf_bs_get_content(mod, o_data, o_dataLen);
@@ -764,9 +874,24 @@ GF_Err gf_m4v_get_config(char *rawdsi, u32 rawdsi_size, GF_M4VDecSpecInfo *dsi)
 	if (!rawdsi || !rawdsi_size) return GF_NON_COMPLIANT_BITSTREAM;
 	vparse = gf_m4v_parser_new(rawdsi, rawdsi_size, 0);
 	e = gf_m4v_parse_config(vparse, dsi);
+	dsi->next_object_start = (u32) vparse->current_object_start;
 	gf_m4v_parser_del(vparse);
 	return e;
 }
+
+GF_EXPORT
+GF_Err gf_mpegv12_get_config(char *rawdsi, u32 rawdsi_size, GF_M4VDecSpecInfo *dsi)
+{
+	GF_Err e;
+	GF_M4VParser *vparse;
+	if (!rawdsi || !rawdsi_size) return GF_NON_COMPLIANT_BITSTREAM;
+	vparse = gf_m4v_parser_new(rawdsi, rawdsi_size, GF_TRUE);
+	e = gf_m4v_parse_config(vparse, dsi);
+	dsi->next_object_start = (u32) vparse->current_object_start;
+	gf_m4v_parser_del(vparse);
+	return e;
+}
+
 #endif
 
 
@@ -778,44 +903,82 @@ GF_EXPORT
 const char *gf_m4a_object_type_name(u32 objectType)
 {
 	switch (objectType) {
-	case 0: return "MPEG-4 Audio Reserved";
-	case 1: return "MPEG-4 Audio AAC Main";
-	case 2: return "MPEG-4 Audio AAC LC";
-	case 3: return "MPEG-4 Audio AAC SSR";
-	case 4: return "MPEG-4 Audio AAC LTP";
-	case 5: return "MPEG-4 Audio SBR";
-	case 6: return "MPEG-4 Audio AAC Scalable";
-	case 7: return "MPEG-4 Audio TwinVQ";
-	case 8: return "MPEG-4 Audio CELP";
-	case 9: return "MPEG-4 Audio HVXC";
-	case 10: return "MPEG-4 Audio Reserved";
-	case 11: return "MPEG-4 Audio Reserved";
-	case 12: return "MPEG-4 Audio TTSI";
-	case 13: return "MPEG-4 Audio Main synthetic";
-	case 14: return "MPEG-4 Audio Wavetable synthesis";
-	case 15: return "MPEG-4 Audio General MIDI";
-	case 16: return "MPEG-4 Audio Algorithmic Synthesis and Audio FX";
-	case 17: return "MPEG-4 Audio ER AAC LC";
-	case 18: return "MPEG-4 Audio Reserved";
-	case 19: return "MPEG-4 Audio ER AAC LTP";
-	case 20: return "MPEG-4 Audio ER AAC scalable";
-	case 21: return "MPEG-4 Audio ER TwinVQ";
-	case 22: return "MPEG-4 Audio ER BSAC";
-	case 23: return "MPEG-4 Audio ER AAC LD";
-	case 24: return "MPEG-4 Audio ER CELP";
-	case 25: return "MPEG-4 Audio ER HVXC";
-	case 26: return "MPEG-4 Audio ER HILN";
-	case 27: return "MPEG-4 Audio ER Parametric";
-	case 28: return "MPEG-4 Audio SSC";
-	case 29: return "MPEG-4 Audio ParametricStereo";
-	case 30: return "MPEG-4 Audio Reserved";
-	case 31: return "MPEG-4 Audio Reserved";
-	case 32: return "MPEG-1 Audio Layer-1";
-	case 33: return "MPEG-1 Audio Layer-2";
-	case 34: return "MPEG-1 Audio Layer-3";
-	case 35: return "MPEG-4 Audio DST";
-	case 36: return "MPEG-4 Audio ALS";
-	default: return "MPEG-4 Audio Unknown";
+	case 0:
+		return "MPEG-4 Audio Reserved";
+	case 1:
+		return "MPEG-4 Audio AAC Main";
+	case 2:
+		return "MPEG-4 Audio AAC LC";
+	case 3:
+		return "MPEG-4 Audio AAC SSR";
+	case 4:
+		return "MPEG-4 Audio AAC LTP";
+	case 5:
+		return "MPEG-4 Audio SBR";
+	case 6:
+		return "MPEG-4 Audio AAC Scalable";
+	case 7:
+		return "MPEG-4 Audio TwinVQ";
+	case 8:
+		return "MPEG-4 Audio CELP";
+	case 9:
+		return "MPEG-4 Audio HVXC";
+	case 10:
+		return "MPEG-4 Audio Reserved";
+	case 11:
+		return "MPEG-4 Audio Reserved";
+	case 12:
+		return "MPEG-4 Audio TTSI";
+	case 13:
+		return "MPEG-4 Audio Main synthetic";
+	case 14:
+		return "MPEG-4 Audio Wavetable synthesis";
+	case 15:
+		return "MPEG-4 Audio General MIDI";
+	case 16:
+		return "MPEG-4 Audio Algorithmic Synthesis and Audio FX";
+	case 17:
+		return "MPEG-4 Audio ER AAC LC";
+	case 18:
+		return "MPEG-4 Audio Reserved";
+	case 19:
+		return "MPEG-4 Audio ER AAC LTP";
+	case 20:
+		return "MPEG-4 Audio ER AAC scalable";
+	case 21:
+		return "MPEG-4 Audio ER TwinVQ";
+	case 22:
+		return "MPEG-4 Audio ER BSAC";
+	case 23:
+		return "MPEG-4 Audio ER AAC LD";
+	case 24:
+		return "MPEG-4 Audio ER CELP";
+	case 25:
+		return "MPEG-4 Audio ER HVXC";
+	case 26:
+		return "MPEG-4 Audio ER HILN";
+	case 27:
+		return "MPEG-4 Audio ER Parametric";
+	case 28:
+		return "MPEG-4 Audio SSC";
+	case 29:
+		return "MPEG-4 Audio ParametricStereo";
+	case 30:
+		return "MPEG-4 Audio Reserved";
+	case 31:
+		return "MPEG-4 Audio Reserved";
+	case 32:
+		return "MPEG-1 Audio Layer-1";
+	case 33:
+		return "MPEG-1 Audio Layer-2";
+	case 34:
+		return "MPEG-1 Audio Layer-3";
+	case 35:
+		return "MPEG-4 Audio DST";
+	case 36:
+		return "MPEG-4 Audio ALS";
+	default:
+		return "MPEG-4 Audio Unknown";
 	}
 }
 
@@ -823,57 +986,148 @@ GF_EXPORT
 const char *gf_m4a_get_profile_name(u8 audio_pl)
 {
 	switch (audio_pl) {
-	case 0x00: return "ISO Reserved (0x00)";
-	case 0x01: return "Main Audio Profile @ Level 1";
-	case 0x02: return "Main Audio Profile @ Level 2";
-	case 0x03: return "Main Audio Profile @ Level 3";
-	case 0x04: return "Main Audio Profile @ Level 4";
-	case 0x05: return "Scalable Audio Profile @ Level 1";
-	case 0x06: return "Scalable Audio Profile @ Level 2";
-	case 0x07: return "Scalable Audio Profile @ Level 3";
-	case 0x08: return "Scalable Audio Profile @ Level 4";
-	case 0x09: return "Speech Audio Profile @ Level 1";
-	case 0x0A: return "Speech Audio Profile @ Level 2";
-	case 0x0B: return "Synthetic Audio Profile @ Level 1";
-	case 0x0C: return "Synthetic Audio Profile @ Level 2";
-	case 0x0D: return "Synthetic Audio Profile @ Level 3";
-	case 0x0E: return "High Quality Audio Profile @ Level 1";
-	case 0x0F: return "High Quality Audio Profile @ Level 2";
-	case 0x10: return "High Quality Audio Profile @ Level 3";
-	case 0x11: return "High Quality Audio Profile @ Level 4";
-	case 0x12: return "High Quality Audio Profile @ Level 5";
-	case 0x13: return "High Quality Audio Profile @ Level 6";
-	case 0x14: return "High Quality Audio Profile @ Level 7";
-	case 0x15: return "High Quality Audio Profile @ Level 8";
-	case 0x16: return "Low Delay Audio Profile @ Level 1";
-	case 0x17: return "Low Delay Audio Profile @ Level 2";
-	case 0x18: return "Low Delay Audio Profile @ Level 3";
-	case 0x19: return "Low Delay Audio Profile @ Level 4";
-	case 0x1A: return "Low Delay Audio Profile @ Level 5";
-	case 0x1B: return "Low Delay Audio Profile @ Level 6";
-	case 0x1C: return "Low Delay Audio Profile @ Level 7";
-	case 0x1D: return "Low Delay Audio Profile @ Level 8";
-	case 0x1E: return "Natural Audio Profile @ Level 1";
-	case 0x1F: return "Natural Audio Profile @ Level 2";
-	case 0x20: return "Natural Audio Profile @ Level 3";
-	case 0x21: return "Natural Audio Profile @ Level 4";
-	case 0x22: return "Mobile Audio Internetworking Profile @ Level 1";
-	case 0x23: return "Mobile Audio Internetworking Profile @ Level 2";
-	case 0x24: return "Mobile Audio Internetworking Profile @ Level 3";
-	case 0x25: return "Mobile Audio Internetworking Profile @ Level 4";
-	case 0x26: return "Mobile Audio Internetworking Profile @ Level 5";
-	case 0x27: return "Mobile Audio Internetworking Profile @ Level 6";
-	case 0x28: return "AAC Profile @ Level 1";
-	case 0x29: return "AAC Profile @ Level 2";
-	case 0x2A: return "AAC Profile @ Level 4";
-	case 0x2B: return "AAC Profile @ Level 5";
-	case 0x2C: return "High Efficiency AAC Profile @ Level 2";
-	case 0x2D: return "High Efficiency AAC Profile @ Level 3";
-	case 0x2E: return "High Efficiency AAC Profile @ Level 4";
-	case 0x2F: return "High Efficiency AAC Profile @ Level 5";
-	case 0xFE: return "Not part of MPEG-4 audio profiles";
-	case 0xFF: return "No audio capability required";
-	default: return "ISO Reserved / User Private";
+	case 0x00:
+		return "ISO Reserved (0x00)";
+	case 0x01:
+		return "Main Audio Profile @ Level 1";
+	case 0x02:
+		return "Main Audio Profile @ Level 2";
+	case 0x03:
+		return "Main Audio Profile @ Level 3";
+	case 0x04:
+		return "Main Audio Profile @ Level 4";
+	case 0x05:
+		return "Scalable Audio Profile @ Level 1";
+	case 0x06:
+		return "Scalable Audio Profile @ Level 2";
+	case 0x07:
+		return "Scalable Audio Profile @ Level 3";
+	case 0x08:
+		return "Scalable Audio Profile @ Level 4";
+	case 0x09:
+		return "Speech Audio Profile @ Level 1";
+	case 0x0A:
+		return "Speech Audio Profile @ Level 2";
+	case 0x0B:
+		return "Synthetic Audio Profile @ Level 1";
+	case 0x0C:
+		return "Synthetic Audio Profile @ Level 2";
+	case 0x0D:
+		return "Synthetic Audio Profile @ Level 3";
+	case 0x0E:
+		return "High Quality Audio Profile @ Level 1";
+	case 0x0F:
+		return "High Quality Audio Profile @ Level 2";
+	case 0x10:
+		return "High Quality Audio Profile @ Level 3";
+	case 0x11:
+		return "High Quality Audio Profile @ Level 4";
+	case 0x12:
+		return "High Quality Audio Profile @ Level 5";
+	case 0x13:
+		return "High Quality Audio Profile @ Level 6";
+	case 0x14:
+		return "High Quality Audio Profile @ Level 7";
+	case 0x15:
+		return "High Quality Audio Profile @ Level 8";
+	case 0x16:
+		return "Low Delay Audio Profile @ Level 1";
+	case 0x17:
+		return "Low Delay Audio Profile @ Level 2";
+	case 0x18:
+		return "Low Delay Audio Profile @ Level 3";
+	case 0x19:
+		return "Low Delay Audio Profile @ Level 4";
+	case 0x1A:
+		return "Low Delay Audio Profile @ Level 5";
+	case 0x1B:
+		return "Low Delay Audio Profile @ Level 6";
+	case 0x1C:
+		return "Low Delay Audio Profile @ Level 7";
+	case 0x1D:
+		return "Low Delay Audio Profile @ Level 8";
+	case 0x1E:
+		return "Natural Audio Profile @ Level 1";
+	case 0x1F:
+		return "Natural Audio Profile @ Level 2";
+	case 0x20:
+		return "Natural Audio Profile @ Level 3";
+	case 0x21:
+		return "Natural Audio Profile @ Level 4";
+	case 0x22:
+		return "Mobile Audio Internetworking Profile @ Level 1";
+	case 0x23:
+		return "Mobile Audio Internetworking Profile @ Level 2";
+	case 0x24:
+		return "Mobile Audio Internetworking Profile @ Level 3";
+	case 0x25:
+		return "Mobile Audio Internetworking Profile @ Level 4";
+	case 0x26:
+		return "Mobile Audio Internetworking Profile @ Level 5";
+	case 0x27:
+		return "Mobile Audio Internetworking Profile @ Level 6";
+	case 0x28:
+		return "AAC Profile @ Level 1";
+	case 0x29:
+		return "AAC Profile @ Level 2";
+	case 0x2A:
+		return "AAC Profile @ Level 4";
+	case 0x2B:
+		return "AAC Profile @ Level 5";
+	case 0x2C:
+		return "High Efficiency AAC Profile @ Level 2";
+	case 0x2D:
+		return "High Efficiency AAC Profile @ Level 3";
+	case 0x2E:
+		return "High Efficiency AAC Profile @ Level 4";
+	case 0x2F:
+		return "High Efficiency AAC Profile @ Level 5";
+	case 0x30:
+		return "High Efficiency AAC v2 Profile @ Level 2";
+	case 0x31:
+		return "High Efficiency AAC v2 Profile @ Level 3";
+	case 0x32:
+		return "High Efficiency AAC v2 Profile @ Level 4";
+	case 0x33:
+		return "High Efficiency AAC v2 Profile @ Level 5";
+	case 0x34:
+		return "Low Delay AAC Profile";
+	case 0x35:
+		return "Baseline MPEG Surround Profile @ Level 1";
+	case 0x36:
+		return "Baseline MPEG Surround Profile @ Level 2";
+	case 0x37:
+		return "Baseline MPEG Surround Profile @ Level 3";
+	case 0x38:
+		return "Baseline MPEG Surround Profile @ Level 4";
+	case 0x39:
+		return "Baseline MPEG Surround Profile @ Level 5";
+	case 0x3A:
+		return "Baseline MPEG Surround Profile @ Level 6";
+
+	case 0x50:
+		return "AAC Profile @ Level 6";
+	case 0x51:
+		return "AAC Profile @ Level 7";
+	case 0x52:
+		return "High Efficiency AAC Profile @ Level 6";
+	case 0x53:
+		return "High Efficiency AAC Profile @ Level 7";
+	case 0x54:
+		return "High Efficiency AAC v2 Profile @ Level 6";
+	case 0x55:
+		return "High Efficiency AAC v2 Profile @ Level 7";
+	case 0x56:
+		return "Extended High Efficiency AAC Profile @ Level 6";
+	case 0x57:
+		return "Extended High Efficiency AAC Profile @ Level 7";
+
+	case 0xFE:
+		return "Not part of MPEG-4 audio profiles";
+	case 0xFF:
+		return "No audio capability required";
+	default:
+		return "ISO Reserved / User Private";
 	}
 }
 
@@ -884,12 +1138,23 @@ u32 gf_m4a_get_profile(GF_M4ADecSpecInfo *cfg)
 {
 	switch (cfg->base_object_type) {
 	case 2: /*AAC LC*/
-		if (cfg->nb_chan<=2) return (cfg->base_sr<=24000) ? 0x28 : 0x29; /*LC@L1 or LC@L2*/
-		return (cfg->base_sr<=48000) ? 0x2A : 0x2B; /*LC@L4 or LC@L5*/
+		if (cfg->nb_chan<=2)
+			return (cfg->base_sr<=24000) ? 0x28 : 0x29; /*LC@L1 or LC@L2*/
+		if (cfg->nb_chan<=5)
+			return (cfg->base_sr<=48000) ? 0x2A : 0x2B; /*LC@L4 or LC@L5*/
+		return (cfg->base_sr<=48000) ? 0x50 : 0x51; /*LC@L4 or LC@L5*/
 	case 5: /*HE-AAC - SBR*/
-	case 29: /*HE-AAC - SBR+PS*/
-		if (cfg->nb_chan<=2) return (cfg->base_sr<=24000) ? 0x2C : 0x2D; /*HE@L2 or HE@L3*/
-		return (cfg->base_sr<=48000) ? 0x2E : 0x2F; /*HE@L4 or HE@L5*/
+		if (cfg->nb_chan<=2)
+			return (cfg->base_sr<=24000) ? 0x2C : 0x2D; /*HE@L2 or HE@L3*/
+		if (cfg->nb_chan<=5)
+			return (cfg->base_sr<=48000) ? 0x2E : 0x2F; /*HE@L4 or HE@L5*/
+		return (cfg->base_sr<=48000) ? 0x52 : 0x53; /*HE@L6 or HE@L7*/
+	case 29: /*HE-AACv2 - SBR+PS*/
+		if (cfg->nb_chan<=2)
+			return (cfg->base_sr<=24000) ? 0x30 : 0x31; /*HE-AACv2@L2 or HE-AACv2@L3*/
+		if (cfg->nb_chan<=5)
+			return (cfg->base_sr<=48000) ? 0x32 : 0x33; /*HE-AACv2@L4 or HE-AACv2@L5*/
+		return (cfg->base_sr<=48000) ? 0x54 : 0x55; /*HE-AACv2@L6 or HE-AACv2@L7*/
 	/*default to HQ*/
 	default:
 		if (cfg->nb_chan<=2) return (cfg->base_sr<24000) ? 0x0E : 0x0F; /*HQ@L1 or HQ@L2*/
@@ -902,6 +1167,7 @@ u32 gf_m4a_get_profile(GF_M4ADecSpecInfo *cfg)
 GF_EXPORT
 GF_Err gf_m4a_parse_config(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg, Bool size_known)
 {
+	u32 channel_configuration = 0;
 	memset(cfg, 0, sizeof(GF_M4ADecSpecInfo));
 	cfg->base_object_type = gf_bs_read_int(bs, 5);
 	/*extended object type*/
@@ -914,16 +1180,19 @@ GF_Err gf_m4a_parse_config(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg, Bool size_k
 	} else {
 		cfg->base_sr = GF_M4ASampleRates[cfg->base_sr_index];
 	}
-	cfg->nb_chan = gf_bs_read_int(bs, 4);
-	/*this is 7+1 channels*/
-	if (cfg->nb_chan==7) cfg->nb_chan=8;
+
+	channel_configuration = gf_bs_read_int(bs, 4);
+
+	if (channel_configuration) {
+		cfg->nb_chan = GF_M4ANumChannels[channel_configuration-1];
+	}
 
 	if (cfg->base_object_type==5 || cfg->base_object_type==29) {
 		if (cfg->base_object_type==29) {
 			cfg->has_ps = 1;
 			cfg->nb_chan = 1;
 		}
-		cfg->has_sbr = 1;
+		cfg->has_sbr = GF_TRUE;
 		cfg->sbr_sr_index = gf_bs_read_int(bs, 4);
 		if (cfg->sbr_sr_index == 0x0F) {
 			cfg->sbr_sr = gf_bs_read_int(bs, 24);
@@ -955,8 +1224,62 @@ GF_Err gf_m4a_parse_config(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg, Bool size_k
 		if (gf_bs_read_int(bs, 1))
 			/*delay = */gf_bs_read_int(bs, 14);
 		ext_flag = gf_bs_read_int(bs, 1);
-		if (!cfg->nb_chan) {
+
+		if (! channel_configuration) {
+			u32 i;
+			cfg->program_config_element_present = 1;
+			cfg->element_instance_tag = gf_bs_read_int(bs, 4);
+			cfg->object_type = gf_bs_read_int(bs, 2);
+			cfg->sampling_frequency_index = gf_bs_read_int(bs, 4);
+			cfg->num_front_channel_elements = gf_bs_read_int(bs, 4);
+			cfg->num_side_channel_elements = gf_bs_read_int(bs, 4);
+			cfg->num_back_channel_elements = gf_bs_read_int(bs, 4);
+			cfg->num_lfe_channel_elements = gf_bs_read_int(bs, 2);
+			cfg->num_assoc_data_elements = gf_bs_read_int(bs, 3);
+			cfg->num_valid_cc_elements = gf_bs_read_int(bs, 4);
+			cfg-> mono_mixdown_present = (Bool) gf_bs_read_int(bs, 1);
+			if (cfg->mono_mixdown_present) {
+				cfg->mono_mixdown_element_number = gf_bs_read_int(bs, 4);
+			}
+			cfg->stereo_mixdown_present = gf_bs_read_int(bs, 1);
+			if (cfg->stereo_mixdown_present) {
+				cfg->stereo_mixdown_element_number = gf_bs_read_int(bs, 4);
+			}
+			cfg->matrix_mixdown_idx_present = gf_bs_read_int(bs, 1);
+			if (cfg->matrix_mixdown_idx_present) {
+				cfg->matrix_mixdown_idx = gf_bs_read_int(bs, 2);
+				cfg->pseudo_surround_enable = gf_bs_read_int(bs, 1);
+			}
+			for (i = 0; i < cfg->num_front_channel_elements; i++) {
+				cfg->front_element_is_cpe[i] = gf_bs_read_int(bs, 1);
+				cfg->front_element_tag_select[i] = gf_bs_read_int(bs, 4);
+			}
+			for (i = 0; i < cfg->num_side_channel_elements; i++) {
+				cfg->side_element_is_cpe[i] = gf_bs_read_int(bs, 1);
+				cfg->side_element_tag_select[i] = gf_bs_read_int(bs, 4);
+			}
+			for (i = 0; i < cfg->num_back_channel_elements; i++) {
+				cfg->back_element_is_cpe[i] = gf_bs_read_int(bs, 1);
+				cfg->back_element_tag_select[i] = gf_bs_read_int(bs, 4);
+			}
+			for (i = 0; i < cfg->num_lfe_channel_elements; i++) {
+				cfg->lfe_element_tag_select[i] = gf_bs_read_int(bs, 4);
+			}
+			for ( i = 0; i < cfg->num_assoc_data_elements; i++) {
+				cfg->assoc_data_element_tag_select[i] = gf_bs_read_int(bs, 4);
+			}
+
+			for (i = 0; i < cfg->num_valid_cc_elements; i++) {
+				cfg->cc_element_is_ind_sw[i] = gf_bs_read_int(bs, 1);
+				cfg->valid_cc_element_tag_select[i] = gf_bs_read_int(bs, 4);
+			}
+			gf_bs_align(bs);
+			cfg->comment_field_bytes = gf_bs_read_int(bs, 8);
+			gf_bs_read_data(bs, (char *) cfg->comments, cfg->comment_field_bytes);
+
+			cfg->nb_chan = cfg->num_front_channel_elements + cfg->num_back_channel_elements + cfg->num_side_channel_elements + cfg->num_lfe_channel_elements;
 		}
+
 		if ((cfg->base_object_type == 6) || (cfg->base_object_type == 20)) {
 			gf_bs_read_int(bs, 3);
 		}
@@ -965,19 +1288,19 @@ GF_Err gf_m4a_parse_config(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg, Bool size_k
 				gf_bs_read_int(bs, 5);
 				gf_bs_read_int(bs, 11);
 			}
-			if ((cfg->base_object_type == 17) 
-				|| (cfg->base_object_type == 19) 
-				|| (cfg->base_object_type == 20) 
-				|| (cfg->base_object_type == 23) 
-			) {
+			if ((cfg->base_object_type == 17)
+			        || (cfg->base_object_type == 19)
+			        || (cfg->base_object_type == 20)
+			        || (cfg->base_object_type == 23)
+			   ) {
 				gf_bs_read_int(bs, 1);
 				gf_bs_read_int(bs, 1);
 				gf_bs_read_int(bs, 1);
 			}
-			ext_flag = gf_bs_read_int(bs, 1);
+			/*ext_flag = */gf_bs_read_int(bs, 1);
 		}
 	}
-		break;
+	break;
 	}
 	/*ER cfg*/
 	switch (cfg->base_object_type) {
@@ -999,7 +1322,7 @@ GF_Err gf_m4a_parse_config(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg, Bool size_k
 			gf_bs_read_int(bs, 1);
 		}
 	}
-		break;
+	break;
 	}
 
 	if (size_known && (cfg->base_object_type != 5) && (cfg->base_object_type != 29) ) {
@@ -1055,6 +1378,16 @@ u32 gf_latm_get_value(GF_BitStream *bs)
 }
 
 GF_EXPORT
+u32 gf_m4a_get_channel_cfg(u32 nb_chan)
+{
+	u32 i, count = sizeof(GF_M4ANumChannels)/sizeof(u32);
+	for (i=0; i<count; i++) {
+		if (GF_M4ANumChannels[i] == nb_chan) return i+1;
+	}
+	return 0;
+}
+
+GF_EXPORT
 GF_Err gf_m4a_write_config_bs(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg)
 {
 	if (!cfg->base_sr_index) {
@@ -1083,10 +1416,11 @@ GF_Err gf_m4a_write_config_bs(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg)
 	if (cfg->base_sr_index == 0x0F) {
 		gf_bs_write_int(bs, cfg->base_sr, 24);
 	}
-	if (cfg->nb_chan == 8) {
-		gf_bs_write_int(bs, 7, 4);
+
+	if (cfg->program_config_element_present) {
+		gf_bs_write_int(bs, 0, 4);
 	} else {
-		gf_bs_write_int(bs, cfg->nb_chan, 4);
+		gf_bs_write_int(bs, gf_m4a_get_channel_cfg( cfg->nb_chan) , 4);
 	}
 
 	if (cfg->base_object_type==5 || cfg->base_object_type==29) {
@@ -1123,11 +1457,64 @@ GF_Err gf_m4a_write_config_bs(GF_BitStream *bs, GF_M4ADecSpecInfo *cfg)
 		gf_bs_write_int(bs, 0, 1);
 		/*ext flag*/
 		gf_bs_write_int(bs, 0, 1);
+
+		if (cfg->program_config_element_present) {
+			u32 i;
+			gf_bs_write_int(bs, cfg->element_instance_tag, 4);
+			gf_bs_write_int(bs, cfg->object_type, 2);
+			gf_bs_write_int(bs, cfg->sampling_frequency_index, 4);
+			gf_bs_write_int(bs, cfg->num_front_channel_elements, 4);
+			gf_bs_write_int(bs, cfg->num_side_channel_elements, 4);
+			gf_bs_write_int(bs, cfg->num_back_channel_elements, 4);
+			gf_bs_write_int(bs, cfg->num_lfe_channel_elements, 2);
+			gf_bs_write_int(bs, cfg->num_assoc_data_elements, 3);
+			gf_bs_write_int(bs, cfg->num_valid_cc_elements, 4);
+			gf_bs_write_int(bs, cfg-> mono_mixdown_present, 1);
+			if (cfg->mono_mixdown_present) {
+				gf_bs_write_int(bs, cfg->mono_mixdown_element_number, 4);
+			}
+			gf_bs_write_int(bs, cfg->stereo_mixdown_present, 1);
+			if (cfg->stereo_mixdown_present) {
+				gf_bs_write_int(bs, cfg->stereo_mixdown_element_number, 4);
+			}
+			gf_bs_write_int(bs, cfg->matrix_mixdown_idx_present, 1);
+			if (cfg->matrix_mixdown_idx_present) {
+				gf_bs_write_int(bs, cfg->matrix_mixdown_idx, 2);
+				gf_bs_write_int(bs, cfg->pseudo_surround_enable, 1);
+			}
+			for (i = 0; i < cfg->num_front_channel_elements; i++) {
+				gf_bs_write_int(bs, cfg->front_element_is_cpe[i], 1);
+				gf_bs_write_int(bs, cfg->front_element_tag_select[i], 4);
+			}
+			for (i = 0; i < cfg->num_side_channel_elements; i++) {
+				gf_bs_write_int(bs, cfg->side_element_is_cpe[i], 1);
+				gf_bs_write_int(bs, cfg->side_element_tag_select[i], 4);
+			}
+			for (i = 0; i < cfg->num_back_channel_elements; i++) {
+				gf_bs_write_int(bs, cfg->back_element_is_cpe[i], 1);
+				gf_bs_write_int(bs, cfg->back_element_tag_select[i], 4);
+			}
+			for (i = 0; i < cfg->num_lfe_channel_elements; i++) {
+				gf_bs_write_int(bs, cfg->lfe_element_tag_select[i], 4);
+			}
+			for ( i = 0; i < cfg->num_assoc_data_elements; i++) {
+				gf_bs_write_int(bs, cfg->assoc_data_element_tag_select[i], 4);
+			}
+
+			for (i = 0; i < cfg->num_valid_cc_elements; i++) {
+				gf_bs_write_int(bs, cfg->cc_element_is_ind_sw[i], 1);
+				gf_bs_write_int(bs, cfg->valid_cc_element_tag_select[i], 4);
+			}
+			gf_bs_align(bs);
+			gf_bs_write_int(bs, cfg->comment_field_bytes, 8);
+			gf_bs_write_data(bs, (char *) cfg->comments, cfg->comment_field_bytes);
+		}
+
 		if ((cfg->base_object_type == 6) || (cfg->base_object_type == 20)) {
 			gf_bs_write_int(bs, 0, 3);
 		}
 	}
-		break;
+	break;
 	}
 	/*ER cfg - not supported*/
 
@@ -1163,7 +1550,7 @@ GF_Err gf_m4a_write_config(GF_M4ADecSpecInfo *cfg, char **dsi, u32 *dsi_size)
 GF_EXPORT
 u8 gf_mp3_version(u32 hdr)
 {
-	return ((hdr >> 19) & 0x3); 
+	return ((hdr >> 19) & 0x3);
 }
 
 GF_EXPORT
@@ -1171,11 +1558,16 @@ const char *gf_mp3_version_name(u32 hdr)
 {
 	u32 v = gf_mp3_version(hdr);
 	switch (v) {
-	case 0: return "MPEG-2.5";
-	case 1: return "Reserved";
-	case 2: return "MPEG-2";
-	case 3: return "MPEG-1";
-	default: return "Unknown";
+	case 0:
+		return "MPEG-2.5";
+	case 1:
+		return "Reserved";
+	case 2:
+		return "MPEG-2";
+	case 3:
+		return "MPEG-1";
+	default:
+		return "Unknown";
 	}
 }
 
@@ -1204,16 +1596,16 @@ u16 gf_mp3_sampling_rate(u32 hdr)
 	u8 sampleRateIndex = (hdr >> 10) & 0x3;
 
 	switch (sampleRateIndex) {
-	case 0: 
-		res = 44100; 
+	case 0:
+		res = 44100;
 		break;
-	case 1: 
-		res = 48000; 
+	case 1:
+		res = 48000;
 		break;
-	case 2: 
-		res = 32000; 
+	case 2:
+		res = 32000;
 		break;
-	default: 
+	default:
 		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[MPEG-1/2 Audio] Samplerate index not valid\n"));
 		return 0;
 	}
@@ -1259,19 +1651,24 @@ u8 gf_mp3_object_type_indication(u32 hdr)
 
 static
 u32 const bitrate_table[5][15] = {
-  /* MPEG-1 */
-  { 0,  32000,  64000,  96000, 128000, 160000, 192000, 224000,  /* Layer I   */
-       256000, 288000, 320000, 352000, 384000, 416000, 448000 },
-  { 0,  32000,  48000,  56000,  64000,  80000,  96000, 112000,  /* Layer II  */
-       128000, 160000, 192000, 224000, 256000, 320000, 384000 },
-  { 0,  32000,  40000,  48000,  56000,  64000,  80000,  96000,  /* Layer III */
-       112000, 128000, 160000, 192000, 224000, 256000, 320000 },
+	/* MPEG-1 */
+	{	0,  32000,  64000,  96000, 128000, 160000, 192000, 224000,  /* Layer I   */
+		256000, 288000, 320000, 352000, 384000, 416000, 448000
+	},
+	{	0,  32000,  48000,  56000,  64000,  80000,  96000, 112000,  /* Layer II  */
+		128000, 160000, 192000, 224000, 256000, 320000, 384000
+	},
+	{	0,  32000,  40000,  48000,  56000,  64000,  80000,  96000,  /* Layer III */
+		112000, 128000, 160000, 192000, 224000, 256000, 320000
+	},
 
-  /* MPEG-2 LSF */
-  { 0,  32000,  48000,  56000,  64000,  80000,  96000, 112000,  /* Layer I   */
-       128000, 144000, 160000, 176000, 192000, 224000, 256000 },
-  { 0,   8000,  16000,  24000,  32000,  40000,  48000,  56000,  /* Layers    */
-        64000,  80000,  96000, 112000, 128000, 144000, 160000 } /* II & III  */
+	/* MPEG-2 LSF */
+	{	0,  32000,  48000,  56000,  64000,  80000,  96000, 112000,  /* Layer I   */
+		128000, 144000, 160000, 176000, 192000, 224000, 256000
+	},
+	{	0,   8000,  16000,  24000,  32000,  40000,  48000,  56000,  /* Layers    */
+		64000,  80000,  96000, 112000, 128000, 144000, 160000
+	} /* II & III  */
 };
 
 
@@ -1283,15 +1680,15 @@ u32 gf_mp3_bit_rate(u32 hdr)
 
 	if (bitRateIndex == 15) {
 		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[MPEG-1/2 Audio] Bitrate index not valid\n"));
-	    return 0;
+		return 0;
 	}
 
 	/*MPEG-1*/
 	if (version & 1)
-	    return bitrate_table[layer - 1][bitRateIndex];
+		return bitrate_table[layer - 1][bitRateIndex];
 	/*MPEG-2/2.5*/
 	else
-	    return bitrate_table[3 + (layer >> 1)][bitRateIndex];
+		return bitrate_table[3 + (layer >> 1)][bitRateIndex];
 }
 
 
@@ -1312,7 +1709,7 @@ u16 gf_mp3_frame_size(u32 hdr)
 		frameSize = (( 12 * bitrate / samplerate) + pad) * 4;
 	} else {
 		u32 slots_per_frame = 144;
-	    if ((layer == 3) && !(version & 1)) slots_per_frame = 72;
+		if ((layer == 3) && !(version & 1)) slots_per_frame = 72;
 		frameSize = (slots_per_frame * bitrate / samplerate) + pad;
 	}
 	return (u16) frameSize;
@@ -1336,8 +1733,8 @@ u32 gf_mp3_get_next_header(FILE* in)
 		}
 		if (state==2) {
 			if (((b & 0xF0) == 0) || ((b & 0xF0) == 0xF0) || ((b & 0x0C) == 0x0C)) {
-				if (bytes[1] == 0xFF) state = 1; 
-				else state = 0; 
+				if (bytes[1] == 0xFF) state = 1;
+				else state = 0;
 			} else {
 				bytes[state] = b;
 				state = 3;
@@ -1387,7 +1784,7 @@ u32 gf_mp3_get_next_header_mem(const char *buffer, u32 size, u32 *pos)
 
 		if (state==3) {
 			u32 val;
-			bytes[state] = b; 
+			bytes[state] = b;
 			val = GF_4CC(bytes[0], bytes[1], bytes[2], bytes[3]);
 			if (gf_mp3_frame_size(val)) {
 				*pos = dropped;
@@ -1399,7 +1796,7 @@ u32 gf_mp3_get_next_header_mem(const char *buffer, u32 size, u32 *pos)
 		if (state==2) {
 			if (((b & 0xF0) == 0) || ((b & 0xF0) == 0xF0) || ((b & 0x0C) == 0x0C)) {
 				if (bytes[1] == 0xFF) {
-					state = 1; 
+					state = 1;
 					dropped+=1;
 				} else {
 					state = 0;
@@ -1435,21 +1832,54 @@ u32 gf_mp3_get_next_header_mem(const char *buffer, u32 size, u32 *pos)
 #endif /*GPAC_DISABLE_AV_PARSERS*/
 
 
+GF_EXPORT
+Bool gf_avc_is_rext_profile(u8 profile_idc)
+{
+	switch (profile_idc) {
+	case 100:
+	case 110:
+	case 122:
+	case 244:
+	case 44:
+	case 83:
+	case 86:
+	case 118:
+	case 128:
+	case 138:
+	case 139:
+	case 134:
+	case 135:
+		return GF_TRUE;
+	default:
+		return GF_FALSE;
+	}
+}
 
 GF_EXPORT
 const char *gf_avc_get_profile_name(u8 video_prof)
 {
 	switch (video_prof) {
-	case 0x42: return "Baseline";
-	case 0x4D: return "Main";
-	case 0x53: return "Scalable Baseline";
-	case 0x56: return "Scalable High";
-	case 0x58: return "Extended";
-	case 0x64: return "High";
-	case 0x6E: return "High 10";
-	case 0x7A: return "High 4:2:2";
-	case 0x90: return "High 4:4:4";
-	default: return "Unknown";
+	case 0x42:
+		return "Baseline";
+	case 0x4D:
+		return "Main";
+	case 0x53:
+		return "Scalable Baseline";
+	case 0x56:
+		return "Scalable High";
+	case 0x58:
+		return "Extended";
+	case 0x64:
+		return "High";
+	case 0x6E:
+		return "High 10";
+	case 0x7A:
+		return "High 4:2:2";
+	case 0x90:
+	case 0xF4:
+		return "High 4:4:4";
+	default:
+		return "Unknown";
 	}
 }
 
@@ -1457,10 +1887,28 @@ GF_EXPORT
 const char *gf_hevc_get_profile_name(u8 video_prof)
 {
 	switch (video_prof) {
-	case 0x01: return "Main";
-	case 0x02: return "Main 10";
-	case 0x03: return "Main Still Picture";
-	default: return "Unknown";
+	case 0x01:
+		return "Main";
+	case 0x02:
+		return "Main 10";
+	case 0x03:
+		return "Main Still Picture";
+	default:
+		return "Unknown";
+	}
+}
+GF_EXPORT
+const char *gf_avc_hevc_get_chroma_format_name(u8 chroma_format)
+{
+	switch (chroma_format) {
+	case 1:
+		return "YUV 4:2:0";
+	case 2:
+		return "YUV 4:2:2";
+	case 3:
+		return "YUV 4:4:4";
+	default:
+		return "Unknown";
 	}
 }
 
@@ -1468,21 +1916,21 @@ const char *gf_hevc_get_profile_name(u8 video_prof)
 
 
 static u8 avc_golomb_bits[256] = {
-	8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 3, 
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 
-	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0
 };
 
@@ -1507,7 +1955,7 @@ static u32 bs_get_ue(GF_BitStream *bs)
 	return gf_bs_read_int(bs, bits + 1) - 1;
 }
 
-static s32 bs_get_se(GF_BitStream *bs) 
+static s32 bs_get_se(GF_BitStream *bs)
 {
 	u32 v = bs_get_ue(bs);
 	if ((v & 0x1) == 0) return (s32) (0 - (v>>1));
@@ -1535,15 +1983,15 @@ u32 gf_media_nalu_is_start_code(GF_BitStream *bs)
 
 /*read that amount of data at each IO access rather than fetching byte by byte...*/
 #define AVC_CACHE_SIZE	4096
-GF_EXPORT
-u32 gf_media_nalu_next_start_code_bs(GF_BitStream *bs)
+
+static u32 gf_media_nalu_locate_start_code_bs(GF_BitStream *bs, Bool locate_trailing)
 {
-	u32 v, bpos;
+	u32 v, bpos, nb_cons_zeros=0;
 	char avc_cache[AVC_CACHE_SIZE];
 	u64 end, cache_start, load_size;
 	u64 start = gf_bs_get_position(bs);
 	if (start<3) return 0;
-	
+
 	load_size = 0;
 	bpos = 0;
 	cache_start = 0;
@@ -1560,27 +2008,49 @@ u32 gf_media_nalu_next_start_code_bs(GF_BitStream *bs)
 			gf_bs_read_data(bs, avc_cache, (u32) load_size);
 		}
 		v = ( (v<<8) & 0xFFFFFF00) | ((u32) avc_cache[bpos]);
+
 		bpos++;
+		if (locate_trailing) {
+			if ( (v & 0x000000FF) == 0) nb_cons_zeros++;
+			else nb_cons_zeros = 0;
+		}
+
 		if (v == 0x00000001) end = cache_start+bpos-4;
 		else if ( (v & 0x00FFFFFF) == 0x00000001) end = cache_start+bpos-3;
 	}
 	gf_bs_seek(bs, start);
 	if (!end) end = gf_bs_get_size(bs);
+	if (locate_trailing) {
+		if (nb_cons_zeros>=3)
+			return (u32) (end - start - nb_cons_zeros);
+	}
 	return (u32) (end-start);
 }
 
 GF_EXPORT
-u32 gf_media_nalu_next_start_code(u8 *data, u32 data_len, u32 *sc_size)
+u32 gf_media_nalu_next_start_code_bs(GF_BitStream *bs)
+{
+	return gf_media_nalu_locate_start_code_bs(bs, 0);
+}
+
+GF_EXPORT
+u32 gf_media_nalu_payload_end_bs(GF_BitStream *bs)
+{
+	return gf_media_nalu_locate_start_code_bs(bs, 1);
+}
+
+GF_EXPORT
+u32 gf_media_nalu_next_start_code(const u8 *data, u32 data_len, u32 *sc_size)
 {
 	u32 v, bpos;
 	u32 end;
-	
+
 	bpos = 0;
 	end = 0;
 	v = 0xffffffff;
 	while (!end) {
 		/*refill cache*/
-		if (bpos == (u32) data_len) 
+		if (bpos == (u32) data_len)
 			break;
 
 		v = ( (v<<8) & 0xFFFFFF00) | ((u32) data[bpos]);
@@ -1600,20 +2070,20 @@ u32 gf_media_nalu_next_start_code(u8 *data, u32 data_len, u32 *sc_size)
 	return (u32) (end);
 }
 
-Bool gf_media_avc_slice_is_intra(AVCState *avc) 
+Bool gf_media_avc_slice_is_intra(AVCState *avc)
 {
 	switch (avc->s_info.slice_type) {
-		case GF_AVC_TYPE_I:
-		case GF_AVC_TYPE2_I:
-		case GF_AVC_TYPE_SI:
-		case GF_AVC_TYPE2_SI:
-			return 1;
-		default:
-			return 0;
+	case GF_AVC_TYPE_I:
+	case GF_AVC_TYPE2_I:
+	case GF_AVC_TYPE_SI:
+	case GF_AVC_TYPE2_SI:
+		return 1;
+	default:
+		return 0;
 	}
 }
 
-Bool gf_media_avc_slice_is_IDR(AVCState *avc) 
+Bool gf_media_avc_slice_is_IDR(AVCState *avc)
 {
 	if (avc->sei.recovery_point.valid)
 	{
@@ -1625,7 +2095,9 @@ Bool gf_media_avc_slice_is_IDR(AVCState *avc)
 	return gf_media_avc_slice_is_intra(avc);
 }
 
-static const struct { u32 w, h; } avc_sar[14] =
+static const struct {
+	u32 w, h;
+} avc_sar[14] =
 {
 	{ 0,   0 }, { 1,   1 }, { 12, 11 }, { 10, 11 },
 	{ 16, 11 }, { 40, 33 }, { 24, 11 }, { 20, 11 },
@@ -1664,7 +2136,7 @@ static u32 avc_emulation_bytes_add_count(char *buffer, u32 nal_size)
 {
 	u32 i = 0, emulation_bytes_count = 0;
 	u8 num_zero = 0;
-	
+
 	while (i < nal_size) {
 		/*ISO 14496-10: "Within the NAL unit, any four-byte sequence that starts with 0x000003
 		other than the following sequences shall not occur at any byte-aligned position:
@@ -1677,6 +2149,8 @@ static u32 avc_emulation_bytes_add_count(char *buffer, u32 nal_size)
 			/*emulation code found*/
 			num_zero = 0;
 			emulation_bytes_count++;
+			if (!buffer[i])
+				num_zero = 1;
 		} else {
 			if (!buffer[i])
 				num_zero++;
@@ -1688,12 +2162,11 @@ static u32 avc_emulation_bytes_add_count(char *buffer, u32 nal_size)
 	return emulation_bytes_count;
 }
 
-static u32 avc_add_emulation_bytes(const char *buffer_src, char *buffer_dst, u32 nal_size) 
-{ 
-
+static u32 avc_add_emulation_bytes(const char *buffer_src, char *buffer_dst, u32 nal_size)
+{
 	u32 i = 0, emulation_bytes_count = 0;
 	u8 num_zero = 0;
-	
+
 	while (i < nal_size) {
 		/*ISO 14496-10: "Within the NAL unit, any four-byte sequence that starts with 0x000003
 		other than the following sequences shall not occur at any byte-aligned position:
@@ -1702,7 +2175,7 @@ static u32 avc_add_emulation_bytes(const char *buffer_src, char *buffer_dst, u32
 		0x00000302
 		0x00000303"
 		*/
-		if (num_zero == 2 && buffer_src[i] < 0x04) {
+		if (num_zero == 2 && (u8)buffer_src[i] < 0x04) {
 			/*add emulation code*/
 			num_zero = 0;
 			buffer_dst[i+emulation_bytes_count] = 0x03;
@@ -1720,9 +2193,9 @@ static u32 avc_add_emulation_bytes(const char *buffer_src, char *buffer_dst, u32
 	}
 	return nal_size+emulation_bytes_count;
 }
-#ifdef GPAC_UNUSED_FUNC
+
 /*returns the nal_size without emulation prevention bytes*/
-static u32 avc_emulation_bytes_remove_count(unsigned char *buffer, u32 nal_size)
+static u32 avc_emulation_bytes_remove_count(const char *buffer, u32 nal_size)
 {
 	u32 i = 0, emulation_bytes_count = 0;
 	u8 num_zero = 0;
@@ -1737,9 +2210,9 @@ static u32 avc_emulation_bytes_remove_count(unsigned char *buffer, u32 nal_size)
 		  \96 0x00000303"
 		*/
 		if (num_zero == 2
-			&& buffer[i] == 0x03
-			&& i+1 < nal_size /*next byte is readable*/
-			&& buffer[i+1] < 0x04)
+		        && buffer[i] == 0x03
+		        && i+1 < nal_size /*next byte is readable*/
+		        && buffer[i+1] < 0x04)
 		{
 			/*emulation code found*/
 			num_zero = 0;
@@ -1757,29 +2230,28 @@ static u32 avc_emulation_bytes_remove_count(unsigned char *buffer, u32 nal_size)
 
 	return emulation_bytes_count;
 }
-#endif /*GPAC_UNUSED_FUNC*/
 
 /*nal_size is updated to allow better error detection*/
-static u32 avc_remove_emulation_bytes(const char *buffer_src, char *buffer_dst, u32 nal_size) 
-{ 
+static u32 avc_remove_emulation_bytes(const char *buffer_src, char *buffer_dst, u32 nal_size)
+{
 	u32 i = 0, emulation_bytes_count = 0;
-	u8 num_zero = 0; 
+	u8 num_zero = 0;
 
-	while (i < nal_size) 
-	{ 
-		/*ISO 14496-10: "Within the NAL unit, any four-byte sequence that starts with 0x000003 
-		  other than the following sequences shall not occur at any byte-aligned position: 
-		  0x00000300 
-		  0x00000301 
-		  0x00000302 
-		  0x00000303" 
-		*/ 
-		if (num_zero == 2 
-			&& buffer_src[i] == 0x03 
-			&& i+1 < nal_size /*next byte is readable*/ 
-			&& buffer_src[i+1] < 0x04) 
-		{ 
-			/*emulation code found*/ 
+	while (i < nal_size)
+	{
+		/*ISO 14496-10: "Within the NAL unit, any four-byte sequence that starts with 0x000003
+		  other than the following sequences shall not occur at any byte-aligned position:
+		  0x00000300
+		  0x00000301
+		  0x00000302
+		  0x00000303"
+		*/
+		if (num_zero == 2
+		        && buffer_src[i] == 0x03
+		        && i+1 < nal_size /*next byte is readable*/
+		        && buffer_src[i+1] < 0x04)
+		{
+			/*emulation code found*/
 			num_zero = 0;
 			emulation_bytes_count++;
 			i++;
@@ -1787,16 +2259,16 @@ static u32 avc_remove_emulation_bytes(const char *buffer_src, char *buffer_dst, 
 
 		buffer_dst[i-emulation_bytes_count] = buffer_src[i];
 
-		if (!buffer_src[i]) 
-			num_zero++; 
-		else 
-			num_zero = 0; 
+		if (!buffer_src[i])
+			num_zero++;
+		else
+			num_zero = 0;
 
-		i++; 
-	} 
-	
-	return nal_size-emulation_bytes_count; 
-} 
+		i++;
+	}
+
+	return nal_size-emulation_bytes_count;
+}
 
 GF_EXPORT
 s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32 subseq_sps, u32 *vui_flag_pos)
@@ -1804,7 +2276,8 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 	AVC_SPS *sps;
 	u32 ChromaArrayType = 0;
 	s32 mb_width, mb_height, sps_id = -1;
-	u32 profile_idc, level_idc, pcomp, i, chroma_format_idc, cl, cr, ct, cb, luma_bd, chroma_bd;
+	u32 profile_idc, level_idc, pcomp, i, chroma_format_idc, cl=0, cr=0, ct=0, cb=0, luma_bd, chroma_bd;
+	u8 separate_colour_plane_flag = 0;
 	GF_BitStream *bs;
 	char *sps_data_without_emulation_bytes = NULL;
 	u32 sps_data_without_emulation_bytes_size = 0;
@@ -1831,19 +2304,24 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 	level_idc = gf_bs_read_int(bs, 8);
 
 	/*SubsetSps is used to be sure that AVC SPS are not going to be scratched
-	by subset SPS. According to the SVC standard, subset SPS can have the same sps_id 
+	by subset SPS. According to the SVC standard, subset SPS can have the same sps_id
 	than its base layer, but it does not refer to the same SPS. */
 	sps_id = bs_get_ue(bs) + GF_SVC_SSPS_ID_SHIFT * subseq_sps;
 	if (sps_id >=32) {
 		sps_id = -1;
 		goto exit;
 	}
+	if (sps_id < 0) {
+		sps_id = -1;
+		goto exit;
+	}
 
-	chroma_format_idc = luma_bd = chroma_bd = 0;
+	luma_bd = chroma_bd = 0;
+	chroma_format_idc = ChromaArrayType = 1;
 	sps = &avc->sps[sps_id];
 	sps->state |= subseq_sps ? AVC_SUBSPS_PARSED : AVC_SPS_PARSED;
 
-	/*High Profile and SVC*/	
+	/*High Profile and SVC*/
 	switch (profile_idc) {
 	case 100:
 	case 110:
@@ -1860,7 +2338,7 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 		chroma_format_idc = bs_get_ue(bs);
 		ChromaArrayType = chroma_format_idc;
 		if (chroma_format_idc == 3) {
-			u8 separate_colour_plane_flag = gf_bs_read_int(bs, 1);
+			separate_colour_plane_flag = gf_bs_read_int(bs, 1);
 			/*
 			Depending on the value of separate_colour_plane_flag, the value of the variable ChromaArrayType is assigned as follows.
 			\96	If separate_colour_plane_flag is equal to 0, ChromaArrayType is set equal to chroma_format_idc.
@@ -1889,8 +2367,8 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 			}
 		}
 		break;
-	}	
-	
+	}
+
 	sps->profile_idc = profile_idc;
 	sps->level_idc = level_idc;
 	sps->prof_compat = pcomp;
@@ -1913,8 +2391,8 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 		sps_id = -1;
 		goto exit;
 	}
-	bs_get_ue(bs); /*ref_frame_count*/
-	gf_bs_read_int(bs, 1); /*gaps_in_frame_num_allowed_flag*/
+	sps->max_num_ref_frames = bs_get_ue(bs); 
+	sps->gaps_in_frame_num_value_allowed_flag = gf_bs_read_int(bs, 1); 
 	mb_width = bs_get_ue(bs) + 1;
 	mb_height= bs_get_ue(bs) + 1;
 
@@ -1922,28 +2400,55 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 
 	sps->width = mb_width * 16;
 	sps->height = (2-sps->frame_mbs_only_flag) * mb_height * 16;
-
-	/*mb_adaptive_frame_field_flag*/
-	if (!sps->frame_mbs_only_flag) gf_bs_read_int(bs, 1);
+	
+	if (!sps->frame_mbs_only_flag) sps->mb_adaptive_frame_field_flag = gf_bs_read_int(bs, 1);
 	gf_bs_read_int(bs, 1); /*direct_8x8_inference_flag*/
-	cl = cr = ct = cb = 0;
-	if (gf_bs_read_int(bs, 1)) /*crop*/ {
+	
+	if (gf_bs_read_int(bs, 1)) { /*crop*/
+		int CropUnitX, CropUnitY, SubWidthC = -1, SubHeightC = -1;
+
+		if (chroma_format_idc == 1) {
+			SubWidthC = 2, SubHeightC = 2;
+		} else if (chroma_format_idc == 2) {
+			SubWidthC = 2, SubHeightC = 1;
+		} else if ((chroma_format_idc == 3) && (separate_colour_plane_flag == 0)) {
+			SubWidthC = 1, SubHeightC = 1;
+		}
+
+		if (ChromaArrayType == 0) {
+			assert(SubWidthC==-1);
+			CropUnitX = 1;
+			CropUnitY = 2-sps->frame_mbs_only_flag;
+		} else {
+			CropUnitX = SubWidthC;
+			CropUnitY = SubHeightC * (2-sps->frame_mbs_only_flag);
+		}
+
 		cl = bs_get_ue(bs); /*crop_left*/
 		cr = bs_get_ue(bs); /*crop_right*/
 		ct = bs_get_ue(bs); /*crop_top*/
 		cb = bs_get_ue(bs); /*crop_bottom*/
 
-		sps->width = 16*mb_width - 2*(cl + cr);
-		sps->height -= (2-sps->frame_mbs_only_flag)*2*(ct + cb);
-	}
+		sps->width -= CropUnitX * (cl + cr);
+		sps->height -= CropUnitY * (ct + cb);
+		cl *= CropUnitX;
+		cr *= CropUnitX;
+		ct *= CropUnitY;
+		cb *= CropUnitY;
+	} 
+	sps->crop.left = cl;
+	sps->crop.right = cr;
+	sps->crop.top = ct;
+	sps->crop.bottom = cb;
 
 	if (vui_flag_pos) {
 		*vui_flag_pos = (u32) gf_bs_get_bit_offset(bs);
 	}
 	/*vui_parameters_present_flag*/
-	if (gf_bs_read_int(bs, 1)) {
-		/*aspect_ratio_info_present_flag*/
-		if (gf_bs_read_int(bs, 1)) {
+	sps->vui_parameters_present_flag = gf_bs_read_int(bs, 1);
+	if (sps->vui_parameters_present_flag) {
+		sps->vui.aspect_ratio_info_present_flag = gf_bs_read_int(bs, 1);
+		if (sps->vui.aspect_ratio_info_present_flag) {
 			s32 aspect_ratio_idc = gf_bs_read_int(bs, 8);
 			if (aspect_ratio_idc == 255) {
 				sps->vui.par_num = gf_bs_read_int(bs, 16); /*AR num*/
@@ -1953,16 +2458,25 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 				sps->vui.par_den = avc_sar[aspect_ratio_idc].h;
 			}
 		}
-		if(gf_bs_read_int(bs, 1))		/* overscan_info_present_flag */
+		sps->vui.overscan_info_present_flag = gf_bs_read_int(bs, 1);
+		if(sps->vui.overscan_info_present_flag)		
 			gf_bs_read_int(bs, 1);		/* overscan_appropriate_flag */
 
-		if (gf_bs_read_int(bs, 1)){		/* video_signal_type_present_flag */
-			gf_bs_read_int(bs, 3);		/* video_format */
-			gf_bs_read_int(bs, 1);		/* video_full_range_flag */
-			if (gf_bs_read_int(bs, 1)){ /* colour_description_present_flag */
-				gf_bs_read_int(bs, 8);  /* colour_primaries */
-				gf_bs_read_int(bs, 8);  /* transfer_characteristics */
-				gf_bs_read_int(bs, 8);  /* matrix_coefficients */
+		/* default values */
+		sps->vui.video_format = 5;
+		sps->vui.colour_primaries = 2;
+		sps->vui.transfer_characteristics = 2;
+		sps->vui.matrix_coefficients = 2;
+		/* now read values if possible */
+		sps->vui.video_signal_type_present_flag = gf_bs_read_int(bs, 1);
+		if (sps->vui.video_signal_type_present_flag) {
+			sps->vui.video_format = gf_bs_read_int(bs, 3);
+			sps->vui.video_full_range_flag = gf_bs_read_int(bs, 1);
+			sps->vui.colour_description_present_flag = gf_bs_read_int(bs, 1);
+			if (sps->vui.colour_description_present_flag) { 
+				sps->vui.colour_primaries = gf_bs_read_int(bs, 8);  
+				sps->vui.transfer_characteristics = gf_bs_read_int(bs, 8);  
+				sps->vui.matrix_coefficients = gf_bs_read_int(bs, 8);  
 			}
 		}
 
@@ -1987,7 +2501,7 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 			avc_parse_hrd_parameters(bs, &sps->vui.hrd);
 
 		if (sps->vui.nal_hrd_parameters_present_flag || sps->vui.vcl_hrd_parameters_present_flag)
-			gf_bs_read_int(bs, 1); /*low_delay_hrd_flag*/
+			sps->vui.low_delay_hrd_flag = gf_bs_read_int(bs, 1); 
 
 		sps->vui.pic_struct_present_flag = gf_bs_read_int(bs, 1);
 	}
@@ -2000,7 +2514,7 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 
 			/*inter_layer_deblocking_filter_control_present_flag=*/	gf_bs_read_int(bs, 1);
 			extended_spatial_scalability_idc = gf_bs_read_int(bs, 2);
-			if (ChromaArrayType == 1 || ChromaArrayType == 2) {		
+			if (ChromaArrayType == 1 || ChromaArrayType == 2) {
 				/*chroma_phase_x_plus1_flag*/ gf_bs_read_int(bs, 1);
 			}
 			if( ChromaArrayType  ==  1 ) {
@@ -2012,7 +2526,7 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 					/*seq_ref_layer_chroma_phase_y_plus1*/gf_bs_read_int(bs, 2);
 				}
 				/*seq_scaled_ref_layer_left_offset*/ bs_get_se(bs);
-				/*seq_scaled_ref_layer_top_offset*/bs_get_se(bs); 
+				/*seq_scaled_ref_layer_top_offset*/bs_get_se(bs);
 				/*seq_scaled_ref_layer_right_offset*/bs_get_se(bs);
 				/*seq_scaled_ref_layer_bottom_offset*/bs_get_se(bs);
 			}
@@ -2056,7 +2570,7 @@ s32 gf_media_avc_read_sps(const char *sps_data, u32 sps_size, AVCState *avc, u32
 			GF_LOG(GF_LOG_WARNING, GF_LOG_CODING, ("[avc-h264] MVC not supported - skipping parsing end of Subset SPS\n"));
 			goto exit;
 		}
-	
+
 		if (gf_bs_read_int(bs, 1)) {
 			GF_LOG(GF_LOG_WARNING, GF_LOG_CODING, ("[avc-h264] skipping parsing end of Subset SPS (additional_extension2)\n"));
 			goto exit;
@@ -2095,7 +2609,8 @@ s32 gf_media_avc_read_pps(const char *pps_data, u32 pps_size, AVCState *avc)
 		goto exit;
 	}
 	pps = &avc->pps[pps_id];
-   
+	pps->id = pps_id;
+
 	if (!pps->status) pps->status = 1;
 	pps->sps_id = bs_get_ue(bs);
 	if (pps->sps_id >= 32) {
@@ -2109,7 +2624,7 @@ s32 gf_media_avc_read_pps(const char *pps_data, u32 pps_size, AVCState *avc)
 		goto exit;
 	}
 	avc->sps_active_idx = pps->sps_id; /*set active sps*/
-	/*pps->cabac = */gf_bs_read_int(bs, 1);
+	pps->entropy_coding_mode_flag = gf_bs_read_int(bs, 1);
 	pps->pic_order_present= gf_bs_read_int(bs, 1);
 	pps->slice_group_count= bs_get_ue(bs) + 1;
 	if (pps->slice_group_count > 1 ) /*pps->mb_slice_group_map_type = */bs_get_ue(bs);
@@ -2118,7 +2633,7 @@ s32 gf_media_avc_read_pps(const char *pps_data, u32 pps_size, AVCState *avc)
 	/*
 	if ((pps->ref_count[0] > 32) || (pps->ref_count[1] > 32)) goto exit;
 	*/
-	
+
 	/*pps->weighted_pred = */gf_bs_read_int(bs, 1);
 	/*pps->weighted_bipred_idc = */gf_bs_read_int(bs, 2);
 	/*pps->init_qp = */bs_get_se(bs) /*+ 26*/;
@@ -2145,7 +2660,7 @@ s32 gf_media_avc_read_sps_ext(const char *spse_data, u32 spse_size)
 	spse_data_without_emulation_bytes = gf_malloc(spse_size*sizeof(char));
 	spse_data_without_emulation_bytes_size = avc_remove_emulation_bytes(spse_data, spse_data_without_emulation_bytes, spse_size);
 	bs = gf_bs_new(spse_data_without_emulation_bytes, spse_data_without_emulation_bytes_size, GF_BITSTREAM_READ);
-	
+
 	/*nal header*/gf_bs_read_u8(bs);
 
 	sps_id = bs_get_ue(bs);
@@ -2171,7 +2686,7 @@ static s32 SVC_ReadNal_header_extension(GF_BitStream *bs, SVC_NALUHeader *NalHea
 	return 1;
 }
 
-static s32 avc_parse_slice(GF_BitStream *bs, AVCState *avc, Bool svc_idr_flag, AVCSliceInfo *si) 
+static s32 avc_parse_slice(GF_BitStream *bs, AVCState *avc, Bool svc_idr_flag, AVCSliceInfo *si)
 {
 	s32 pps_id;
 
@@ -2186,7 +2701,8 @@ static s32 avc_parse_slice(GF_BitStream *bs, AVCState *avc, Bool svc_idr_flag, A
 	if (!si->pps->slice_group_count) return -2;
 	si->sps = &avc->sps[si->pps->sps_id];
 	if (!si->sps->log2_max_frame_num) return -2;
-
+	avc->sps_active_idx = si->pps->sps_id;
+	
 	si->frame_num = gf_bs_read_int(bs, si->sps->log2_max_frame_num);
 
 	si->field_pic_flag = 0;
@@ -2198,7 +2714,7 @@ static s32 avc_parse_slice(GF_BitStream *bs, AVCState *avc, Bool svc_idr_flag, A
 	}
 	if ((si->nal_unit_type==GF_AVC_NALU_IDR_SLICE) || svc_idr_flag)
 		si->idr_pic_id = bs_get_ue(bs);
-   
+
 	if (si->sps->poc_type==0) {
 		si->poc_lsb = gf_bs_read_int(bs, si->sps->log2_max_poc_lsb);
 		if (si->pps->pic_order_present && !si->field_pic_flag) {
@@ -2216,7 +2732,7 @@ static s32 avc_parse_slice(GF_BitStream *bs, AVCState *avc, Bool svc_idr_flag, A
 }
 
 
-static s32 svc_parse_slice(GF_BitStream *bs, AVCState *avc, AVCSliceInfo *si) 
+static s32 svc_parse_slice(GF_BitStream *bs, AVCState *avc, AVCSliceInfo *si)
 {
 	s32 pps_id;
 
@@ -2233,7 +2749,7 @@ static s32 svc_parse_slice(GF_BitStream *bs, AVCState *avc, AVCSliceInfo *si)
 	if (!si->pps->slice_group_count)
 		return -2;
 	si->sps = &avc->sps[si->pps->sps_id + GF_SVC_SSPS_ID_SHIFT];
-	if (!si->sps->log2_max_frame_num) 
+	if (!si->sps->log2_max_frame_num)
 		return -2;
 
 	si->frame_num = gf_bs_read_int(bs, si->sps->log2_max_frame_num);
@@ -2247,10 +2763,10 @@ static s32 svc_parse_slice(GF_BitStream *bs, AVCState *avc, AVCSliceInfo *si)
 	}
 	if (si->nal_unit_type == GF_AVC_NALU_IDR_SLICE || si ->NalHeader.idr_pic_flag)
 		si->idr_pic_id = bs_get_ue(bs);
-   
+
 	if (si->sps->poc_type==0) {
 		si->poc_lsb = gf_bs_read_int(bs, si->sps->log2_max_poc_lsb);
- 	if (si->pps->pic_order_present && !si->field_pic_flag) {
+		if (si->pps->pic_order_present && !si->field_pic_flag) {
 			si->delta_poc_bottom = bs_get_se(bs);
 		}
 	} else if ((si->sps->poc_type==1) && !si->sps->delta_pic_order_always_zero_flag) {
@@ -2265,7 +2781,7 @@ static s32 svc_parse_slice(GF_BitStream *bs, AVCState *avc, AVCSliceInfo *si)
 }
 
 
-static s32 avc_parse_recovery_point_sei(GF_BitStream *bs, AVCState *avc) 
+static s32 avc_parse_recovery_point_sei(GF_BitStream *bs, AVCState *avc)
 {
 	AVCSeiRecoveryPoint *rp = &avc->sei.recovery_point;
 
@@ -2279,7 +2795,7 @@ static s32 avc_parse_recovery_point_sei(GF_BitStream *bs, AVCState *avc)
 }
 
 /*for interpretation see ISO 14496-10 N.11084, table D-1*/
-static s32 avc_parse_pic_timing_sei(GF_BitStream *bs, AVCState *avc) 
+static s32 avc_parse_pic_timing_sei(GF_BitStream *bs, AVCState *avc)
 {
 	int i;
 	int sps_id = avc->sps_active_idx;
@@ -2365,18 +2881,18 @@ static void avc_compute_poc(AVCSliceInfo *si)
 		else
 			si->frame_num_offset = si->frame_num_offset_prev;
 	}
-	
+
 	/*ISO 14496-10 N.11084 8.2.1.1*/
 	if (si->sps->poc_type==0)
 	{
 		const u32 max_poc_lsb = 1 << (si->sps->log2_max_poc_lsb);
-		
+
 		/*ISO 14496-10 N.11084 eq (8-3)*/
 		if ((si->poc_lsb < si->poc_lsb_prev) &&
-		(si->poc_lsb_prev - si->poc_lsb >= max_poc_lsb / 2) )
+		        (si->poc_lsb_prev - si->poc_lsb >= max_poc_lsb / 2) )
 			si->poc_msb = si->poc_msb_prev + max_poc_lsb;
 		else if ((si->poc_lsb > si->poc_lsb_prev) &&
-		(si->poc_lsb - si->poc_lsb_prev > max_poc_lsb / 2))
+		         (si->poc_lsb - si->poc_lsb_prev > max_poc_lsb / 2))
 			si->poc_msb = si->poc_msb_prev - max_poc_lsb;
 		else
 			si->poc_msb = si->poc_msb_prev;
@@ -2392,7 +2908,7 @@ static void avc_compute_poc(AVCSliceInfo *si)
 			else
 				field_poc[1] = si->poc_msb + si->poc_lsb;
 		}
-	} 
+	}
 	/*ISO 14496-10 N.11084 8.2.1.2*/
 	else if (si->sps->poc_type==1)
 	{
@@ -2426,7 +2942,7 @@ static void avc_compute_poc(AVCSliceInfo *si)
 		field_poc[0] = expected_poc + si->delta_poc[0];
 		field_poc[1] = field_poc[0] + si->sps->offset_for_top_to_bottom_field;
 		if (pic_type == AVC_PIC_FRAME) field_poc[1] += si->delta_poc[1];
-	} 
+	}
 	/*ISO 14496-10 N.11084 8.2.1.3*/
 	else if (si->sps->poc_type== 2)
 	{
@@ -2462,9 +2978,9 @@ s32 gf_media_avc_parse_nalu(GF_BitStream *bs, u32 nal_hdr, AVCState *avc)
 	memcpy(&n_state, &avc->s_info, sizeof(AVCSliceInfo));
 	n_state.nal_unit_type = nal_hdr & 0x1F;
 	n_state.nal_ref_idc = (nal_hdr>>5) & 0x3;
-	
+
 	idr_flag = 0;
-	ret = 0;
+
 	switch (n_state.nal_unit_type) {
 	case GF_AVC_NALU_ACCESS_UNIT:
 	case GF_AVC_NALU_END_OF_SEQ:
@@ -2476,12 +2992,12 @@ s32 gf_media_avc_parse_nalu(GF_BitStream *bs, u32 nal_hdr, AVCState *avc)
 		SVC_ReadNal_header_extension(bs, &n_state.NalHeader);
 		slice = 1;
 		// slice buffer - read the info and compare.
-		ret = svc_parse_slice(bs, avc, &n_state);
+		/*ret = */svc_parse_slice(bs, avc, &n_state);
 		if (avc->s_info.nal_ref_idc) {
 			n_state.poc_lsb_prev = avc->s_info.poc_lsb;
 			n_state.poc_msb_prev = avc->s_info.poc_msb;
 		}
-		if (slice) 
+		if (slice)
 			avc_compute_poc(&n_state);
 
 		if (avc->s_info.poc != n_state.poc) {
@@ -2506,16 +3022,22 @@ s32 gf_media_avc_parse_nalu(GF_BitStream *bs, u32 nal_hdr, AVCState *avc)
 		if (ret<0) return ret;
 		ret = 0;
 		if (
-			((avc->s_info.nal_unit_type > GF_AVC_NALU_IDR_SLICE) || (avc->s_info.nal_unit_type < GF_AVC_NALU_NON_IDR_SLICE)) 
-			&& (avc->s_info.nal_unit_type != GF_AVC_NALU_SVC_SLICE)
+		    ((avc->s_info.nal_unit_type > GF_AVC_NALU_IDR_SLICE) || (avc->s_info.nal_unit_type < GF_AVC_NALU_NON_IDR_SLICE))
+		    && (avc->s_info.nal_unit_type != GF_AVC_NALU_SVC_SLICE)
 		) {
 			break;
 		}
-		if (avc->s_info.frame_num != n_state.frame_num) { ret = 1; break; }
+		if (avc->s_info.frame_num != n_state.frame_num) {
+			ret = 1;
+			break;
+		}
 
-		if (avc->s_info.field_pic_flag != n_state.field_pic_flag) { ret = 1; break; }
+		if (avc->s_info.field_pic_flag != n_state.field_pic_flag) {
+			ret = 1;
+			break;
+		}
 		if ((avc->s_info.nal_ref_idc != n_state.nal_ref_idc) &&
-			(!avc->s_info.nal_ref_idc || !n_state.nal_ref_idc)) {
+		        (!avc->s_info.nal_ref_idc || !n_state.nal_ref_idc)) {
 			ret = 1;
 			break;
 		}
@@ -2523,8 +3045,8 @@ s32 gf_media_avc_parse_nalu(GF_BitStream *bs, u32 nal_hdr, AVCState *avc)
 
 		if (avc->s_info.sps->poc_type == n_state.sps->poc_type) {
 			if (!avc->s_info.sps->poc_type) {
-				if (!n_state.bottom_field_flag && (avc->s_info.poc_lsb != n_state.poc_lsb)) { 
-					ret = 1; 
+				if (!n_state.bottom_field_flag && (avc->s_info.poc_lsb != n_state.poc_lsb)) {
+					ret = 1;
 					break;
 				}
 				if (avc->s_info.delta_poc_bottom != n_state.delta_poc_bottom) {
@@ -2566,10 +3088,10 @@ s32 gf_media_avc_parse_nalu(GF_BitStream *bs, u32 nal_hdr, AVCState *avc)
 			ret = 1;
 		else if ((nal_hdr & 0x1F) == GF_AVC_NALU_SEQ_PARAM && avc -> s_info .nal_unit_type == GF_AVC_NALU_SVC_SLICE)
 			ret = 1;
-		else 
+		else
 			ret = 0;
 		break;
-	} 
+	}
 
 	/* save _prev values */
 	if (ret && avc->s_info.sps) {
@@ -2608,7 +3130,6 @@ u32 gf_media_avc_reformat_sei(char *buffer, u32 nal_size, AVCState *avc)
 	new_buffer = (char*)gf_malloc(sizeof(char)*nal_size);
 	new_buffer[0] = (char) hdr;
 	written = 1;
-
 	/*parse SEI*/
 	while (gf_bs_available(bs)) {
 		Bool do_copy;
@@ -2626,7 +3147,14 @@ u32 gf_media_avc_reformat_sei(char *buffer, u32 nal_size, AVCState *avc)
 		psize += gf_bs_read_int(bs, 8);
 
 		start = gf_bs_get_position(bs);
+
 		do_copy = 1;
+
+		if (start+psize >= nal_size) {
+			if (written == 1) written = 0;
+			GF_LOG(GF_LOG_WARNING, GF_LOG_CODING, ("[avc-h264] SEI user message type %d size error (%d but %d remain), skiping %sSEI message\n", ptype, psize, nal_size-start, written ? "end of " : ""));
+			break;
+		}
 		switch (ptype) {
 		/*remove SEI messages forbidden in MP4*/
 		case 3: /*filler data*/
@@ -2638,31 +3166,28 @@ u32 gf_media_avc_reformat_sei(char *buffer, u32 nal_size, AVCState *avc)
 		case 5: /*user unregistered */
 		{
 			char prev;
-			assert(start+psize+1 < nal_size+1);
 			prev = sei_without_emulation_bytes[start+psize+1];
 			sei_without_emulation_bytes[start+psize+1] = 0;
-#ifdef VERBOSE
 			GF_LOG(GF_LOG_DEBUG, GF_LOG_CODING, ("[avc-h264] SEI user message %s\n", sei_without_emulation_bytes+start+16));
-#endif
 			sei_without_emulation_bytes[start+psize+1] = prev;
 		}
-			break;
-		
+		break;
+
 		case 6: /*recovery point*/
-			{
-				GF_BitStream *rp_bs = gf_bs_new(sei_without_emulation_bytes + start, psize, GF_BITSTREAM_READ);
-				avc_parse_recovery_point_sei(rp_bs, avc);
-				gf_bs_del(rp_bs);
-			}
-			break;
+		{
+			GF_BitStream *rp_bs = gf_bs_new(sei_without_emulation_bytes + start, psize, GF_BITSTREAM_READ);
+			avc_parse_recovery_point_sei(rp_bs, avc);
+			gf_bs_del(rp_bs);
+		}
+		break;
 
 		case 1: /*pic_timing*/
-			{
-				GF_BitStream *pt_bs = gf_bs_new(sei_without_emulation_bytes + start, psize, GF_BITSTREAM_READ);
-				avc_parse_pic_timing_sei(pt_bs, avc);
-				gf_bs_del(pt_bs);
-			}
-			break;
+		{
+			GF_BitStream *pt_bs = gf_bs_new(sei_without_emulation_bytes + start, psize, GF_BITSTREAM_READ);
+			avc_parse_pic_timing_sei(pt_bs, avc);
+			gf_bs_del(pt_bs);
+		}
+		break;
 
 		case 0: /*buffering period*/
 		case 2: /*pan scan rect*/
@@ -2694,7 +3219,8 @@ u32 gf_media_avc_reformat_sei(char *buffer, u32 nal_size, AVCState *avc)
 			var = psize;
 			while (var>=255) {
 				new_buffer[written] = (char) 0xff;
-				written++; var-=255;
+				written++;
+				var-=255;
 			}
 			new_buffer[written] = (char) var;
 			written++;
@@ -2838,7 +3364,7 @@ GF_Err gf_media_avc_change_par(GF_AVCConfig *avcc, s32 ar_n, s32 ar_d)
 		gf_bs_get_content(mod, (char **) &no_emulation_buf, &flag);
 		emulation_bytes = avc_emulation_bytes_add_count(no_emulation_buf, flag);
 		if (flag+emulation_bytes+1>slc->size)
-			slc->data = (char*)gf_realloc(slc->data, flag+emulation_bytes);
+			slc->data = (char*)gf_realloc(slc->data, flag+emulation_bytes+1);
 		slc->size = avc_add_emulation_bytes(no_emulation_buf, slc->data+1, flag)+1;
 
 		gf_bs_del(mod);
@@ -2888,7 +3414,7 @@ GF_Err gf_avc_get_pps_info(char *pps_data, u32 pps_size, u32 *pps_id, u32 *sps_i
 	}
 	/*nal hdr*/ gf_bs_read_int(bs, 8);
 
-	*pps_id = bs_get_ue(bs);  
+	*pps_id = bs_get_ue(bs);
 	*sps_id = bs_get_ue(bs);
 
 exit:
@@ -2914,29 +3440,29 @@ Bool gf_media_hevc_slice_is_intra(HEVCState *hevc)
 	case GF_HEVC_NALU_SLICE_IDR_W_DLP:
 	case GF_HEVC_NALU_SLICE_IDR_N_LP:
 	case GF_HEVC_NALU_SLICE_CRA:
-		return 1;
+		return GF_TRUE;
 	default:
-		return 0;
+		return GF_FALSE;
 	}
 }
 
-Bool gf_media_hevc_slice_is_IDR(HEVCState *hevc) 
+Bool gf_media_hevc_slice_is_IDR(HEVCState *hevc)
 {
 	if (hevc->sei.recovery_point.valid)
 	{
 		hevc->sei.recovery_point.valid = 0;
-		return 1;
+		return GF_TRUE;
 	}
 	switch (hevc->s_info.nal_unit_type) {
 	case GF_HEVC_NALU_SLICE_IDR_W_DLP:
 	case GF_HEVC_NALU_SLICE_IDR_N_LP:
-		return 1;
+		return GF_TRUE;
 	default:
-		return 0;
+		return GF_FALSE;
 	}
 }
 
-static Bool parse_short_term_ref_pic_set(GF_BitStream *bs, HEVC_SPS *sps, u32 idx_rps) 
+static Bool parse_short_term_ref_pic_set(GF_BitStream *bs, HEVC_SPS *sps, u32 idx_rps)
 {
 	u32 i;
 	Bool inter_ref_pic_set_prediction_flag = 0;
@@ -2950,7 +3476,7 @@ static Bool parse_short_term_ref_pic_set(GF_BitStream *bs, HEVC_SPS *sps, u32 id
 		u32 delta_rps_sign;
 		u32 abs_delta_rps_minus1, nb_ref_pics;
 		s32 deltaRPS;
-	    u32 k = 0, k0 = 0, k1 = 0;
+		u32 k = 0, k0 = 0, k1 = 0;
 		if (idx_rps == sps->num_short_term_ref_pic_sets)
 			delta_idx_minus1 = bs_get_ue(bs);
 
@@ -2973,14 +3499,14 @@ static Bool parse_short_term_ref_pic_set(GF_BitStream *bs, HEVC_SPS *sps, u32 id
 			}
 			if ((ref_idc==1) || (ref_idc== 2)) {
 				s32 deltaPOC = deltaRPS;
-				if (i < nb_ref_pics) 
+				if (i < nb_ref_pics)
 					deltaPOC += ref_ps->delta_poc[i];
-				
+
 				rps->delta_poc[k] = deltaPOC;
 
 				if (deltaPOC < 0)  k0++;
 				else k1++;
-				
+
 				k++;
 			}
 		}
@@ -2990,6 +3516,10 @@ static Bool parse_short_term_ref_pic_set(GF_BitStream *bs, HEVC_SPS *sps, u32 id
 		s32 prev = 0, poc = 0;
 		sps->rps[idx_rps].num_negative_pics = bs_get_ue(bs);
 		sps->rps[idx_rps].num_positive_pics = bs_get_ue(bs);
+		if (sps->rps[idx_rps].num_negative_pics>16)
+			return GF_FALSE;
+		if (sps->rps[idx_rps].num_positive_pics>16)
+			return GF_FALSE;
 		for (i=0; i<sps->rps[idx_rps].num_negative_pics; i++) {
 			u32 delta_poc_s0_minus1 = bs_get_ue(bs);
 			poc = prev - delta_poc_s0_minus1 - 1;
@@ -3005,42 +3535,113 @@ static Bool parse_short_term_ref_pic_set(GF_BitStream *bs, HEVC_SPS *sps, u32 id
 			/*used_by_curr_pic_s1_flag[ i ] = */gf_bs_read_int(bs, 1);
 		}
 	}
-	return 1;
+	return GF_TRUE;
 }
 
-#define PARSE_FULL_HEADER	0
-static s32 hevc_parse_slice_segment(GF_BitStream *bs, HEVCState *hevc, HEVCSliceInfo *si) 
+void hevc_pred_weight_table(GF_BitStream *bs, HEVCState *hevc, HEVCSliceInfo *si, HEVC_PPS *pps, HEVC_SPS *sps, u32 num_ref_idx_l0_active, u32 num_ref_idx_l1_active)
 {
-#if PARSE_FULL_HEADER
+	u32 i, num_ref_idx;
+	Bool first_pass=GF_TRUE;
+	u8 luma_weights[20], chroma_weights[20];
+	u32 ChromaArrayType = sps->separate_colour_plane_flag ? 0 : sps->chroma_format_idc;
+
+	num_ref_idx = num_ref_idx_l0_active;
+
+	/*luma_log2_weight_denom=*/i=bs_get_ue(bs);
+	if (ChromaArrayType != 0)
+		/*delta_chroma_log2_weight_denom=*/i=bs_get_se(bs);
+
+parse_weights:
+	for (i=0; i<num_ref_idx; i++) {
+		luma_weights[i] = gf_bs_read_int(bs, 1);
+		//infered to be 0 if not present
+		chroma_weights[i] = 0;
+	}
+	if (ChromaArrayType != 0) {
+		for (i=0; i<num_ref_idx; i++) {
+			chroma_weights[i] = gf_bs_read_int(bs, 1);
+		}
+	}
+	for (i=0; i<num_ref_idx; i++) {
+		if (luma_weights[i]) {
+			/*delta_luma_weight_l0[ i ]=*/bs_get_se(bs);
+			/*luma_offset_l0[ i ]=*/bs_get_se(bs);
+		}
+		if (chroma_weights[i]) {
+			/*delta_chroma_weight_l0[ i ][ 0 ]=*/bs_get_se(bs);
+			/*delta_chroma_offset_l0[ i ][ 0 ]=*/bs_get_se(bs);
+
+			/*delta_chroma_weight_l0[ i ][ 1 ]=*/bs_get_se(bs);
+			/*delta_chroma_offset_l0[ i ][ 1 ]=*/bs_get_se(bs);
+		}
+	}
+
+	if (si->slice_type==GF_HEVC_SLICE_TYPE_B) {
+		if (!first_pass) return;
+		first_pass=GF_FALSE;
+		num_ref_idx = num_ref_idx_l1_active;
+		goto parse_weights;
+	}
+}
+
+static
+Bool ref_pic_lists_modification(GF_BitStream *bs, u32 slice_type, u32 num_ref_idx_l0_active, u32 num_ref_idx_l1_active)
+{
+	//u32 i;
+	Bool ref_pic_list_modification_flag_l0 = gf_bs_read_int(bs, 1);
+	if (ref_pic_list_modification_flag_l0) {
+		/*for (i=0; i<num_ref_idx_l0_active; i++) {
+			list_entry_l0[i] = *//*gf_bs_read_int(bs, (u32)ceil(log(getNumPicTotalCurr())/log(2)));
+		}*/
+		return GF_FALSE;
+	}
+	if (slice_type == GF_HEVC_SLICE_TYPE_B) {
+		Bool ref_pic_list_modification_flag_l1 = gf_bs_read_int(bs, 1);
+		if (ref_pic_list_modification_flag_l1) {
+			/*for (i=0; i<num_ref_idx_l1_active; i++) {
+				list_entry_l1[i] = *//*gf_bs_read_int(bs, (u32)ceil(log(getNumPicTotalCurr()) / log(2)));
+			}*/
+			return GF_FALSE;
+		}
+	}
+
+	return GF_TRUE;
+}
+
+static
+s32 hevc_parse_slice_segment(GF_BitStream *bs, HEVCState *hevc, HEVCSliceInfo *si)
+{
 	u32 i, j;
-#endif
+	u32 num_ref_idx_l0_active=0, num_ref_idx_l1_active=0;
 	HEVC_PPS *pps;
 	HEVC_SPS *sps;
 	s32 pps_id;
-	Bool RapPicFlag = 0;
-	Bool IDRPicFlag = 0;
-	
+	Bool RapPicFlag = GF_FALSE;
+	Bool IDRPicFlag = GF_FALSE;
+
 	si->first_slice_segment_in_pic_flag = gf_bs_read_int(bs, 1);
 
 	switch (si->nal_unit_type) {
 	case GF_HEVC_NALU_SLICE_IDR_W_DLP:
 	case GF_HEVC_NALU_SLICE_IDR_N_LP:
-		IDRPicFlag = 1;
-		RapPicFlag = 1;
+		IDRPicFlag = GF_TRUE;
+		RapPicFlag = GF_TRUE;
 		break;
 	case GF_HEVC_NALU_SLICE_BLA_W_LP:
 	case GF_HEVC_NALU_SLICE_BLA_W_DLP:
 	case GF_HEVC_NALU_SLICE_BLA_N_LP:
 	case GF_HEVC_NALU_SLICE_CRA:
-		RapPicFlag = 1;
+		RapPicFlag = GF_TRUE;
 		break;
 	}
 
 	if (RapPicFlag) {
 		/*Bool no_output_of_prior_pics_flag = */gf_bs_read_int(bs, 1);
 	}
+
 	pps_id = bs_get_ue(bs);
-	if (pps_id>=64) return -1;
+	if (pps_id>=64)
+		return -1;
 
 	pps = &hevc->pps[pps_id];
 	sps = &hevc->sps[pps->sps_id];
@@ -3050,7 +3651,7 @@ static s32 hevc_parse_slice_segment(GF_BitStream *bs, HEVCState *hevc, HEVCSlice
 	if (!si->first_slice_segment_in_pic_flag && pps->dependent_slice_segments_enabled_flag) {
 		si->dependent_slice_segment_flag = gf_bs_read_int(bs, 1);
 	} else {
-		si->dependent_slice_segment_flag = 0;
+		si->dependent_slice_segment_flag = GF_FALSE;
 	}
 
 	if (!si->first_slice_segment_in_pic_flag) {
@@ -3058,126 +3659,130 @@ static s32 hevc_parse_slice_segment(GF_BitStream *bs, HEVCState *hevc, HEVCSlice
 	} else {
 		si->slice_segment_address = 0;
 	}
-	
+
 	if( !si->dependent_slice_segment_flag ) {
-#if PARSE_FULL_HEADER
 		Bool deblocking_filter_override_flag=0;
 		Bool slice_temporal_mvp_enabled_flag = 0;
-        Bool slice_sao_luma_flag=0;
+		Bool slice_sao_luma_flag=0;
 		Bool slice_sao_chroma_flag=0;
 		Bool slice_deblocking_filter_disabled_flag=0;
-#endif
 
 		//"slice_reserved_undetermined_flag[]"
 		gf_bs_read_int(bs, pps->num_extra_slice_header_bits);
 
 		si->slice_type = bs_get_ue(bs);
+		if (si->slice_type == GF_HEVC_SLICE_TYPE_P)
+			si->slice_type = GF_HEVC_SLICE_TYPE_P;
 
 		if(pps->output_flag_present_flag)
 			/*pic_output_flag = */gf_bs_read_int(bs, 1);
-		
+
 		if (sps->separate_colour_plane_flag == 1)
 			/*colour_plane_id = */gf_bs_read_int(bs, 2);
 
 		if (IDRPicFlag) {
 			si->poc_lsb = 0;
+
+			//if not asked to parse full header, abort since we know the poc
+			if (!hevc->full_slice_header_parse) return 0;
+			
 		} else {
 			si->poc_lsb = gf_bs_read_int(bs, sps->log2_max_pic_order_cnt_lsb);
 
-#if !PARSE_FULL_HEADER
-		}
-	}
-#else
+			//if not asked to parse full header, abort once we have the poc
+			if (!hevc->full_slice_header_parse) return 0;
+
 			if (/*short_term_ref_pic_set_sps_flag =*/gf_bs_read_int(bs, 1) == 0) {
 				Bool ret = parse_short_term_ref_pic_set(bs, sps, sps->num_short_term_ref_pic_sets );
-				if (!ret) return 0;
+				if (!ret)
+					return -1;
 			} else if( sps->num_short_term_ref_pic_sets > 1 ) {
-                u32 numbits = 0;
-                s32 short_term_ref_pic_set_idx;
-                while ( (u32) (1 << numbits) < sps->num_short_term_ref_pic_sets)
-                    numbits++;
-                if (numbits > 0)
-                    short_term_ref_pic_set_idx = gf_bs_read_int(bs, numbits);
-                else
-                    short_term_ref_pic_set_idx = 0;
+				u32 numbits = 0;
+
+				while ( (u32) (1 << numbits) < sps->num_short_term_ref_pic_sets)
+					numbits++;
+				if (numbits > 0)
+					/*s32 short_term_ref_pic_set_idx = */gf_bs_read_int(bs, numbits);
+				/*else
+					short_term_ref_pic_set_idx = 0;*/
 			}
 			if (sps->long_term_ref_pics_present_flag ) {
 				u8 DeltaPocMsbCycleLt[32];
 				u32 num_long_term_sps = 0;
-	            u32 num_long_term_pics = 0;
+				u32 num_long_term_pics = 0;
 				if (sps->num_long_term_ref_pic_sps > 0 ) {
 					num_long_term_sps = bs_get_ue(bs);
 				}
 				num_long_term_pics = bs_get_ue(bs);
 
-                for (i = 0; i < num_long_term_sps + num_long_term_pics; i++ ) {
-                    if( i < num_long_term_sps ) {
-                        u8 lt_idx_sps = 0;
-                        if (sps->num_long_term_ref_pic_sps > 1)
-                            lt_idx_sps = gf_bs_read_int(bs, gf_get_bit_size(sps->num_long_term_ref_pic_sps) );
-                    } else {
-                        /*PocLsbLt[ i ] = */ gf_bs_read_int(bs, sps->log2_max_pic_order_cnt_lsb);
-                        /*UsedByCurrPicLt[ i ] = */ gf_bs_read_int(bs, 1);
-                    }
-                    if (/*delta_poc_msb_present_flag[ i ] = */ gf_bs_read_int(bs, 1) ) {
-                        if( i == 0 || i == num_long_term_sps )
-                            DeltaPocMsbCycleLt[i] = bs_get_ue(bs);
-                        else
-                            DeltaPocMsbCycleLt[i] = bs_get_ue(bs) + DeltaPocMsbCycleLt[i-1];
+				for (i = 0; i < num_long_term_sps + num_long_term_pics; i++ ) {
+					if( i < num_long_term_sps ) {
+						if (sps->num_long_term_ref_pic_sps > 1)
+							/*u8 lt_idx_sps = */gf_bs_read_int(bs, gf_get_bit_size(sps->num_long_term_ref_pic_sps) );
+					} else {
+						/*PocLsbLt[ i ] = */ gf_bs_read_int(bs, sps->log2_max_pic_order_cnt_lsb);
+						/*UsedByCurrPicLt[ i ] = */ gf_bs_read_int(bs, 1);
 					}
-                }
+					if (/*delta_poc_msb_present_flag[ i ] = */ gf_bs_read_int(bs, 1) ) {
+						if( i == 0 || i == num_long_term_sps )
+							DeltaPocMsbCycleLt[i] = bs_get_ue(bs);
+						else
+							DeltaPocMsbCycleLt[i] = bs_get_ue(bs) + DeltaPocMsbCycleLt[i-1];
+					}
+				}
 			}
-            if (sps->temporal_mvp_enable_flag)
-                slice_temporal_mvp_enabled_flag = gf_bs_read_int(bs, 1);
+			if (sps->temporal_mvp_enable_flag)
+				slice_temporal_mvp_enabled_flag = gf_bs_read_int(bs, 1);
 		}
-        if (sps->sample_adaptive_offset_enabled_flag) {
-            slice_sao_luma_flag = gf_bs_read_int(bs, 1);
-			slice_sao_chroma_flag = gf_bs_read_int(bs, 1);
-        }
+		if (sps->sample_adaptive_offset_enabled_flag) {
+			u32 ChromaArrayType = sps->separate_colour_plane_flag ? 0 : sps->chroma_format_idc;
+			slice_sao_luma_flag = gf_bs_read_int(bs, 1);
+			if (ChromaArrayType!=0)
+				slice_sao_chroma_flag = gf_bs_read_int(bs, 1);
+		}
 
-		if (si->slice_type == GF_HEVC_TYPE_P || si->slice_type == GF_HEVC_TYPE_B) {
-            //u32 NumPocTotalCurr;
-			u32 num_ref_idx_l0_active, num_ref_idx_l1_active;
-
+		if (si->slice_type == GF_HEVC_SLICE_TYPE_P || si->slice_type == GF_HEVC_SLICE_TYPE_B) {
+			//u32 NumPocTotalCurr;
 			num_ref_idx_l0_active = pps->num_ref_idx_l0_default_active;
 			num_ref_idx_l1_active = 0;
-			if (si->slice_type == GF_HEVC_TYPE_B)
-                num_ref_idx_l1_active = pps->num_ref_idx_l1_default_active;
+			if (si->slice_type == GF_HEVC_SLICE_TYPE_B)
+				num_ref_idx_l1_active = pps->num_ref_idx_l1_default_active;
 
 			if ( /*num_ref_idx_active_override_flag =*/gf_bs_read_int(bs, 1) ) {
 				num_ref_idx_l0_active = 1 + bs_get_ue(bs);
-				if (si->slice_type == GF_HEVC_TYPE_B)
+				if (si->slice_type == GF_HEVC_SLICE_TYPE_B)
 					num_ref_idx_l1_active = 1 + bs_get_ue(bs);
 			}
 
-//            if (pps->lists_modification_present_flag && NumPocTotalCurr > 1) {
-	            if (pps->lists_modification_present_flag ) {
-				GF_LOG(GF_LOG_INFO, GF_LOG_CODING, ("[hehv] ref_pic_lists_modification( ) not implemented\n"));
-				return 0;
+			if (pps->lists_modification_present_flag /*TODO: && NumPicTotalCurr > 1*/) {
+				if (!ref_pic_lists_modification(bs, si->slice_type, num_ref_idx_l0_active, num_ref_idx_l1_active)) {
+					GF_LOG(GF_LOG_WARNING, GF_LOG_CODING, ("[hevc] ref_pic_lists_modification( ) not implemented\n"));
+					return -1;
+				}
 			}
 
-			if (si->slice_type == GF_HEVC_TYPE_B)
+			if (si->slice_type == GF_HEVC_SLICE_TYPE_B)
 				/*mvd_l1_zero_flag=*/gf_bs_read_int(bs, 1);
 			if (pps->cabac_init_present_flag)
 				/*cabac_init_flag=*/gf_bs_read_int(bs, 1);
 
 			if (slice_temporal_mvp_enabled_flag) {
-				Bool collocated_from_l0_flag = 0;
-				if (si->slice_type == GF_HEVC_TYPE_B)
+				// When collocated_from_l0_flag is not present, it is inferred to be equal to 1.
+				Bool collocated_from_l0_flag = 1;
+				if (si->slice_type == GF_HEVC_SLICE_TYPE_B)
 					collocated_from_l0_flag = gf_bs_read_int(bs, 1);
-				
-				if ( (collocated_from_l0_flag && num_ref_idx_l0_active-1 > 0 ) 
-					|| ( !collocated_from_l0_flag && num_ref_idx_l1_active-1 > 0 )
-				) {
+
+				if ( (collocated_from_l0_flag && (num_ref_idx_l0_active>1) )
+				        || ( !collocated_from_l0_flag && (num_ref_idx_l1_active>1) )
+				   ) {
 					/*collocated_ref_idx=*/bs_get_ue(bs);
 				}
 			}
 
-			if ( (pps->weighted_pred_flag && si->slice_type == GF_HEVC_TYPE_P ) 
-				|| ( pps->weighted_bipred_flag && si->slice_type == GF_HEVC_TYPE_B) 
-			) {
-				GF_LOG(GF_LOG_INFO, GF_LOG_CODING, ("[hehv] pred_weight_table not implemented\n"));
-				return 0;
+			if ( (pps->weighted_pred_flag && si->slice_type == GF_HEVC_SLICE_TYPE_P )
+			        || ( pps->weighted_bipred_flag && si->slice_type == GF_HEVC_SLICE_TYPE_B)
+			   ) {
+				hevc_pred_weight_table(bs, hevc, si, pps, sps, num_ref_idx_l0_active, num_ref_idx_l1_active);
 			}
 			/*five_minus_max_num_merge_cand=*/bs_get_ue(bs);
 		}
@@ -3198,35 +3803,55 @@ static s32 hevc_parse_slice_segment(GF_BitStream *bs, HEVCState *hevc, HEVCSlice
 			}
 		}
 		if( pps->loop_filter_across_slices_enabled_flag
-			&& ( slice_sao_luma_flag || slice_sao_chroma_flag || !slice_deblocking_filter_disabled_flag )
-		) {
+		        && ( slice_sao_luma_flag || slice_sao_chroma_flag || !slice_deblocking_filter_disabled_flag )
+		  ) {
 			/*slice_loop_filter_across_slices_enabled_flag = */gf_bs_read_int(bs, 1);
 		}
 	}
+	//dependent slice segment
+	else {
+		//if not asked to parse full header, abort
+		if (!hevc->full_slice_header_parse) return 0;
+	}
 
+	si->entry_point_start_bits = ((u32)gf_bs_get_position(bs)-1)*8 + gf_bs_get_bit_position(bs);
 
 	if (pps->tiles_enabled_flag || pps->entropy_coding_sync_enabled_flag ) {
 		u32 num_entry_point_offsets = bs_get_ue(bs);
 		if ( num_entry_point_offsets > 0) {
-            u32 offset = bs_get_ue(bs) + 1;
-            u32 segments = offset >> 4;
-            s32 remain = (offset & 15);
+			u32 offset = bs_get_ue(bs) + 1;
+			u32 segments = offset >> 4;
+			s32 remain = (offset & 15);
 
 			for (i=0; i<num_entry_point_offsets; i++) {
-                u32 res = 0;
-                for (j=0; j<segments; j++) {
-                    res <<= 16;
-                    res += gf_bs_read_int(bs, 16);
-                }
-                if (remain) {
-                    res <<= remain;
-                    res += gf_bs_read_int(bs, remain);
-                }
-                // entry_point_offset = val + 1; // +1; // +1 to get the size
-            }
+				u32 res = 0;
+				for (j=0; j<segments; j++) {
+					res <<= 16;
+					res += gf_bs_read_int(bs, 16);
+				}
+				if (remain) {
+					res <<= remain;
+					res += gf_bs_read_int(bs, remain);
+				}
+				// entry_point_offset = val + 1; // +1; // +1 to get the size
+			}
 		}
 	}
-#endif //PARSE_FULL_HEADER
+
+	if (pps->slice_segment_header_extension_present_flag) {
+		u32 size_ext = bs_get_ue(bs);
+		while (size_ext) {
+			gf_bs_read_int(bs, 8);
+			size_ext--;
+		}
+	}
+
+	if (gf_bs_read_int(bs, 1) == 0) {
+		GF_LOG(GF_LOG_WARNING, GF_LOG_CODING, ("Error parsing slice header: byte_align not found at end of header !\n"));
+	}
+
+	gf_bs_align(bs);
+	si->payload_start_offset = (s32)gf_bs_get_position(bs);
 	return 0;
 }
 
@@ -3242,7 +3867,7 @@ static void hevc_compute_poc(HEVCSliceInfo *si)
 		si->poc_msb_prev = 0;
 		break;
 	}
-	
+
 	if ((si->poc_lsb < si->poc_lsb_prev) && (	si->poc_lsb_prev - si->poc_lsb >= max_poc_lsb / 2) )
 		si->poc_msb = si->poc_msb_prev + max_poc_lsb;
 	else if ((si->poc_lsb > si->poc_lsb_prev) && (si->poc_lsb - si->poc_lsb_prev > max_poc_lsb / 2))
@@ -3259,6 +3884,28 @@ static void hevc_compute_poc(HEVCSliceInfo *si)
 	}
 	si->poc = si->poc_msb + si->poc_lsb;
 }
+
+
+static Bool hevc_parse_nal_header(GF_BitStream *bs, u8 *nal_unit_type, u8 *temporal_id, u8 *layer_id)
+{
+	u32 val;
+	val = gf_bs_read_int(bs, 1);
+	if (val) return GF_FALSE;
+
+	val = gf_bs_read_int(bs, 6);
+	if (nal_unit_type) *nal_unit_type = val;
+
+	val = gf_bs_read_int(bs, 6);
+	if (layer_id) *layer_id = val;
+
+	val = gf_bs_read_int(bs, 3);
+	if (! val)
+		return GF_FALSE;
+	val -= 1;
+	if (temporal_id) *temporal_id = val;
+	return GF_TRUE;
+}
+
 
 void profile_tier_level(GF_BitStream *bs, Bool ProfilePresentFlag, u8 MaxNumSubLayersMinus1, HEVC_ProfileTierLevel *ptl)
 {
@@ -3278,80 +3925,641 @@ void profile_tier_level(GF_BitStream *bs, Bool ProfilePresentFlag, u8 MaxNumSubL
 	}
 	ptl->level_idc = gf_bs_read_int(bs, 8);
 	for (i=0; i<MaxNumSubLayersMinus1; i++) {
-        ptl->sub_ptl[i].profile_present_flag = gf_bs_read_int(bs, 1);
+		ptl->sub_ptl[i].profile_present_flag = gf_bs_read_int(bs, 1);
 		ptl->sub_ptl[i].level_present_flag = gf_bs_read_int(bs, 1);
-		if (ProfilePresentFlag && ptl->sub_ptl[i].profile_present_flag) {
+	}
+	if (MaxNumSubLayersMinus1>0) {
+		for (i=MaxNumSubLayersMinus1; i<8; i++) {
+			/*reserved_zero_2bits*/gf_bs_read_int(bs, 2);
+		}
+	}
+
+	for (i=0; i<MaxNumSubLayersMinus1; i++) {
+		if (ptl->sub_ptl[i].profile_present_flag) {
 			ptl->sub_ptl[i].profile_space = gf_bs_read_int(bs, 2);
 			ptl->sub_ptl[i].tier_flag = gf_bs_read_int(bs, 1);
 			ptl->sub_ptl[i].profile_idc = gf_bs_read_int(bs, 5);
 			ptl->sub_ptl[i].profile_compatibility_flag = gf_bs_read_int(bs, 32);
-			/*sub_layer_reserved_zero_16bits*/gf_bs_read_int(bs, 16);
+			/*ptl->sub_ptl[i].progressive_source_flag =*/ gf_bs_read_int(bs, 1);
+			/*ptl->sub_ptl[i].interlaced_source_flag =*/ gf_bs_read_int(bs, 1);
+			/*ptl->sub_ptl[i].non_packed_constraint_flag =*/ gf_bs_read_int(bs, 1);
+			/*ptl->sub_ptl[i].frame_only_constraint_flag =*/ gf_bs_read_int(bs, 1);
+			/*ptl->sub_ptl[i].reserved_44bits =*/ gf_bs_read_long_int(bs, 44);
 		}
 		if (ptl->sub_ptl[i].level_present_flag)
 			ptl->sub_ptl[i].level_idc = gf_bs_read_int(bs, 8);
 	}
 }
 
-void bit_rate_pic_rate_info(GF_BitStream *bs, u8 level_low, u8 level_high, HEVC_VPS *vps)
+static u32 scalability_type_to_idx(HEVC_VPS *vps, u32 scalability_type)
 {
-	u8 i;
-	for (i=level_low; i<=level_high; i++) {
-		Bool bit_rate_info_present_flag = gf_bs_read_int(bs, 1);
-		Bool pic_rate_info_present_flag = gf_bs_read_int(bs, 1);
-		if (bit_rate_info_present_flag) {
-			vps->rates[i].avg_bit_rate = gf_bs_read_int(bs, 16);
-			vps->rates[i].max_bit_rate = gf_bs_read_int(bs, 16);
+	u32 idx = 0, type;
+	for (type=0; type < scalability_type; type++) {
+		idx += (vps->scalability_mask[type] ? 1 : 0 );
+	}
+	return idx;
+}
+
+#define LHVC_VIEW_ORDER_INDEX  1
+#define LHVC_SCALABILITY_INDEX	2
+
+static u32 lhvc_get_scalability_id(HEVC_VPS *vps, u32 layer_id_in_vps, u32 scalability_type )
+{
+	u32 idx;
+	if (!vps->scalability_mask[scalability_type]) return 0;
+	idx = scalability_type_to_idx(vps, scalability_type);
+	return vps->dimension_id[layer_id_in_vps][idx];
+}
+
+static u32 lhvc_get_view_index(HEVC_VPS *vps, u32 id)
+{
+	return lhvc_get_scalability_id(vps, vps->layer_id_in_vps[id], LHVC_VIEW_ORDER_INDEX);
+}
+
+static u32 lhvc_get_num_views(HEVC_VPS *vps)
+{
+	u32 numViews = 1, i;
+	for (i=0; i<vps->max_layers; i++ ) {
+		u32 layer_id = vps->layer_id_in_nuh[i];
+		if (i>0 && ( lhvc_get_view_index( vps, layer_id) != lhvc_get_scalability_id( vps, i-1, LHVC_VIEW_ORDER_INDEX) )) {
+			numViews++;
 		}
-		if (pic_rate_info_present_flag) {
-			vps->rates[i].constand_pic_rate_idc = gf_bs_read_int(bs, 2);
-			vps->rates[i].avg_pic_rate = gf_bs_read_int(bs, 16);
+	}
+	return numViews;
+}
+
+static void lhvc_parse_rep_format(HEVC_RepFormat *fmt, GF_BitStream *bs)
+{
+	u8 chroma_bitdepth_present_flag;
+	fmt->pic_width_luma_samples = gf_bs_read_int(bs, 16);
+	fmt->pic_height_luma_samples = gf_bs_read_int(bs, 16);
+	chroma_bitdepth_present_flag = gf_bs_read_int(bs, 1);
+	if (chroma_bitdepth_present_flag) {
+		fmt->chroma_format_idc = gf_bs_read_int(bs, 2);
+
+		if (fmt->chroma_format_idc == 3)
+			fmt->separate_colour_plane_flag = gf_bs_read_int(bs, 1);
+		fmt->bit_depth_luma = 8 + gf_bs_read_int(bs, 4);
+		fmt->bit_depth_chroma = 8 + gf_bs_read_int(bs, 4);
+	}
+	if (/*conformance_window_vps_flag*/ gf_bs_read_int(bs, 1)) {
+		/*conf_win_vps_left_offset*/bs_get_ue(bs);
+		/*conf_win_vps_right_offset*/bs_get_ue(bs);
+		/*conf_win_vps_top_offset*/bs_get_ue(bs);
+		/*conf_win_vps_bottom_offset*/bs_get_ue(bs);
+	}
+}
+
+
+static Bool hevc_parse_vps_extension(HEVC_VPS *vps, GF_BitStream *bs)
+{
+	u8 splitting_flag, vps_nuh_layer_id_present_flag, view_id_len;
+	u32 i, j, num_scalability_types, num_add_olss, num_add_layer_set, num_indepentdent_layers, nb_bits, default_output_layer_idc=0;
+	u8 dimension_id_len[16], dim_bit_offset[16];
+	u8 /*avc_base_layer_flag, */NumLayerSets, /*default_one_target_output_layer_flag, */rep_format_idx_present_flag, ols_ids_to_ls_idx;
+	u8 layer_set_idx_for_ols_minus1[MAX_LHVC_LAYERS];
+	u32 k,d, r, p, iNuhLId, jNuhLId;
+	u8 num_direct_ref_layers[64], num_pred_layers[64], num_layers_in_tree_partition[MAX_LHVC_LAYERS];
+	u8 dependency_flag[MAX_LHVC_LAYERS][MAX_LHVC_LAYERS], id_pred_layers[64][MAX_LHVC_LAYERS];
+//	u8 num_ref_layers[64];
+//	u8 tree_partition_layer_id[MAX_LHVC_LAYERS][MAX_LHVC_LAYERS];
+//	u8 id_ref_layers[64][MAX_LHVC_LAYERS];
+//	u8 id_direct_ref_layers[64][MAX_LHVC_LAYERS];
+	u8 layer_id_in_list_flag[64];
+	Bool OutputLayerFlag[MAX_LHVC_LAYERS][MAX_LHVC_LAYERS];
+
+	vps->vps_extension_found=1;
+	if ((vps->max_layers > 1) && vps->base_layer_internal_flag)
+		profile_tier_level(bs, 0, vps->max_sub_layers-1, &vps->ext_ptl[0]);
+
+	splitting_flag = gf_bs_read_int(bs, 1);
+	num_scalability_types = 0;
+	for (i=0; i<16; i++) {
+		vps->scalability_mask[i] = gf_bs_read_int(bs, 1);
+		num_scalability_types += vps->scalability_mask[i];
+	}
+	if (num_scalability_types>=16) {
+		num_scalability_types=16;
+	}
+	dimension_id_len[0] = 0;
+	for (i=0; i<(num_scalability_types - splitting_flag); i++) {
+		dimension_id_len[i] = 1 + gf_bs_read_int(bs, 3);
+	}
+	
+	if (splitting_flag) {
+		for (i = 0; i < num_scalability_types; i++) {
+			dim_bit_offset[i] = 0;
+			for (j = 0; j < i; j++)
+				dim_bit_offset[i] +=  dimension_id_len[j];
+		}
+		dimension_id_len[num_scalability_types-1] = 1 + (5 - dim_bit_offset[num_scalability_types-1]);
+		dim_bit_offset[num_scalability_types] = 6;
+	}
+
+	vps_nuh_layer_id_present_flag = gf_bs_read_int(bs, 1);
+	vps->layer_id_in_nuh[0] = 0;
+	vps->layer_id_in_vps[0] = 0;
+	for (i=1; i<vps->max_layers; i++) {
+		if (vps_nuh_layer_id_present_flag) {
+			vps->layer_id_in_nuh[i] = gf_bs_read_int(bs, 6);
+		} else {
+			vps->layer_id_in_nuh[i] = i;
+		}
+		vps->layer_id_in_vps[vps->layer_id_in_nuh[i]] = i;
+
+		if (!splitting_flag) {
+			for (j=0; j<num_scalability_types; j++) {
+				vps->dimension_id[i][j] = gf_bs_read_int(bs, dimension_id_len[j]);
+			}
+		}
+	}
+	
+	if (splitting_flag) {
+		for (i = 0; i<vps->max_layers; i++)
+			for (j=0; j<num_scalability_types; j++)
+				vps->dimension_id[i][j] = ((vps->layer_id_in_nuh[i] & ((1 << dim_bit_offset[j+1]) -1)) >> dim_bit_offset[j]);
+	} else {
+		for (j=0; j<num_scalability_types; j++)
+			vps->dimension_id[0][j] = 0;
+	}
+
+	view_id_len = gf_bs_read_int(bs, 4);
+	if (view_id_len > 0) {
+		for( i = 0; i < lhvc_get_num_views(vps); i++ ) {
+			/*m_viewIdVal[i] = */ gf_bs_read_int(bs, view_id_len);
+		}
+	}
+
+	for (i=1; i<vps->max_layers; i++) {
+		for (j=0; j<i; j++) {
+			vps->direct_dependency_flag[i][j] = gf_bs_read_int(bs, 1);
+		}
+	}
+
+	//we do the test on MAX_LHVC_LAYERS and break in the loop to avoid a wrong GCC 4.8 warning on array bounds
+	for (i = 0; i < MAX_LHVC_LAYERS; i++) {
+		if (i >= vps->max_layers) break;
+		for (j = 0; j < vps->max_layers; j++) {
+			dependency_flag[i][j] = vps->direct_dependency_flag[i][j];
+			for (k = 0; k < i; k++)
+				if (vps->direct_dependency_flag[i][k] && vps->direct_dependency_flag[k][j])
+					dependency_flag[i][j] = 1;
+		}
+	}
+
+	for (i = 0; i < vps->max_layers; i++) {
+		iNuhLId = vps->layer_id_in_nuh[i];
+		d = r = p = 0;
+		for (j = 0; j < vps->max_layers; j++) {
+			jNuhLId = vps->layer_id_in_nuh[j];
+			if (vps->direct_dependency_flag[i][j]) {
+//				id_direct_ref_layers[iNuhLId][d] = jNuhLId;
+				d++;
+			}
+			if (dependency_flag[i][j]) {
+//				id_ref_layers[iNuhLId][r] = jNuhLId;
+				r++;
+			}
+				
+			if (dependency_flag[j][i])
+				id_pred_layers[iNuhLId][p++] = jNuhLId;
+		}
+		num_direct_ref_layers[iNuhLId] = d;
+//		num_ref_layers[iNuhLId] = r;
+		num_pred_layers[iNuhLId] = p;
+	}
+
+	memset(layer_id_in_list_flag, 0, 64*sizeof(u8));
+	k = 0; //num_indepentdent_layers
+	for (i = 0; i < vps->max_layers; i++) {
+		iNuhLId = vps->layer_id_in_nuh[i];
+		if (!num_direct_ref_layers[iNuhLId]) {
+			u32 h = 1;
+			//tree_partition_layer_id[k][0] = iNuhLId;		
+			for (j = 0; j < num_pred_layers[iNuhLId]; j++) {
+				u32 predLId = id_pred_layers[iNuhLId][j];
+				if (!layer_id_in_list_flag[predLId]) {
+					//tree_partition_layer_id[k][h++] = predLId;
+					layer_id_in_list_flag[predLId] = 1;
+				}
+			}
+			num_layers_in_tree_partition[k++] = h;
+		}
+	}
+	num_indepentdent_layers = k;
+	
+	num_add_layer_set = 0;
+	if (num_indepentdent_layers > 1)
+		num_add_layer_set = bs_get_ue(bs);
+
+	for (i = 0; i < num_add_layer_set; i++)
+		for (j = 1; j < num_indepentdent_layers; j++) {
+			nb_bits =1;
+			 while ((1 << nb_bits) < (num_layers_in_tree_partition[j] + 1))
+				nb_bits++;
+			/*highest_layer_idx_plus1[i][j]*/gf_bs_read_int(bs, nb_bits);
+		}
+
+
+	if (/*vps_sub_layers_max_minus1_present_flag*/gf_bs_read_int(bs, 1)) {
+		for (i = 0; i < vps->max_layers; i++) {
+			/*sub_layers_vps_max_minus1[ i ]*/gf_bs_read_int(bs, 3);
+		}
+	}
+
+	if (/*max_tid_ref_present_flag = */gf_bs_read_int(bs, 1)) {
+		for (i=0; i<(vps->max_layers-1) ; i++) {
+			for (j= i+1; j < vps->max_layers; j++) {
+				if (vps->direct_dependency_flag[j][i])
+					/*max_tid_il_ref_pics_plus1[ i ][ j ]*/gf_bs_read_int(bs, 3);
+			}
+		}
+	}
+	/*default_ref_layers_active_flag*/gf_bs_read_int(bs, 1);
+
+	vps->num_profile_tier_level = 1+bs_get_ue(bs);
+	if (vps->num_profile_tier_level > MAX_LHVC_LAYERS) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] Wrong number of PTLs in VPS %d\n", vps->num_profile_tier_level));
+		vps->num_profile_tier_level=1;
+		return GF_FALSE;
+	}
+	
+	for (i=vps->base_layer_internal_flag ? 2 : 1; i < vps->num_profile_tier_level; i++) {
+		Bool vps_profile_present_flag = gf_bs_read_int(bs, 1);
+		profile_tier_level(bs, vps_profile_present_flag, vps->max_sub_layers-1, &vps->ext_ptl[i-1] );
+	}
+	
+	NumLayerSets = vps->num_layer_sets + num_add_layer_set;
+	num_add_olss = 0;
+	
+	if (NumLayerSets > 1) {
+		num_add_olss = bs_get_ue(bs);
+		default_output_layer_idc = gf_bs_read_int(bs,2);
+		default_output_layer_idc = default_output_layer_idc < 2 ? default_output_layer_idc : 2;
+	}
+	vps->num_output_layer_sets = num_add_olss + NumLayerSets;
+
+
+	layer_set_idx_for_ols_minus1[0] = 1;
+	vps->output_layer_flag[0][0] = 1;
+
+	for (i = 0; i < vps->num_output_layer_sets; i++) {
+		if ((NumLayerSets > 2) && (i >= NumLayerSets)) {
+			nb_bits = 1;
+			while ((1 << nb_bits) < (NumLayerSets - 1))
+				nb_bits++;
+			layer_set_idx_for_ols_minus1[i] = gf_bs_read_int(bs, nb_bits);
+		}
+		else
+			layer_set_idx_for_ols_minus1[i] = 0;
+		ols_ids_to_ls_idx = i < NumLayerSets ? i : layer_set_idx_for_ols_minus1[i] + 1;
+
+		if ((i > (vps->num_layer_sets - 1)) || (default_output_layer_idc == 2)) {
+			for (j = 0; j < vps->num_layers_in_id_list[ols_ids_to_ls_idx]; j++)
+				vps->output_layer_flag[i][j] = gf_bs_read_int(bs, 1);
+		}
+
+		if ((default_output_layer_idc == 0) || (default_output_layer_idc == 1)) {
+			for (j = 0; j < vps->num_layers_in_id_list[ols_ids_to_ls_idx]; j++) {
+				if ((default_output_layer_idc == 0) || (vps->LayerSetLayerIdList[i][j] == vps->LayerSetLayerIdListMax[i]))
+					OutputLayerFlag[i][j] = GF_TRUE;
+				else
+					OutputLayerFlag[i][j] = GF_FALSE;
+			}
+		}
+
+		for (j = 0; j < vps->num_layers_in_id_list[ols_ids_to_ls_idx]; j++) {
+			if (OutputLayerFlag[i][j]) {
+				u32 curLayerID, k;
+				vps->necessary_layers_flag[i][j] = GF_TRUE;
+				curLayerID = vps->LayerSetLayerIdList[i][j];
+				for (k = 0; k < j; k++) {
+					u32 refLayerId = vps->LayerSetLayerIdList[i][k];
+					if (dependency_flag[vps->layer_id_in_vps[curLayerID]][vps->layer_id_in_vps[refLayerId]])
+						vps->necessary_layers_flag[i][k] = GF_TRUE;
+				}
+			}
+		}
+		vps->num_necessary_layers[i] = 0;
+		for (j = 0; j < vps->num_layers_in_id_list[ols_ids_to_ls_idx]; j++) {
+			if (vps->necessary_layers_flag[i][j])
+				vps->num_necessary_layers[i] += 1;
+		}
+
+		if (i == 0) {
+			if (vps->base_layer_internal_flag) {
+				if (vps->max_layers > 1)
+					vps->profile_tier_level_idx[0][0] = 1;
+				else
+					vps->profile_tier_level_idx[0][0] = 0;
+			}
+			continue;
+		}
+		nb_bits = 1;
+		while ((u32)(1 << nb_bits) < vps->num_profile_tier_level)
+			nb_bits++;
+		for (j = 0; j < vps->num_layers_in_id_list[ols_ids_to_ls_idx]; j++)
+			if (vps->necessary_layers_flag[i][j] && vps->num_profile_tier_level)
+				vps->profile_tier_level_idx[i][j] = gf_bs_read_int(bs, nb_bits);
+			else
+				vps->profile_tier_level_idx[i][j] = 0;
+		//if (NumOutputLayersInOutputLayerSet[i] == 1 && num_direct_ref_layers[OlsHighestOutputLayerId[i] > 0)
+		vps->alt_output_layer_flag[i] = gf_bs_read_int(bs, 1);
+	}
+
+	vps->num_rep_formats = 1 + bs_get_ue(bs);
+	if (vps->num_rep_formats > 16) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] Wrong number of rep formats in VPS %d\n", vps->num_rep_formats));
+		vps->num_rep_formats = 0;
+		return GF_FALSE;
+	}
+
+	for (i = 0; i < vps->num_rep_formats; i++) {
+		lhvc_parse_rep_format(&vps->rep_formats[i], bs);
+	}
+	if (vps->num_rep_formats > 1)
+		rep_format_idx_present_flag = gf_bs_read_int(bs, 1);
+	else
+		rep_format_idx_present_flag = 0;
+
+	vps->rep_format_idx[0] = 0;
+	nb_bits = 1;
+	while ((u32)(1 << nb_bits) < vps->num_rep_formats)
+		nb_bits++;
+	for (i = vps->base_layer_internal_flag ? 1 : 0; i < vps->max_layers; i++) {
+		if (rep_format_idx_present_flag) {
+			vps->rep_format_idx[i] = gf_bs_read_int(bs, nb_bits);
+		}
+		else {
+			vps->rep_format_idx[i] = i < vps->num_rep_formats - 1 ? i : vps->num_rep_formats - 1;
+		}
+	}
+//TODO - we don't use the rest ...
+
+return GF_TRUE;
+}
+
+static void sub_layer_hrd_parameters(GF_BitStream *bs, int subLayerId, u32 cpb_cnt, Bool sub_pic_hrd_params_present_flag) {
+	u32 i;
+	for (i = 0; i <= cpb_cnt; i++) {
+		/*bit_rate_value_minus1[i] = */bs_get_ue(bs);
+		/*cpb_size_value_minus1[i] = */bs_get_ue(bs);
+		if (sub_pic_hrd_params_present_flag) {
+			/*cpb_size_du_value_minus1[i] = */bs_get_ue(bs);
+			/*bit_rate_du_value_minus1[i] = */bs_get_ue(bs);
+		}
+		/*cbr_flag[i] = */gf_bs_read_int(bs, 1);
+	}
+}
+
+static void hevc_parse_hrd_parameters(GF_BitStream *bs, Bool commonInfPresentFlag, int maxNumSubLayersMinus1)
+{
+	int i;
+	Bool nal_hrd_parameters_present_flag = GF_FALSE;
+	Bool vcl_hrd_parameters_present_flag = GF_FALSE;
+	Bool sub_pic_hrd_params_present_flag = GF_FALSE;
+	if (commonInfPresentFlag) {
+		nal_hrd_parameters_present_flag = gf_bs_read_int(bs, 1);
+		vcl_hrd_parameters_present_flag = gf_bs_read_int(bs, 1);
+		if (nal_hrd_parameters_present_flag || vcl_hrd_parameters_present_flag) {
+			sub_pic_hrd_params_present_flag = gf_bs_read_int(bs, 1);
+			if (sub_pic_hrd_params_present_flag) {
+				/*tick_divisor_minus2 = */gf_bs_read_int(bs, 8);
+				/*du_cpb_removal_delay_increment_length_minus1 = */gf_bs_read_int(bs, 5);
+				/*sub_pic_cpb_params_in_pic_timing_sei_flag = */gf_bs_read_int(bs, 1);
+				/*dpb_output_delay_du_length_minus1 = */gf_bs_read_int(bs, 5);
+			}
+			/*bit_rate_scale = */gf_bs_read_int(bs, 4);
+			/*cpb_size_scale = */gf_bs_read_int(bs, 4);
+			if (sub_pic_hrd_params_present_flag) {
+				/*cpb_size_du_scale = */gf_bs_read_int(bs, 4);
+			}
+			/*initial_cpb_removal_delay_length_minus1 = */gf_bs_read_int(bs, 5);
+			/*au_cpb_removal_delay_length_minus1 = */gf_bs_read_int(bs, 5);
+			/*dpb_output_delay_length_minus1 = */gf_bs_read_int(bs, 5);
+		}
+	}
+	for (i = 0; i <= maxNumSubLayersMinus1; i++) {
+		Bool fixed_pic_rate_general_flag_i = gf_bs_read_int(bs, 1);
+		Bool fixed_pic_rate_within_cvs_flag_i = GF_TRUE;
+		Bool low_delay_hrd_flag_i = GF_FALSE;
+		u32 cpb_cnt_minus1_i = 0;
+		if (!fixed_pic_rate_general_flag_i) {
+			fixed_pic_rate_within_cvs_flag_i = gf_bs_read_int(bs, 1);
+		}
+		if (fixed_pic_rate_within_cvs_flag_i)
+			/*elemental_duration_in_tc_minus1[i] = */bs_get_ue(bs);
+		else
+			low_delay_hrd_flag_i = gf_bs_read_int(bs, 1);
+		if (!low_delay_hrd_flag_i) {
+			cpb_cnt_minus1_i = bs_get_ue(bs);
+		}
+		if (nal_hrd_parameters_present_flag) {
+			sub_layer_hrd_parameters(bs, i, cpb_cnt_minus1_i, sub_pic_hrd_params_present_flag);
+		}
+		if (vcl_hrd_parameters_present_flag) {
+			sub_layer_hrd_parameters(bs, i, cpb_cnt_minus1_i, sub_pic_hrd_params_present_flag);
 		}
 	}
 }
 
-s32 gf_media_hevc_read_vps(char *data, u32 size, HEVCState *hevc)
+static s32 gf_media_hevc_read_vps_bs(GF_BitStream *bs, HEVCState *hevc, Bool stop_at_vps_ext)
 {
-	GF_BitStream *bs;
-	char *data_without_emulation_bytes = NULL;
-	u32 data_without_emulation_bytes_size = 0;
+	u8 vps_sub_layer_ordering_info_present_flag, vps_extension_flag;
+	u32 i, j;
 	s32 vps_id = -1;
 	HEVC_VPS *vps;
+	u8 layer_id_included_flag[MAX_LHVC_LAYERS][64];
 
-	/*still contains emulation bytes*/
-	data_without_emulation_bytes = gf_malloc(size*sizeof(char));
-	data_without_emulation_bytes_size = avc_remove_emulation_bytes(data, data_without_emulation_bytes, size);
-	bs = gf_bs_new(data_without_emulation_bytes, data_without_emulation_bytes_size, GF_BITSTREAM_READ);
-	if (!bs) goto exit;
-	
-	gf_bs_read_u16(bs);
-
+	//nalu header already parsed
 	vps_id = gf_bs_read_int(bs, 4);
 
-	if (vps_id>=16) goto exit;
+	if (vps_id>=16) return -1;
 
-	vps = &hevc->vps[vps_id];   
+	vps = &hevc->vps[vps_id];
+	vps->bit_pos_vps_extensions = -1;
 	if (!vps->state) {
 		vps->id = vps_id;
 		vps->state = 1;
 	}
 
-	/* vps_reserved_three_2bits = */ gf_bs_read_int(bs, 2);
-	/* vps_reserved_zero_6bits = */ gf_bs_read_int(bs, 6);
-	vps->max_sub_layer = gf_bs_read_int(bs, 3) + 1;
+	vps->base_layer_internal_flag = gf_bs_read_int(bs, 1);
+	vps->base_layer_available_flag = gf_bs_read_int(bs, 1);
+	vps->max_layers = 1 + gf_bs_read_int(bs, 6);
+	if (vps->max_layers>MAX_LHVC_LAYERS) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] sorry, %d layers in VPS but only %d supported\n", vps->max_layers, MAX_LHVC_LAYERS));
+		return -1;
+	}
+	vps->max_sub_layers = gf_bs_read_int(bs, 3) + 1;
 	vps->temporal_id_nesting = gf_bs_read_int(bs, 1);
 	/* vps_reserved_ffff_16bits = */ gf_bs_read_int(bs, 16);
-	profile_tier_level(bs, 1, vps->max_sub_layer-1, &vps->ptl);
-	bit_rate_pic_rate_info(bs, 0, vps->max_sub_layer-1, vps);
+	profile_tier_level(bs, 1, vps->max_sub_layers-1, &vps->ptl);
 
+	vps_sub_layer_ordering_info_present_flag = gf_bs_read_int(bs, 1);
+	for (i=(vps_sub_layer_ordering_info_present_flag ? 0 : vps->max_sub_layers - 1); i < vps->max_sub_layers; i++) {
+		/*vps_max_dec_pic_buffering_minus1[i] = */bs_get_ue(bs);
+		/*vps_max_num_reorder_pics[i] = */bs_get_ue(bs);
+		/*vps_max_latency_increase_plus1[i] = */bs_get_ue(bs);
+	}
+	vps->max_layer_id = gf_bs_read_int(bs, 6);
+	if (vps->max_layer_id > MAX_LHVC_LAYERS) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] VPS max layer ID %u but GPAC only supports %u\n", vps->max_layer_id,  MAX_LHVC_LAYERS));
+		return -1;
+	}
+	vps->num_layer_sets = bs_get_ue(bs) + 1;
+	if (vps->num_layer_sets > MAX_LHVC_LAYERS) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] Wrong number of layer sets in VPS %d\n", vps->num_layer_sets));
+		return -1;
+	}
+	for (i=1; i < vps->num_layer_sets; i++) {
+		for (j=0; j <= vps->max_layer_id; j++) {
+			layer_id_included_flag[ i ][ j ] = gf_bs_read_int(bs, 1);
+		}
+	}
+	vps->num_layers_in_id_list[0] = 1;
+	for (i = 1; i < vps->num_layer_sets; i++) {
+		u32 n, m;
+		n = 0;
+		for (m = 0; m <= vps->max_layer_id; m++)
+			if (layer_id_included_flag[i][m]) {
+				vps->LayerSetLayerIdList[i][n++] = m;
+				if (vps->LayerSetLayerIdListMax[i] < m)
+					vps->LayerSetLayerIdListMax[i] = m;
+			}
+		vps->num_layers_in_id_list[i] = n;
+	}
+	if (/*vps_timing_info_present_flag*/gf_bs_read_int(bs, 1)) {
+		u32 vps_num_hrd_parameters;
+		/*u32 vps_num_units_in_tick = */gf_bs_read_int(bs, 32);
+		/*u32 vps_time_scale = */gf_bs_read_int(bs, 32);
+		if (/*vps_poc_proportional_to_timing_flag*/gf_bs_read_int(bs, 1)) {
+			/*vps_num_ticks_poc_diff_one_minus1*/bs_get_ue(bs);
+		}
+		vps_num_hrd_parameters = bs_get_ue(bs);
+		for( i = 0; i < vps_num_hrd_parameters; i++ ) {
+			Bool cprms_present_flag = GF_TRUE;
+			/*hrd_layer_set_idx[i] = */bs_get_ue(bs);
+			if (i>0)
+				cprms_present_flag = gf_bs_read_int(bs, 1) ;
+			hevc_parse_hrd_parameters(bs, cprms_present_flag, vps->max_sub_layers - 1);
+		}
+	}
+	if (stop_at_vps_ext) {
+		return vps_id;
+	}
 
-	//and we don't care about the rest for now
-exit:
-	gf_bs_del(bs);
-	gf_free(data_without_emulation_bytes);
+	vps_extension_flag = gf_bs_read_int(bs, 1);
+	if (vps_extension_flag ) {
+		Bool res;
+		gf_bs_align(bs);
+		res = hevc_parse_vps_extension(vps, bs);
+		if (res!=GF_TRUE) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] Failed to parse VPS extensions\n"));
+			return -1;
+		}
+		if (/*vps_extension2_flag*/gf_bs_read_int(bs, 1)) {
+			while (gf_bs_available(bs)) {
+				/*vps_extension_data_flag */ gf_bs_read_int(bs, 1);
+			}
+		}
+	}
 	return vps_id;
 }
 
-static const struct { u32 w, h; } hevc_sar[17] =
+GF_EXPORT
+s32 gf_media_hevc_read_vps_ex(char *data, u32 *size, HEVCState *hevc, Bool remove_extensions)
+{
+	GF_BitStream *bs;
+	char *data_without_emulation_bytes = NULL;
+	u32 data_without_emulation_bytes_size = 0;
+	s32 vps_id = -1;
+
+	/*still contains emulation bytes*/
+	data_without_emulation_bytes_size = avc_emulation_bytes_remove_count(data, (*size));
+	if (!data_without_emulation_bytes_size) {
+		bs = gf_bs_new(data, (*size), GF_BITSTREAM_READ);
+	} else {
+		data_without_emulation_bytes = gf_malloc((*size) * sizeof(char));
+		data_without_emulation_bytes_size = avc_remove_emulation_bytes(data, data_without_emulation_bytes, (*size) );
+		bs = gf_bs_new(data_without_emulation_bytes, data_without_emulation_bytes_size, GF_BITSTREAM_READ);
+	}
+	if (!bs) goto exit;
+
+
+	if (! hevc_parse_nal_header(bs, NULL, NULL, NULL)) goto exit;
+
+	vps_id = gf_media_hevc_read_vps_bs(bs, hevc, remove_extensions);
+	if (vps_id<0) goto exit;
+
+	if (remove_extensions) {
+		char *new_vps;
+		u32 new_vps_size, emulation_bytes;
+		u32 bit_pos = gf_bs_get_bit_offset(bs);
+		GF_BitStream *w_bs = gf_bs_new(NULL, 0, GF_BITSTREAM_WRITE);
+		gf_bs_write_u8(w_bs, data[0]);
+		gf_bs_write_u8(w_bs, data[1]);
+		gf_bs_write_u8(w_bs, data[2]);
+		gf_bs_write_u8(w_bs, data[3]);
+		gf_bs_write_u16(w_bs, 0xFFFF);
+		gf_bs_seek(bs, 6);
+		bit_pos-=48;
+		while (bit_pos) {
+			u32 v = gf_bs_read_int(bs, 1);
+			gf_bs_write_int(w_bs, v, 1);
+			bit_pos--;
+		}
+		/*vps extension flag*/
+		gf_bs_write_int(w_bs, 0, 1);
+		new_vps=NULL;
+		gf_bs_get_content(w_bs, &new_vps, &new_vps_size);
+		gf_bs_del(w_bs);
+		
+		emulation_bytes = avc_emulation_bytes_add_count(new_vps, new_vps_size);
+		if (emulation_bytes+new_vps_size > *size) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("Buffer too small to rewrite VPS - skipping rewrite\n"));
+		} else {
+			*size = avc_add_emulation_bytes(new_vps, data, new_vps_size);
+		}
+	}
+
+exit:
+	if (bs) gf_bs_del(bs);
+	if (data_without_emulation_bytes) gf_free(data_without_emulation_bytes);
+	return vps_id;
+}
+
+GF_EXPORT
+s32 gf_media_hevc_read_vps(char *data, u32 size, HEVCState *hevc)
+{
+	return gf_media_hevc_read_vps_ex(data, &size, hevc, GF_FALSE);
+}
+
+static void hevc_scaling_list_data(GF_BitStream *bs)
+{
+	u32 i, sizeId, matrixId;
+	for (sizeId = 0; sizeId < 4; sizeId++) {
+		for (matrixId=0; matrixId<6; matrixId += (sizeId == 3) ? 3:1 ) {
+			u32 scaling_list_pred_mode_flag_sizeId_matrixId = gf_bs_read_int(bs, 1);
+			if( ! scaling_list_pred_mode_flag_sizeId_matrixId ) {
+				/*scaling_list_pred_matrix_id_delta[ sizeId ][ matrixId ] =*/ bs_get_ue(bs);
+			} else {
+				//u32 nextCoef = 8;
+				u32 coefNum = MIN(64, (1 << (4+(sizeId << 1))));
+				if ( sizeId > 1 ) {
+					/*scaling_list_dc_coef_minus8[ sizeId − 2 ][ matrixId ] = */bs_get_se(bs);
+				}
+				for (i = 0; i<coefNum; i++) {
+					/*scaling_list_delta_coef = */bs_get_se(bs);
+				}
+			}
+		}
+	}
+}
+
+
+static const struct {
+	u32 w, h;
+} hevc_sar[17] =
 {
 	{ 0,   0 }, { 1,   1 }, { 12, 11 }, { 10, 11 },
 	{ 16, 11 }, { 40, 33 }, { 24, 11 }, { 20, 11 },
@@ -3359,51 +4567,45 @@ static const struct { u32 w, h; } hevc_sar[17] =
 	{ 64, 33 }, { 160,99 }, { 4,3}, { 3,2}, { 2,1}
 };
 
-static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 *vui_flag_pos)
+static s32 gf_media_hevc_read_sps_bs(GF_BitStream *bs, HEVCState *hevc, u8 layer_id, u32 *vui_flag_pos)
 {
-	GF_BitStream *bs;
-	char *data_without_emulation_bytes = NULL;
-	u32 data_without_emulation_bytes_size = 0;
 	s32 vps_id, sps_id = -1;
 	u8 max_sub_layers_minus1, flag;
-	u8 layer_id/*, temporal_id*/;
-	Bool update_rep_format_flag;
+	Bool scaling_list_enable_flag;
 	u32 i, nb_CTUs, depth;
 	u32 log2_diff_max_min_luma_coding_block_size;
 	u32 log2_min_transform_block_size, log2_min_luma_coding_block_size;
-
 	Bool sps_sub_layer_ordering_info_present_flag;
 	HEVC_SPS *sps;
+	HEVC_VPS *vps;
 	HEVC_ProfileTierLevel ptl;
+	u32 sps_ext_or_max_sub_layers_minus1;
+	Bool multiLayerExtSpsFlag;
 
 	if (vui_flag_pos) *vui_flag_pos = 0;
 
-	/*still contains emulation bytes*/
-	data_without_emulation_bytes = gf_malloc(size*sizeof(char));
-	data_without_emulation_bytes_size = avc_remove_emulation_bytes(data, data_without_emulation_bytes, size);
-	bs = gf_bs_new(data_without_emulation_bytes, data_without_emulation_bytes_size, GF_BITSTREAM_READ);
-	if (!bs) goto exit;
-	
-	gf_bs_read_int(bs, 7);
-	layer_id = gf_bs_read_int(bs, 6);
-	/*temporal_id = */gf_bs_read_int(bs, 3);
+	//nalu header already parsed
 	vps_id = gf_bs_read_int(bs, 4);
-	if (vps_id>=16) goto exit;
-
+	if (vps_id>=16) {
+		return -1;
+	}
 	memset(&ptl, 0, sizeof(ptl));
-
-	//fixme with latest shvc syntax !!
-//	if (layer_id == 0) 
-	{
+	max_sub_layers_minus1 = 0;
+	sps_ext_or_max_sub_layers_minus1 = 0;
+	if (layer_id == 0)
 		max_sub_layers_minus1 = gf_bs_read_int(bs, 3);
+	else
+		sps_ext_or_max_sub_layers_minus1 = gf_bs_read_int(bs, 3);
+	multiLayerExtSpsFlag = (layer_id != 0) && (sps_ext_or_max_sub_layers_minus1 == 7);
+	if (!multiLayerExtSpsFlag) {		
 		/*temporal_id_nesting_flag = */gf_bs_read_int(bs, 1);
 		profile_tier_level(bs, 1, max_sub_layers_minus1, &ptl);
 	}
 
 	sps_id = bs_get_ue(bs);
-	if (sps_id>=16) goto exit;
-	//fixme with latest shvc syntax !!
-	if (layer_id) sps_id=1;
+	if ((sps_id<0) ||(sps_id>=16)) {
+		return -1;
+	}
 
 	sps = &hevc->sps[sps_id];
 	if (!sps->state) {
@@ -3412,39 +4614,65 @@ static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 
 		sps->vps_id = vps_id;
 	}
 	sps->ptl = ptl;
+	vps = &hevc->vps[vps_id];
 
-	if (layer_id > 0) {
-//		update_rep_format_flag = gf_bs_read_int(bs, 1);
-		update_rep_format_flag = 1;
+	//sps_rep_format_idx = 0;
+	if (multiLayerExtSpsFlag) {
+		u8 update_rep_format_flag = gf_bs_read_int(bs, 1);
+		if (update_rep_format_flag) {
+			sps->rep_format_idx = gf_bs_read_int(bs, 8);
+		} else {
+			sps->rep_format_idx = vps->rep_format_idx[layer_id];
+		}
+		sps->width = vps->rep_formats[sps->rep_format_idx].pic_width_luma_samples;
+		sps->height = vps->rep_formats[sps->rep_format_idx].pic_height_luma_samples;
+		sps->chroma_format_idc = vps->rep_formats[sps->rep_format_idx].chroma_format_idc;
+		sps->bit_depth_luma = vps->rep_formats[sps->rep_format_idx].bit_depth_luma;
+		sps->bit_depth_chroma = vps->rep_formats[sps->rep_format_idx].bit_depth_chroma;
+		sps->separate_colour_plane_flag = vps->rep_formats[sps->rep_format_idx].separate_colour_plane_flag;
+
+		//TODO this is crude ...
+		sps->ptl = vps->ext_ptl[0];
 	} else {
-		update_rep_format_flag = 1;
-	}
-	if (update_rep_format_flag) {
 		sps->chroma_format_idc = bs_get_ue(bs);
 		if (sps->chroma_format_idc==3)
 			sps->separate_colour_plane_flag = gf_bs_read_int(bs, 1);
 		sps->width = bs_get_ue(bs);
 		sps->height = bs_get_ue(bs);
-	}
+		if (/*conformance_window_flag*/gf_bs_read_int(bs, 1)) {
+			u32 SubWidthC, SubHeightC;
 
-	if (gf_bs_read_int(bs, 1)) {
-		sps->cw_left = bs_get_ue(bs);
-		sps->cw_right = bs_get_ue(bs);
-		sps->cw_top = bs_get_ue(bs);
-		sps->cw_bottom = bs_get_ue(bs);
-	}
-	if (update_rep_format_flag) {
+			if (sps->chroma_format_idc==1) {
+				SubWidthC = SubHeightC = 2;
+			}
+			else if (sps->chroma_format_idc==2) {
+				SubWidthC = 2;
+				SubHeightC = 1;
+			} else {
+				SubWidthC = SubHeightC = 1;
+			}
+
+			sps->cw_left = bs_get_ue(bs);
+			sps->cw_right = bs_get_ue(bs);
+			sps->cw_top = bs_get_ue(bs);
+			sps->cw_bottom = bs_get_ue(bs);
+
+			sps->width -= SubWidthC * (sps->cw_left + sps->cw_right);
+			sps->height -= SubHeightC * (sps->cw_top + sps->cw_bottom);
+		}
 		sps->bit_depth_luma = 8 + bs_get_ue(bs);
 		sps->bit_depth_chroma = 8 + bs_get_ue(bs);
 	}
 
 	sps->log2_max_pic_order_cnt_lsb = 4 + bs_get_ue(bs);
 
-	sps_sub_layer_ordering_info_present_flag = gf_bs_read_int(bs, 1);
-	for(i=sps_sub_layer_ordering_info_present_flag ? 0 : max_sub_layers_minus1; i<=max_sub_layers_minus1; i++) {
-		/*max_dec_pic_buffering = */ bs_get_ue(bs);
-		/*num_reorder_pics = */ bs_get_ue(bs);
-		/*max_latency_increase = */ bs_get_ue(bs);
+	if (!multiLayerExtSpsFlag) {
+		sps_sub_layer_ordering_info_present_flag = gf_bs_read_int(bs, 1);
+		for(i=sps_sub_layer_ordering_info_present_flag ? 0 : max_sub_layers_minus1; i<=max_sub_layers_minus1; i++) {
+			/*max_dec_pic_buffering = */ bs_get_ue(bs);
+			/*num_reorder_pics = */ bs_get_ue(bs);
+			/*max_latency_increase = */ bs_get_ue(bs);
+		}
 	}
 
 	log2_min_luma_coding_block_size = 3 + bs_get_ue(bs);
@@ -3462,7 +4690,7 @@ static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 
 	{
 		depth++;
 	}
-	sps->max_CU_depth = log2_diff_max_min_luma_coding_block_size + depth; 
+	sps->max_CU_depth = log2_diff_max_min_luma_coding_block_size + depth;
 
 	nb_CTUs = ((sps->width + sps->max_CU_width -1) / sps->max_CU_width) * ((sps->height + sps->max_CU_height-1) / sps->max_CU_height);
 	sps->bitsSliceSegmentAddress = 0;
@@ -3470,9 +4698,20 @@ static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 
 		sps->bitsSliceSegmentAddress++;
 	}
 
-	if (/*scaling_list_enable_flag = */ gf_bs_read_int(bs, 1)) { 
-		if (/*sps_scaling_list_data_present_flag=*/gf_bs_read_int(bs, 1) ) {
-			//scaling_list_data( )
+	scaling_list_enable_flag = gf_bs_read_int(bs, 1);
+	if (scaling_list_enable_flag) {
+		Bool sps_infer_scaling_list_flag = 0;
+		/*u8 sps_scaling_list_ref_layer_id = 0;*/
+		if (multiLayerExtSpsFlag) {
+			sps_infer_scaling_list_flag = gf_bs_read_int(bs, 1);
+		}
+
+		if (sps_infer_scaling_list_flag) {
+			/*sps_scaling_list_ref_layer_id = */gf_bs_read_int(bs, 6);
+		} else {
+			if (/*sps_scaling_list_data_present_flag=*/gf_bs_read_int(bs, 1) ) {
+				hevc_scaling_list_data(bs);
+			}
 		}
 	}
 	/*asymmetric_motion_partitions_enabled_flag= */ gf_bs_read_int(bs, 1);
@@ -3485,12 +4724,21 @@ static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 
 		/*pcm_loop_filter_disable_flag=*/gf_bs_read_int(bs, 1);
 	}
 	sps->num_short_term_ref_pic_sets = bs_get_ue(bs);
-	for (i=0;i<sps->num_short_term_ref_pic_sets; i++) {
-		Bool ret = parse_short_term_ref_pic_set(bs, sps, i); 
-		/*cannot parse short_term_ref_pic_set, skip VUI parsing*/
-		if (!ret) goto exit;
+	if (sps->num_short_term_ref_pic_sets>64) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] Invalid number of short term reference picture sets %d\n", sps->num_short_term_ref_pic_sets));
+		return -1;
 	}
-	if ( (sps->long_term_ref_pics_present_flag = gf_bs_read_int(bs, 1)) ) {
+	
+	for (i=0; i<sps->num_short_term_ref_pic_sets; i++) {
+		Bool ret = parse_short_term_ref_pic_set(bs, sps, i);
+		/*cannot parse short_term_ref_pic_set, skip VUI parsing*/
+		if (!ret) {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] Invalid short_term_ref_pic_set\n"));
+			return -1;
+		}
+	}
+	sps->long_term_ref_pics_present_flag = gf_bs_read_int(bs, 1);
+	if (sps->long_term_ref_pics_present_flag) {
 		sps->num_long_term_ref_pic_sps = bs_get_ue(bs);
 		for (i=0; i<sps->num_long_term_ref_pic_sps; i++) {
 			/*lt_ref_pic_poc_lsb_sps=*/gf_bs_read_int(bs, sps->log2_max_pic_order_cnt_lsb);
@@ -3500,12 +4748,9 @@ static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 
 	sps->temporal_mvp_enable_flag = gf_bs_read_int(bs, 1);
 	/*strong_intra_smoothing_enable_flag*/gf_bs_read_int(bs, 1);
 
-	if (vui_flag_pos) 
+	if (vui_flag_pos)
 		*vui_flag_pos = (u32) gf_bs_get_bit_offset(bs);
 
-	/*fixme - move to latest syntax*/
-	if (layer_id>0) goto exit;
-	
 	if (/*vui_parameters_present_flag*/gf_bs_read_int(bs, 1)) {
 
 		sps->aspect_ratio_info_present_flag = gf_bs_read_int(bs, 1);
@@ -3558,7 +4803,8 @@ static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 
 			if (sps->poc_proportional_to_timing_flag)
 				sps->num_ticks_poc_diff_one_minus1 = bs_get_ue(bs);
 			if (/*hrd_parameters_present_flag=*/gf_bs_read_int(bs, 1) ) {
-				GF_LOG(GF_LOG_INFO, GF_LOG_CODING, ("[hehv] HRD param parsing not implemented\n"));
+//				GF_LOG(GF_LOG_INFO, GF_LOG_CODING, ("[HEVC] HRD param parsing not implemented\n"));
+				return sps_id;
 			}
 		}
 
@@ -3580,12 +4826,38 @@ static s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 
 		}
 	}
 
-exit:
-	gf_bs_del(bs);
-	gf_free(data_without_emulation_bytes);
 	return sps_id;
 }
 
+GF_EXPORT
+s32 gf_media_hevc_read_sps_ex(char *data, u32 size, HEVCState *hevc, u32 *vui_flag_pos)
+{
+	GF_BitStream *bs;
+	char *data_without_emulation_bytes = NULL;
+	u32 data_without_emulation_bytes_size = 0;
+	s32 sps_id= -1;
+	u8 layer_id;
+
+	if (vui_flag_pos) *vui_flag_pos = 0;
+
+	data_without_emulation_bytes_size = avc_emulation_bytes_remove_count(data, size);
+	if (!data_without_emulation_bytes_size) {
+		bs = gf_bs_new(data, size, GF_BITSTREAM_READ);
+	} else {
+		/*still contains emulation bytes*/
+		data_without_emulation_bytes = gf_malloc(size*sizeof(char));
+		data_without_emulation_bytes_size = avc_remove_emulation_bytes(data, data_without_emulation_bytes, size);
+		bs = gf_bs_new(data_without_emulation_bytes, data_without_emulation_bytes_size, GF_BITSTREAM_READ);
+	}
+	if (!bs) goto exit;
+	if (! hevc_parse_nal_header(bs, NULL, NULL, &layer_id)) goto exit;
+	sps_id = gf_media_hevc_read_sps_bs(bs, hevc, layer_id, vui_flag_pos);
+
+exit:
+	if (bs) gf_bs_del(bs);
+	if (data_without_emulation_bytes) gf_free(data_without_emulation_bytes);
+	return sps_id;
+}
 
 GF_EXPORT
 s32 gf_media_hevc_read_sps(char *data, u32 size, HEVCState *hevc)
@@ -3594,34 +4866,30 @@ s32 gf_media_hevc_read_sps(char *data, u32 size, HEVCState *hevc)
 }
 
 
-GF_EXPORT
-s32 gf_media_hevc_read_pps(char *data, u32 size, HEVCState *hevc)
+static s32 gf_media_hevc_read_pps_bs(GF_BitStream *bs, HEVCState *hevc)
 {
 	u32 i;
-	GF_BitStream *bs;
-	char *data_without_emulation_bytes = NULL;
-	u32 data_without_emulation_bytes_size = 0;
 	s32 pps_id = -1;
 	HEVC_PPS *pps;
 
-	/*still contains emulation bytes*/
-	data_without_emulation_bytes = gf_malloc(size*sizeof(char));
-	data_without_emulation_bytes_size = avc_remove_emulation_bytes(data, data_without_emulation_bytes, size);
-	bs = gf_bs_new(data_without_emulation_bytes, data_without_emulation_bytes_size, GF_BITSTREAM_READ);
-	if (!bs) goto exit;
-	
-	gf_bs_read_u16(bs);
-
+	//NAL header already read
 	pps_id = bs_get_ue(bs);
 
-	if (pps_id>=64) goto exit;
+	if ((pps_id<0) || (pps_id>=64)) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] wrong PPS ID %d in PPS\n", pps_id));
+		return -1;
+	}
 	pps = &hevc->pps[pps_id];
-   
+
 	if (!pps->state) {
 		pps->id = pps_id;
 		pps->state = 1;
 	}
 	pps->sps_id = bs_get_ue(bs);
+	if (pps->sps_id>16) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[HEVC] wrong SPS ID %d in PPS\n", pps->sps_id));
+		return -1;
+	}
 	hevc->sps_active_idx = pps->sps_id; /*set active sps*/
 	pps->dependent_slice_segments_enabled_flag = gf_bs_read_int(bs, 1);
 
@@ -3650,11 +4918,11 @@ s32 gf_media_hevc_read_pps(char *data, u32 size, HEVCState *hevc)
 		pps->num_tile_rows = 1 + bs_get_ue(bs);
 		pps->uniform_spacing_flag = gf_bs_read_int(bs, 1);
 		if (!pps->uniform_spacing_flag ) {
-			for (i=0; i<pps->num_tile_columns; i++) {
+			for (i=0; i<pps->num_tile_columns-1; i++) {
 				pps->column_width[i] = 1 + bs_get_ue(bs);
 			}
-			for (i=0; i<pps->num_tile_rows; i++) {
-				pps->row_height[i] = bs_get_ue(bs);
+			for (i=0; i<pps->num_tile_rows-1; i++) {
+				pps->row_height[i] = 1+bs_get_ue(bs);
 			}
 		}
 		pps->loop_filter_across_tiles_enabled_flag = gf_bs_read_int(bs, 1);
@@ -3668,9 +4936,7 @@ s32 gf_media_hevc_read_pps(char *data, u32 size, HEVCState *hevc)
 		}
 	}
 	if (/*pic_scaling_list_data_present_flag	= */gf_bs_read_int(bs, 1) ) {
-		//scaling_list_data( )
-		GF_LOG(GF_LOG_WARNING, GF_LOG_CODING, ("[HEVC] Parsing of scaling_list_data is not yet supported, stopping scaning of PPS (slice_segment_header_extension_present won't be checked ...\n"));
-		goto exit;
+		hevc_scaling_list_data(bs);
 	}
 	pps->lists_modification_present_flag = gf_bs_read_int(bs, 1);
 	/*log2_parallel_merge_level_minus2 = */bs_get_ue(bs);
@@ -3680,47 +4946,75 @@ s32 gf_media_hevc_read_pps(char *data, u32 size, HEVCState *hevc)
 			/*pps_extension_data_flag */ gf_bs_read_int(bs, 1);
 		}
 	}
-
-exit:
-	gf_bs_del(bs);
-	gf_free(data_without_emulation_bytes);
 	return pps_id;
 }
 
 
-s32 gf_media_hevc_parse_nalu(GF_BitStream *bs, HEVCState *hevc, u8 *nal_unit_type, u8 *temporal_id, u8 *layer_id)
+GF_EXPORT
+s32 gf_media_hevc_read_pps(char *data, u32 size, HEVCState *hevc)
 {
-	u32 reserved;
-	s32 slice, ret;
+	GF_BitStream *bs;
+	char *data_without_emulation_bytes = NULL;
+	u32 data_without_emulation_bytes_size = 0;
+	s32 pps_id = -1;
+
+	/*still contains emulation bytes*/
+	data_without_emulation_bytes_size = avc_emulation_bytes_remove_count(data, size);
+	if (!data_without_emulation_bytes_size) {
+		bs = gf_bs_new(data, size, GF_BITSTREAM_READ);
+	} else {
+		data_without_emulation_bytes = gf_malloc(size*sizeof(char));
+		data_without_emulation_bytes_size = avc_remove_emulation_bytes(data, data_without_emulation_bytes, size);
+		bs = gf_bs_new(data_without_emulation_bytes, data_without_emulation_bytes_size, GF_BITSTREAM_READ);
+	}
+	if (!bs) goto exit;
+
+	if (! hevc_parse_nal_header(bs, NULL, NULL, NULL)) goto exit;
+
+	pps_id = gf_media_hevc_read_pps_bs(bs, hevc);
+
+exit:
+	if (bs) gf_bs_del(bs);
+	if (data_without_emulation_bytes) gf_free(data_without_emulation_bytes);
+	return pps_id;
+}
+
+GF_EXPORT
+s32 gf_media_hevc_parse_nalu(char *data, u32 size, HEVCState *hevc, u8 *nal_unit_type, u8 *temporal_id, u8 *layer_id)
+{
+	GF_BitStream *bs=NULL;
+	char *data_without_emulation_bytes = NULL;
+	u32 data_without_emulation_bytes_size = 0;
+	Bool is_slice = GF_FALSE;
+	s32 ret = -1;
 	HEVCSliceInfo n_state;
 
-	slice = 0;
 	memcpy(&n_state, &hevc->s_info, sizeof(HEVCSliceInfo));
 
-	reserved = gf_bs_read_int(bs, 1);
-	if (reserved) return -1;
+	hevc->last_parsed_vps_id = hevc->last_parsed_sps_id = hevc->last_parsed_pps_id = -1;
+	hevc->s_info.entry_point_start_bits = -1;
+	hevc->s_info.payload_start_offset = -1;
 
-	*nal_unit_type = n_state.nal_unit_type = gf_bs_read_int(bs, 6);
-	*layer_id = gf_bs_read_int(bs, 6);
-	*temporal_id = n_state.temporal_id = gf_bs_read_int(bs, 3);
+	data_without_emulation_bytes_size = avc_emulation_bytes_remove_count(data, size);
+	if (!data_without_emulation_bytes_size) {
+		bs = gf_bs_new(data, size, GF_BITSTREAM_READ);
+	} else {
+		/*still contains emulation bytes*/
+		data_without_emulation_bytes = gf_malloc(size*sizeof(char));
+		data_without_emulation_bytes_size = avc_remove_emulation_bytes(data, data_without_emulation_bytes, size);
+		bs = gf_bs_new(data_without_emulation_bytes, data_without_emulation_bytes_size, GF_BITSTREAM_READ);
+	}
+	if (!bs) goto exit;
 
-	ret = 0;
+	if (! hevc_parse_nal_header(bs, nal_unit_type, temporal_id, layer_id)) goto exit;
+	n_state.nal_unit_type = *nal_unit_type;
+
 	switch (n_state.nal_unit_type) {
 	case GF_HEVC_NALU_ACCESS_UNIT:
 	case GF_HEVC_NALU_END_OF_SEQ:
 	case GF_HEVC_NALU_END_OF_STREAM:
 		ret = 1;
 		break;
-
-
-	/*slice_layer_rbsp*/
-//	case GF_HEVC_NALU_SLICE_STSA_N:
-//	case GF_HEVC_NALU_SLICE_STSA_R:
-//	case GF_HEVC_NALU_SLICE_RADL_N:
-//	case GF_HEVC_NALU_SLICE_RADL_R:
-//	case GF_HEVC_NALU_SLICE_RASL_N:
-//	case GF_HEVC_NALU_SLICE_RASL_R:
-//		break;
 
 	/*slice_segment_layer_rbsp*/
 	case GF_HEVC_NALU_SLICE_TRAIL_N:
@@ -3729,7 +5023,6 @@ s32 gf_media_hevc_parse_nalu(GF_BitStream *bs, HEVCState *hevc, u8 *nal_unit_typ
 	case GF_HEVC_NALU_SLICE_TSA_R:
 	case GF_HEVC_NALU_SLICE_STSA_N:
 	case GF_HEVC_NALU_SLICE_STSA_R:
-
 	case GF_HEVC_NALU_SLICE_BLA_W_LP:
 	case GF_HEVC_NALU_SLICE_BLA_W_DLP:
 	case GF_HEVC_NALU_SLICE_BLA_N_LP:
@@ -3740,30 +5033,42 @@ s32 gf_media_hevc_parse_nalu(GF_BitStream *bs, HEVCState *hevc, u8 *nal_unit_typ
 	case GF_HEVC_NALU_SLICE_RADL_R:
 	case GF_HEVC_NALU_SLICE_RASL_N:
 	case GF_HEVC_NALU_SLICE_RASL_R:
-		slice = 1;
-		//fixme with latest SHVC syntax
-		if (*layer_id) return 0;
-
+		is_slice = GF_TRUE;
 		/* slice - read the info and compare.*/
 		ret = hevc_parse_slice_segment(bs, hevc, &n_state);
-		if (ret<0) return ret;
+		if (ret<0) goto exit;
 
 		hevc_compute_poc(&n_state);
-		
+
 		ret = 0;
 
 		if (hevc->s_info.poc != n_state.poc) {
 			ret=1;
 			break;
 		}
+		if (n_state.first_slice_segment_in_pic_flag) {
+			if (!(*layer_id) || (n_state.prev_layer_id_plus1 && ((*layer_id) <= n_state.prev_layer_id_plus1 - 1)) ) {
+				ret = 1;
+				break;
+			}
+		}
 		break;
 	case GF_HEVC_NALU_SEQ_PARAM:
-	case GF_HEVC_NALU_PIC_PARAM:
-	case GF_HEVC_NALU_VID_PARAM:
-		return 0;
-	default:
+		hevc->last_parsed_sps_id = gf_media_hevc_read_sps_bs(bs, hevc, *layer_id, NULL);
+		ret = 0;
 		break;
-	} 
+	case GF_HEVC_NALU_PIC_PARAM:
+		hevc->last_parsed_pps_id = gf_media_hevc_read_pps_bs(bs, hevc);
+		ret = 0;
+		break;
+	case GF_HEVC_NALU_VID_PARAM:
+		hevc->last_parsed_vps_id = gf_media_hevc_read_vps_bs(bs, hevc, GF_FALSE);
+		ret = 0;
+		break;
+	default:
+		ret = 0;
+		break;
+	}
 
 	/* save _prev values */
 	if (ret && hevc->s_info.sps) {
@@ -3772,9 +5077,14 @@ s32 gf_media_hevc_parse_nalu(GF_BitStream *bs, HEVCState *hevc, u8 *nal_unit_typ
 
 		n_state.poc_lsb_prev = hevc->s_info.poc_lsb;
 		n_state.poc_msb_prev = hevc->s_info.poc_msb;
+		n_state.prev_layer_id_plus1 = *layer_id + 1;
 	}
-	if (slice) hevc_compute_poc(&n_state);
+	if (is_slice) hevc_compute_poc(&n_state);
 	memcpy(&hevc->s_info, &n_state, sizeof(HEVCSliceInfo));
+
+exit:
+	if (bs) gf_bs_del(bs);
+	if (data_without_emulation_bytes) gf_free(data_without_emulation_bytes);
 	return ret;
 }
 
@@ -3791,7 +5101,7 @@ GF_Err gf_media_hevc_change_par(GF_HEVCConfig *hvcc, s32 ar_n, s32 ar_d)
 {
 	GF_BitStream *orig, *mod;
 	HEVCState hevc;
-	u32 i, bit_offset, flag, nal_hdr_size;
+	u32 i, bit_offset, flag;
 	s32 idx;
 	GF_HEVCParamArray *spss;
 	GF_AVCConfigSlot *slc;
@@ -3800,12 +5110,10 @@ GF_Err gf_media_hevc_change_par(GF_HEVCConfig *hvcc, s32 ar_n, s32 ar_d)
 	memset(&hevc, 0, sizeof(HEVCState));
 	hevc.sps_active_idx = -1;
 
-	nal_hdr_size=2;
-
 	i=0;
 	spss = NULL;
 	while ((spss = (GF_HEVCParamArray *)gf_list_enum(hvcc->param_array, &i))) {
-		if (spss->type==GF_HEVC_NALU_SEQ_PARAM) 
+		if (spss->type==GF_HEVC_NALU_SEQ_PARAM)
 			break;
 		spss = NULL;
 	}
@@ -3815,29 +5123,30 @@ GF_Err gf_media_hevc_change_par(GF_HEVCConfig *hvcc, s32 ar_n, s32 ar_d)
 	while ((slc = (GF_AVCConfigSlot *)gf_list_enum(spss->nalus, &i))) {
 		char *no_emulation_buf = NULL;
 		u32 no_emulation_buf_size = 0, emulation_bytes = 0;
-		idx = gf_media_hevc_read_sps_ex(slc->data, slc->size, &hevc, &bit_offset);
+
+		/*SPS may still contains emulation bytes*/
+		no_emulation_buf = gf_malloc((slc->size)*sizeof(char));
+		no_emulation_buf_size = avc_remove_emulation_bytes(slc->data, no_emulation_buf, slc->size);
+
+		idx = gf_media_hevc_read_sps_ex(no_emulation_buf, no_emulation_buf_size, &hevc, &bit_offset);
 		if (idx<0) {
 			if ( orig )
 				gf_bs_del(orig);
+			gf_free(no_emulation_buf);
 			continue;
 		}
 
-		/*SPS still contains emulation bytes*/
-		no_emulation_buf = gf_malloc((slc->size - nal_hdr_size)*sizeof(char));
-		no_emulation_buf_size = avc_remove_emulation_bytes(slc->data + nal_hdr_size, no_emulation_buf, slc->size - nal_hdr_size);
-
 		orig = gf_bs_new(no_emulation_buf, no_emulation_buf_size, GF_BITSTREAM_READ);
-		gf_bs_read_data(orig, no_emulation_buf, no_emulation_buf_size);
-		gf_bs_seek(orig, 0);
 		mod = gf_bs_new(NULL, 0, GF_BITSTREAM_WRITE);
 
 		/*copy over till vui flag*/
-		assert(bit_offset >= 8 * nal_hdr_size);
-		while (bit_offset - 8 * nal_hdr_size/*bit_offset doesn't take care of the first two byte (NALU hdr)*/) {
+		assert(bit_offset >= 0);
+		while (bit_offset) {
 			flag = gf_bs_read_int(orig, 1);
 			gf_bs_write_int(mod, flag, 1);
 			bit_offset--;
 		}
+
 		/*check VUI*/
 		flag = gf_bs_read_int(orig, 1);
 		gf_bs_write_int(mod, 1, 1); /*vui_parameters_present_flag*/
@@ -3891,10 +5200,10 @@ GF_Err gf_media_hevc_change_par(GF_HEVCConfig *hvcc, s32 ar_n, s32 ar_d)
 		/*set anti-emulation*/
 		gf_bs_get_content(mod, (char **) &no_emulation_buf, &no_emulation_buf_size);
 		emulation_bytes = avc_emulation_bytes_add_count(no_emulation_buf, no_emulation_buf_size);
-		if (no_emulation_buf_size + emulation_bytes + nal_hdr_size > slc->size)
-			slc->data = (char*)gf_realloc(slc->data, no_emulation_buf_size + emulation_bytes + nal_hdr_size);
+		if (no_emulation_buf_size + emulation_bytes > slc->size)
+			slc->data = (char*)gf_realloc(slc->data, no_emulation_buf_size + emulation_bytes);
 
-		slc->size = avc_add_emulation_bytes(no_emulation_buf, slc->data + nal_hdr_size, no_emulation_buf_size) + nal_hdr_size;
+		slc->size = avc_add_emulation_bytes(no_emulation_buf, slc->data, no_emulation_buf_size);
 
 		gf_bs_del(mod);
 		gf_free(no_emulation_buf);
@@ -3903,24 +5212,29 @@ GF_Err gf_media_hevc_change_par(GF_HEVCConfig *hvcc, s32 ar_n, s32 ar_d)
 }
 
 GF_EXPORT
-GF_Err gf_hevc_get_sps_info(char *sps_data, u32 sps_size, u32 *sps_id, u32 *width, u32 *height, s32 *par_n, s32 *par_d)
+GF_Err gf_hevc_get_sps_info_with_state(HEVCState *hevc, char *sps_data, u32 sps_size, u32 *sps_id, u32 *width, u32 *height, s32 *par_n, s32 *par_d)
 {
-	HEVCState hevc;
 	s32 idx;
-	memset(&hevc, 0, sizeof(HEVCState));
-	hevc.sps_active_idx = -1;
-
-	idx = gf_media_hevc_read_sps(sps_data, sps_size, &hevc);
+	idx = gf_media_hevc_read_sps(sps_data, sps_size, hevc);
 	if (idx<0) {
 		return GF_NON_COMPLIANT_BITSTREAM;
 	}
 	if (sps_id) *sps_id = idx;
 
-	if (width) *width = hevc.sps[idx].width;
-	if (height) *height = hevc.sps[idx].height;
-	if (par_n) *par_n = hevc.sps[idx].aspect_ratio_info_present_flag ? hevc.sps[idx].sar_width : (u32) -1;
-	if (par_d) *par_d = hevc.sps[idx].aspect_ratio_info_present_flag ? hevc.sps[idx].sar_height : (u32) -1;
+	if (width) *width = hevc->sps[idx].width;
+	if (height) *height = hevc->sps[idx].height;
+	if (par_n) *par_n = hevc->sps[idx].aspect_ratio_info_present_flag ? hevc->sps[idx].sar_width : (u32) -1;
+	if (par_d) *par_d = hevc->sps[idx].aspect_ratio_info_present_flag ? hevc->sps[idx].sar_height : (u32) -1;
 	return GF_OK;
+}
+
+GF_EXPORT
+GF_Err gf_hevc_get_sps_info(char *sps_data, u32 sps_size, u32 *sps_id, u32 *width, u32 *height, s32 *par_n, s32 *par_d)
+{
+	HEVCState hevc;
+	memset(&hevc, 0, sizeof(HEVCState));
+	hevc.sps_active_idx = -1;
+	return gf_hevc_get_sps_info_with_state(&hevc, sps_data, sps_size, sps_id, width, height, par_n, par_d);
 }
 
 #endif //GPAC_DISABLE_HEVC
@@ -3951,35 +5265,36 @@ static Bool AC3_FindSyncCodeBS(GF_BitStream *bs)
 		u8 b2 = gf_bs_read_u8(bs);
 		if ((b1 == 0x0b) && (b2==0x77)) {
 			gf_bs_seek(bs, pos-1);
-			return 1;
+			return GF_TRUE;
 		}
 		pos++;
+		b1 = b2;
 	}
-	return 0;
+	return GF_FALSE;
 }
 
 static const u32 ac3_sizecod_to_bitrate[] = {
-  32000, 40000, 48000, 56000, 64000, 80000, 96000,
-  112000, 128000, 160000, 192000, 224000, 256000,
-  320000, 384000, 448000, 512000, 576000, 640000
+	32000, 40000, 48000, 56000, 64000, 80000, 96000,
+	112000, 128000, 160000, 192000, 224000, 256000,
+	320000, 384000, 448000, 512000, 576000, 640000
 };
 
 static const u32 ac3_sizecod2_to_framesize[] = {
-  96, 120, 144, 168, 192, 240, 288, 336, 384, 480, 576, 672,
-  768, 960, 1152, 1344, 1536, 1728, 1920
+	96, 120, 144, 168, 192, 240, 288, 336, 384, 480, 576, 672,
+	768, 960, 1152, 1344, 1536, 1728, 1920
 };
 
 static const u32 ac3_sizecod1_to_framesize[] = {
-  69, 87, 104, 121, 139, 174, 208, 243, 278, 348, 417, 487,
-  557, 696, 835, 975, 1114, 1253, 1393
+	69, 87, 104, 121, 139, 174, 208, 243, 278, 348, 417, 487,
+	557, 696, 835, 975, 1114, 1253, 1393
 };
 static const u32 ac3_sizecod0_to_framesize[] = {
-  64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 
-  512, 640, 768, 896, 1024, 1152, 1280
+	64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448,
+	512, 640, 768, 896, 1024, 1152, 1280
 };
 
 static const u32 ac3_mod_to_chans[] = {
-  2, 1, 2, 3, 3, 4, 4, 5
+	2, 1, 2, 3, 3, 4, 4, 5
 };
 
 GF_EXPORT
@@ -3998,77 +5313,42 @@ u32 gf_ac3_get_bitrate(u32 brcode)
 
 Bool gf_ac3_parser(u8 *buf, u32 buflen, u32 *pos, GF_AC3Header *hdr, Bool full_parse)
 {
-	u32 fscod, frmsizecod, bsid, ac3_mod, freq, framesize;
-	if (buflen < 6) return 0;
+	GF_BitStream *bs;
+	Bool ret;
+
+	if (buflen < 6) return GF_FALSE;
 	(*pos) = AC3_FindSyncCode(buf, buflen);
-	if (*pos >= buflen) return 0;
+	if (*pos >= buflen) return GF_FALSE;
 
-	buf += (*pos);
-	fscod = (buf[4] >> 6) & 0x3;
-	frmsizecod = (buf[4] & 0x3f);
-	bsid = (buf[5] >> 3) & 0x1f;
-	ac3_mod = (buf[6] >> 5) & 0x7;
-	if (bsid >= 12) return 0;
+	bs = gf_bs_new((const char*)(buf+*pos), buflen, GF_BITSTREAM_READ);
+	ret = gf_ac3_parser_bs(bs, hdr, full_parse);
+	gf_bs_del(bs);
 
-	if (full_parse && hdr) memset(hdr, 0, sizeof(GF_AC3Header));
-	
-	if (hdr) {
-		hdr->bitrate = ac3_sizecod_to_bitrate[frmsizecod / 2];
-		if (bsid > 8) hdr->bitrate = hdr->bitrate >> (bsid - 8);
-	}
-	switch (fscod) {
-	case 0:
-		freq = 48000;
-		framesize = ac3_sizecod0_to_framesize[frmsizecod / 2] * 2;
-		break;
-	case 1:
-		freq = 44100;
-		framesize = (ac3_sizecod1_to_framesize[frmsizecod / 2] + (frmsizecod & 0x1)) * 2;
-		break;
-	case 2:
-		freq = 32000;
-		framesize = ac3_sizecod2_to_framesize[frmsizecod / 2] * 2;
-		break;
-	default:
-		return 0;
-	}
-	if (hdr) {
-		u16 maskbit, b67;
-		hdr->sample_rate = freq;
-		hdr->framesize = framesize;
-
-		hdr->channels = ac3_mod_to_chans[ac3_mod];
-		maskbit = 0x100;
-		if ((ac3_mod & 0x1) && (ac3_mod != 1)) maskbit >>= 2;
-		if (ac3_mod & 0x4) maskbit >>= 2;
-		if (ac3_mod == 0x2) maskbit += 2;
-		b67 = (buf[6] << 8) | buf[7];
-		if ((b67 & maskbit) != 0) hdr->channels += 1;
-	}
-	return 1;
+	return ret;
 }
-
 
 GF_EXPORT
 Bool gf_ac3_parser_bs(GF_BitStream *bs, GF_AC3Header *hdr, Bool full_parse)
 {
-	u32 fscod, frmsizecod, bsid, ac3_mod, freq, framesize, bsmod;
+	u32 fscod, frmsizecod, bsid, ac3_mod, freq, framesize, bsmod, syncword;
 	u64 pos;
-	if (!hdr || (gf_bs_available(bs) < 6)) return 0;
-	if (!AC3_FindSyncCodeBS(bs)) return 0;
+	if (!hdr || (gf_bs_available(bs) < 6)) return GF_FALSE;
+	if (!AC3_FindSyncCodeBS(bs)) return GF_FALSE;
 
 	pos = gf_bs_get_position(bs);
-	gf_bs_read_u32(bs);
+
+	syncword = gf_bs_read_u16(bs);
+	if (syncword != 0x0B77) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[AC3] Wrong sync word detected (0x%X - expecting 0x0B77).\n", syncword));
+		return GF_FALSE;
+	}
+	gf_bs_read_u16(bs); //crc1
 	fscod = gf_bs_read_int(bs, 2);
 	frmsizecod = gf_bs_read_int(bs, 6);
 	bsid = gf_bs_read_int(bs, 5);
 	bsmod = gf_bs_read_int(bs, 3);
 	ac3_mod = gf_bs_read_int(bs, 3);
 
-	if (bsid >= 12) return 0;
-
-	//memset(hdr, 0, sizeof(GF_AC3Header));
-	
 	hdr->bitrate = ac3_sizecod_to_bitrate[frmsizecod / 2];
 	if (bsid > 8) hdr->bitrate = hdr->bitrate >> (bsid - 8);
 
@@ -4086,7 +5366,7 @@ Bool gf_ac3_parser_bs(GF_BitStream *bs, GF_AC3Header *hdr, Bool full_parse)
 		framesize = ac3_sizecod2_to_framesize[frmsizecod / 2] * 2;
 		break;
 	default:
-		return 0;
+		return GF_FALSE;
 	}
 	hdr->sample_rate = freq;
 	hdr->framesize = framesize;
@@ -4110,9 +5390,120 @@ Bool gf_ac3_parser_bs(GF_BitStream *bs, GF_AC3Header *hdr, Bool full_parse)
 		hdr->lfon = 1;
 	}
 
+	gf_bs_seek(bs, pos);
+
+	return GF_TRUE;
+}
+
+GF_EXPORT
+Bool gf_eac3_parser_bs(GF_BitStream *bs, GF_AC3Header *hdr, Bool full_parse)
+{
+	u32 fscod, bsid, ac3_mod, freq, framesize, syncword, substreamid, lfon, channels, numblkscod;
+	u64 pos;
+
+restart:
+	if (!hdr || (gf_bs_available(bs) < 6))
+		return GF_FALSE;
+	if (!AC3_FindSyncCodeBS(bs))
+		return GF_FALSE;
+
+	pos = gf_bs_get_position(bs);
+	framesize = 0;
+	numblkscod = 0;
+
+block:
+	syncword = gf_bs_read_u16(bs);
+	if (syncword != 0x0B77) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_CODING, ("[E-AC3] Wrong sync word detected (0x%X - expecting 0x0B77).\n", syncword));
+		return GF_FALSE;
+	}
+
+	gf_bs_read_int(bs, 2); //strmtyp
+	substreamid = gf_bs_read_int(bs, 3);
+	framesize += gf_bs_read_int(bs, 11);
+	fscod = gf_bs_read_int(bs, 2);
+	if (fscod == 0x3) {
+		fscod = gf_bs_read_int(bs, 2);
+		numblkscod += 6;
+	} else {
+		numblkscod += gf_bs_read_int(bs, 2);
+	}
+	assert(numblkscod <= 9);
+
+	if ((hdr->substreams >> substreamid) & 0x1) {
+		if (!substreamid) {
+			hdr->framesize = framesize;
+
+			if (numblkscod < 6) { //we need 6 blocks to make a sample
+				gf_bs_seek(bs, pos+2*framesize);
+				if ((gf_bs_available(bs) < 6) || !AC3_FindSyncCodeBS(bs))
+					return GF_FALSE;
+				goto block;
+			}
+
+			gf_bs_seek(bs, pos);
+			return GF_TRUE;
+		} else {
+			GF_LOG(GF_LOG_INFO, GF_LOG_CODING, ("[E-AC3] Detected sample in substream id=%u. Skipping.\n", substreamid));
+			gf_bs_seek(bs, pos+framesize);
+			goto restart;
+		}
+	}
+	hdr->substreams |= (1 << substreamid);
+
+	switch (fscod) {
+	case 0:
+		freq = 48000;
+		break;
+	case 1:
+		freq = 44100;
+		break;
+	case 2:
+		freq = 32000;
+		break;
+	default:
+		return GF_FALSE;
+	}
+
+	ac3_mod = gf_bs_read_int(bs, 3);
+	lfon = gf_bs_read_int(bs, 1);
+	bsid = gf_bs_read_int(bs, 5);
+	if (!substreamid && (bsid!=16/*E-AC3*/))
+		return GF_FALSE;
+
+	channels = ac3_mod_to_chans[ac3_mod];
+	if (lfon)
+		channels += 1;
+
+	if (substreamid) {
+		GF_LOG(GF_LOG_WARNING, GF_LOG_CODING, ("[E-AC3] Detected additional %u channels in substream id=%u - may not be handled correctly. Skipping.\n", channels, substreamid));
+		gf_bs_seek(bs, pos+framesize);
+		goto restart;
+	} else {
+		hdr->bitrate = 0;
+		hdr->sample_rate = freq;
+		hdr->framesize = framesize;
+		hdr->lfon = lfon;
+		hdr->channels = channels;
+		if (full_parse) {
+			hdr->bsid = bsid;
+			hdr->bsmod = 0;
+			hdr->acmod = ac3_mod;
+			hdr->fscod = fscod;
+			hdr->brcode = 0;
+		}
+	}
+
+	if (numblkscod < 6) { //we need 6 blocks to make a sample
+		gf_bs_seek(bs, pos+2*framesize);
+		if ((gf_bs_available(bs) < 6) || !AC3_FindSyncCodeBS(bs))
+			return GF_FALSE;
+		goto block;
+	}
 
 	gf_bs_seek(bs, pos);
-	return 1;
+
+	return GF_TRUE;
 }
 
 #endif /*GPAC_DISABLE_AV_PARSERS*/
@@ -4131,12 +5522,12 @@ static u32 vorbis_book_maptype1_quantvals(u32 entries, u32 dim)
 		u32 acc=1;
 		u32 acc1=1;
 		u32 i;
-		for (i=0;i<dim;i++) {
+		for (i=0; i<dim; i++) {
 			acc*=vals;
 			acc1*=vals+1;
 		}
 		if(acc<=entries && acc1>entries) return (vals);
-		else { 
+		else {
 			if (acc>entries) vals--;
 			else vals++;
 		}
@@ -4155,7 +5546,7 @@ u32 _ilog_(u32 v)
 
 static u32 ilog(u32 v)
 {
-	u32 ret=0; 
+	u32 ret=0;
 	if(v) --v;
 	while(v) {
 		ret++;
@@ -4185,7 +5576,10 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 	oggpack_readinit(&opb, (u8*)data, data_len);
 	pack_type = oggpack_read(&opb, 8);
 	i=0;
-	while (i<6) { szNAME[i] = oggpack_read(&opb, 8); i++;}
+	while (i<6) {
+		szNAME[i] = oggpack_read(&opb, 8);
+		i++;
+	}
 	szNAME[i] = 0;
 	if (strcmp(szNAME, "vorbis")) return vp->is_init = 0;
 
@@ -4238,7 +5632,7 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 					}
 				}
 			} else {
-				for (j=0; j<entries; j++) 
+				for (j=0; j<entries; j++)
 					oggpack_read(&opb, 5);
 			}
 		} else {
@@ -4250,7 +5644,8 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 			}
 		}
 		switch ((map_type=oggpack_read(&opb, 4))) {
-		case 0: break;
+		case 0:
+			break;
 		case 1:
 		case 2:
 			oggpack_read(&opb, 32);
@@ -4260,26 +5655,26 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 			if (map_type==1) qb = vorbis_book_maptype1_quantvals(entries, dim);
 			else if (map_type==2) qb = entries * dim;
 			else qb = 0;
-			for (j=0;j<qb;j++) oggpack_read(&opb, qq);
+			for (j=0; j<qb; j++) oggpack_read(&opb, qq);
 			break;
 		}
 	}
 	times = oggpack_read(&opb, 6)+1;
-	for (i=0;i<times;i++) oggpack_read(&opb, 16);
+	for (i=0; i<times; i++) oggpack_read(&opb, 16);
 	times = oggpack_read(&opb, 6)+1;
-	for (i=0;i<times;i++) {
+	for (i=0; i<times; i++) {
 		u32 type = oggpack_read(&opb, 16);
 		if (type) {
 			u32 *parts, *class_dims, count, rangebits;
 			u32 max_class = 0;
 			nb_part = oggpack_read(&opb, 5);
 			parts = (u32*)gf_malloc(sizeof(u32) * nb_part);
-			for (j=0;j<nb_part;j++) {
+			for (j=0; j<nb_part; j++) {
 				parts[j] = oggpack_read(&opb, 4);
 				if (max_class<parts[j]) max_class = parts[j];
 			}
 			class_dims = (u32*)gf_malloc(sizeof(u32) * (max_class+1));
-			for (j=0; j<max_class+1;j++) {
+			for (j=0; j<max_class+1; j++) {
 				u32 class_sub;
 				class_dims[j] = oggpack_read(&opb, 3) + 1;
 				class_sub = oggpack_read(&opb, 2);
@@ -4289,9 +5684,9 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 			oggpack_read(&opb, 2);
 			rangebits=oggpack_read(&opb, 4);
 			count = 0;
-			for (j=0,k=0;j<nb_part;j++) {
+			for (j=0,k=0; j<nb_part; j++) {
 				count+=class_dims[parts[j]];
-				for (;k<count;k++) oggpack_read(&opb, rangebits);
+				for (; k<count; k++) oggpack_read(&opb, rangebits);
 			}
 			gf_free(parts);
 			gf_free(class_dims);
@@ -4303,7 +5698,7 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 		}
 	}
 	times = oggpack_read(&opb, 6)+1;
-	for (i=0;i<times;i++) {
+	for (i=0; i<times; i++) {
 		u32 acc = 0;
 		oggpack_read(&opb, 16);/*type*/
 		oggpack_read(&opb, 24);
@@ -4311,12 +5706,12 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 		oggpack_read(&opb,24);
 		nb_part = oggpack_read(&opb, 6)+1;
 		oggpack_read(&opb, 8);
-		for (j=0; j<nb_part;j++) {
+		for (j=0; j<nb_part; j++) {
 			u32 cascade = oggpack_read(&opb, 3);
 			if (oggpack_read(&opb, 1)) cascade |= (oggpack_read(&opb, 5)<<3);
 			acc += icount(cascade);
 		}
-		for (j=0;j<acc;j++) oggpack_read(&opb, 8);
+		for (j=0; j<acc; j++) oggpack_read(&opb, 8);
 	}
 	times = oggpack_read(&opb, 6)+1;
 	for (i=0; i<times; i++) {
@@ -4325,7 +5720,7 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 		if (oggpack_read(&opb, 1)) sub_maps = oggpack_read(&opb, 4)+1;
 		if (oggpack_read(&opb, 1)) {
 			u32 nb_steps = oggpack_read(&opb, 8)+1;
-			for (j=0;j<nb_steps;j++) {
+			for (j=0; j<nb_steps; j++) {
 				oggpack_read(&opb, ilog(vp->channels));
 				oggpack_read(&opb, ilog(vp->channels));
 			}
@@ -4334,7 +5729,7 @@ Bool gf_vorbis_parse_header(GF_VorbisParser *vp, char *data, u32 data_len)
 		if (sub_maps>1) {
 			for(j=0; j<vp->channels; j++) oggpack_read(&opb, 4);
 		}
-		for (j=0;j<sub_maps;j++) {
+		for (j=0; j<sub_maps; j++) {
 			oggpack_read(&opb, 8);
 			oggpack_read(&opb, 8);
 			oggpack_read(&opb, 8);

@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -30,6 +30,22 @@
 extern "C" {
 #endif
 
+
+/*! \file "gpac/setup.h"
+ *	\brief base data types of GPAC.
+ *
+ * This file contains the base data types of GPAC, depending on the platform.
+*/
+
+/*! \addtogroup setup_grp base data types
+ *	\ingroup utils_grp
+ *	\brief Base data types of GPAC.
+ *
+ *	This section documents the base data types of GPAC.
+ *	@{
+ */
+
+
 /*This is to handle cases where config.h is generated at the root of the gpac build tree (./configure)
 This is only needed when building libgpac and modules when libgpac is not installed*/
 #ifdef GPAC_HAVE_CONFIG_H
@@ -46,6 +62,9 @@ This is only needed when building libgpac and modules when libgpac is not instal
 #include <stdio.h>
 #include <stdlib.h>
 
+#if defined(_WIN64) && !defined(GPAC_64_BITS)
+#define GPAC_64_BITS
+#endif
 
 typedef unsigned __int64 u64;
 typedef unsigned int u32;
@@ -297,6 +316,9 @@ typedef u8 bin128[16];
 #define GF_EPSILON_FLOAT	FLT_EPSILON
 #define GF_SHORT_MAX		SHRT_MAX
 #define GF_SHORT_MIN		SHRT_MIN
+#define GF_UINT_MAX			UINT_MAX
+#define GF_INT_MAX			INT_MAX
+#define GF_INT_MIN			INT_MIN
 
 #ifndef MIN
 #define MIN(X, Y) ((X)<(Y)?(X):(Y))
@@ -318,16 +340,21 @@ typedef enum {
 } Bool;
 #endif
 
+typedef struct {
+	s64 num;
+	u64 den;
+} GF_Fraction;
 
 /*GPAC memory tracking*/
 #if defined(GPAC_MEMORY_TRACKING)
 
-void *gf_mem_malloc(size_t size, char *filename, int line);
-void *gf_mem_calloc(size_t num, size_t size_of, char *filename, int line);
-void *gf_mem_realloc(void *ptr, size_t size, char *filename, int line);
-void gf_mem_free(void *ptr, char *filename, int line);
-char *gf_mem_strdup(const char *str, char *filename, int line);
+void *gf_mem_malloc(size_t size, const char *filename, int line);
+void *gf_mem_calloc(size_t num, size_t size_of, const char *filename, int line);
+void *gf_mem_realloc(void *ptr, size_t size, const char *filename, int line);
+void gf_mem_free(void *ptr, const char *filename, int line);
+char *gf_mem_strdup(const char *str, const char *filename, int line);
 void gf_memory_print(void); /*prints the state of current allocations*/
+u64 gf_memory_size(); /*gets memory allocated in bytes*/
 
 #define gf_free(ptr) gf_mem_free(ptr, __FILE__, __LINE__)
 #define gf_malloc(size) gf_mem_malloc(size, __FILE__, __LINE__)
@@ -337,11 +364,11 @@ void gf_memory_print(void); /*prints the state of current allocations*/
 
 #else
 
-#define gf_malloc malloc
-#define gf_calloc calloc
-#define gf_realloc realloc
-#define gf_free free
-#define gf_strdup strdup
+void* gf_malloc(size_t size);
+void* gf_calloc(size_t num, size_t size_of);
+void* gf_realloc(void *ptr, size_t size);
+void gf_free(void *ptr);
+char* gf_strdup(const char *str);
 
 #endif
 
@@ -356,7 +383,11 @@ void gf_memory_print(void); /*prints the state of current allocations*/
 #define LLXPAD( pad ) "%" pad "I64x"
 #define LLD_CAST
 #define LLU_CAST
+#ifdef _WIN64
+#define PTR_TO_U_CAST (u64)
+#else
 #define PTR_TO_U_CAST (u32)
+#endif
 
 #elif defined (__SYMBIAN32__)
 
@@ -412,9 +443,8 @@ void gf_memory_print(void); /*prints the state of current allocations*/
 #define PTR_TO_U_CAST
 #endif
 
-
-#ifndef GF_EXPORT
-#if defined(__GNUC__) && __GNUC__ >= 4 && !defined(TARGET_OS_IPHONE) && !defined(TARGET_IPHONE_SIMULATOR)
+#if !defined(GF_EXPORT)
+#if defined(__GNUC__) && __GNUC__ >= 4 && !defined(GPAC_IPHONE)
 #define GF_EXPORT __attribute__((visibility("default")))
 #else
 /*use def files for windows or let compiler decide*/
@@ -422,11 +452,10 @@ void gf_memory_print(void); /*prints the state of current allocations*/
 #endif
 #endif
 
-#if defined(TARGET_OS_IPHONE) || defined(TARGET_IPHONE_SIMULATOR)
+#if defined(GPAC_IPHONE)
 #define GPAC_STATIC_MODULES
 #endif
 
-	
 /*safety checks on macros*/
 
 #ifdef GPAC_DISABLE_ZLIB
@@ -534,11 +563,13 @@ void gf_memory_print(void); /*prints the state of current allocations*/
 # endif
 #endif
 
-#ifndef GPAC_HAS_SPIDERMONKEY
+#if !defined(GPAC_HAS_SPIDERMONKEY) || defined(GPAC_DISABLE_SVG)
 # ifndef GPAC_DISABLE_MSE
 # define GPAC_DISABLE_MSE
 # endif
 #endif
+
+/*! @} */
 
 #ifdef __cplusplus
 }

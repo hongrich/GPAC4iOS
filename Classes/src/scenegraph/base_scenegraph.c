@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -62,9 +62,7 @@ GF_SceneGraph *gf_sg_new()
 
 #ifndef GPAC_DISABLE_SVG
 	tmp->dom_evt_mx = gf_mx_new("DOMEvent");
-	tmp->dom_evt.evt_list = gf_list_new();
-	tmp->dom_evt.ptr = tmp;
-	tmp->dom_evt.ptr_type = GF_DOM_EVENT_DOCUMENT;
+	tmp->dom_evt = gf_dom_event_target_new(GF_DOM_EVENT_TARGET_DOCUMENT, tmp);
 	tmp->xlink_hrefs = gf_list_new();
 	tmp->smil_timed_elements = gf_list_new();
 	tmp->modified_smil_timed_elements = gf_list_new();
@@ -127,7 +125,7 @@ Double gf_node_get_scene_time(GF_Node *node)
 
 GF_EXPORT
 void gf_sg_del(GF_SceneGraph *sg)
-{	
+{
 	if (!sg) return;
 
 #ifndef GPAC_DISABLE_VRML
@@ -140,17 +138,28 @@ void gf_sg_del(GF_SceneGraph *sg)
 	gf_sg_reset(sg);
 
 #ifndef GPAC_DISABLE_SVG
-	gf_list_del(sg->dom_evt.evt_list);
+
+	gf_dom_event_target_del(sg->dom_evt);
 	gf_list_del(sg->xlink_hrefs);
 	gf_list_del(sg->smil_timed_elements);
 	gf_list_del(sg->modified_smil_timed_elements);
 	gf_list_del(sg->listeners_to_add);
 	gf_mx_del(sg->dom_evt_mx);
 #endif
+
 #ifdef GPAC_HAS_SPIDERMONKEY
 	gf_list_del(sg->scripts);
+	sg->scripts = NULL;
 	gf_list_del(sg->objects);
+	sg->objects = NULL;
+#ifndef GPAC_DISABLE_SVG
+	if (sg->svg_js) {
+		void gf_svg_script_context_del(GF_SVGJS *svg_js, GF_SceneGraph *scenegraph);
+		gf_svg_script_context_del(sg->svg_js, sg);
+	}
 #endif
+
+#endif //GPAC_HAS_SPIDERMONKEY
 
 #ifndef GPAC_DISABLE_VRML
 	gf_list_del(sg->Routes);
@@ -159,7 +168,6 @@ void gf_sg_del(GF_SceneGraph *sg)
 	gf_list_del(sg->routes_to_activate);
 	gf_list_del(sg->routes_to_destroy);
 #endif
-
 	gf_list_del(sg->exported_nodes);
 	gf_free(sg);
 }
@@ -204,7 +212,7 @@ void SG_GraphRemoved(GF_Node *node, GF_SceneGraph *sg)
 			while (list) {
 				if (list->node->sgprivate->scenegraph==sg) {
 					gf_node_unregister(list->node, node);
-				
+
 					if (prev) prev->next = list->next;
 					else *(GF_ChildNodeItem **) info.far_ptr = list->next;
 					cur = list;
@@ -247,7 +255,7 @@ void SG_GraphRemoved(GF_Node *node, GF_SceneGraph *sg)
 							while (list) {
 								if (list->node->sgprivate->scenegraph==sg) {
 									gf_node_unregister(list->node, node);
-								
+
 									if (prev) prev->next = list->next;
 									else f->node_list = list->next;
 									cur = list;
@@ -332,11 +340,7 @@ void gf_sg_reset(GF_SceneGraph *sg)
 
 	gf_mx_p(sg->dom_evt_mx);
 	/*remove listeners attached to the doc*/
-	while (gf_list_count(sg->dom_evt.evt_list)) {
-		GF_Node *n = gf_list_get(sg->dom_evt.evt_list, 0);
-		gf_dom_listener_del(n, &sg->dom_evt);
-	}
-
+	gf_dom_event_remove_all_listeners(sg->dom_evt);
 	/*flush any pending add_listener*/
 	gf_dom_listener_reset_defered(sg);
 	gf_mx_v(sg->dom_evt_mx);
@@ -381,11 +385,11 @@ restart:
 	while (reg_node) {
 		Bool ignore = 0;
 		GF_Node *node = reg_node->node;
-		if (!node 
+		if (!node
 #ifndef GPAC_DISABLE_VRML
-			|| (node==sg->global_qp) 
+		        || (node==sg->global_qp)
 #endif
-		) {
+		   ) {
 			reg_node = reg_node->next;
 			continue;
 		}
@@ -393,41 +397,41 @@ restart:
 		/*first replace all instances in parents by NULL WITHOUT UNREGISTERING (to avoid destroying the node).
 		This will take care of nodes referencing themselves*/
 		{
-		GF_ParentList *nlist = node->sgprivate->parents;
+			GF_ParentList *nlist = node->sgprivate->parents;
 #ifndef GPAC_DISABLE_SVG
-		type = (node->sgprivate->tag>GF_NODE_RANGE_LAST_VRML) ? 1 : 0;
+			type = (node->sgprivate->tag>GF_NODE_RANGE_LAST_VRML) ? 1 : 0;
 #endif
-		while (nlist) {
-			GF_ParentList *next = nlist->next;
+			while (nlist) {
+				GF_ParentList *next = nlist->next;
 #if 0
-			/*parent is a DEF'ed node, try to clean-up properly?*/
-			if ((nlist->node!=node) && SG_SearchForNode(sg, nlist->node) != NULL) {
-				ignore = 1;
-				break;
-			}
+				/*parent is a DEF'ed node, try to clean-up properly?*/
+				if ((nlist->node!=node) && SG_SearchForNode(sg, nlist->node) != NULL) {
+					ignore = 1;
+					break;
+				}
 #endif
 
 #ifndef GPAC_DISABLE_SVG
-			if (type) {
-				ReplaceIRINode(nlist->node, node, NULL);
-			} else 
+				if (type) {
+					ReplaceIRINode(nlist->node, node, NULL);
+				} else
 #endif
-				ReplaceDEFNode(nlist->node, reg_node->node, NULL, 0);
+					ReplaceDEFNode(nlist->node, reg_node->node, NULL, 0);
 
-			/*direct cyclic reference to ourselves, make sure we update the parentList to the next entry before freeing it
-			since the next parent node could be reg_node again (reg_node->reg_node)*/
-			if (nlist->node==node) {
-				node->sgprivate->parents = next;
+				/*direct cyclic reference to ourselves, make sure we update the parentList to the next entry before freeing it
+				since the next parent node could be reg_node again (reg_node->reg_node)*/
+				if (nlist->node==node) {
+					node->sgprivate->parents = next;
+				}
+				gf_free(nlist);
+				nlist = next;
 			}
-			gf_free(nlist);
-			nlist = next;
-		}
-		if (ignore) {
-			node->sgprivate->parents = nlist;
-			continue;
-		}
+			if (ignore) {
+				node->sgprivate->parents = nlist;
+				continue;
+			}
 
-		node->sgprivate->parents = NULL;
+			node->sgprivate->parents = NULL;
 		}
 		//sg->node_registry[i-1] = NULL;
 		count = get_num_id_nodes(sg);
@@ -585,9 +589,11 @@ void gf_sg_set_root_node(GF_SceneGraph *sg, GF_Node *node)
 void remove_node_id(GF_SceneGraph *sg, GF_Node *node)
 {
 	NodeIDedItem *reg_node = sg->id_node;
-	if (reg_node && (reg_node->node==node)) {
+	if (!reg_node) return;
+	
+	if (reg_node->node==node) {
 		sg->id_node = reg_node->next;
-		if (sg->id_node_last==reg_node) 
+		if (sg->id_node_last==reg_node)
 			sg->id_node_last = reg_node->next;
 		if (reg_node->NodeName) gf_free(reg_node->NodeName);
 		gf_free(reg_node);
@@ -667,18 +673,18 @@ GF_Err gf_node_unregister(GF_Node *pNode, GF_Node *parentNode)
 	/*unregister the instance*/
 	assert(pNode->sgprivate->num_instances);
 	pNode->sgprivate->num_instances -= 1;
-	
+
 	/*this is just an instance removed*/
 	if (pNode->sgprivate->num_instances) {
 #ifdef GPAC_HAS_SPIDERMONKEY
 		if (pNode->sgprivate->num_instances==1) detach=1;
-		if (pNode->sgprivate->scenegraph->on_node_modified && detach && pNode->sgprivate->interact && pNode->sgprivate->interact->js_binding) {
+		if (pSG && pNode->sgprivate->scenegraph->on_node_modified && detach && pNode->sgprivate->interact && pNode->sgprivate->interact->js_binding) {
 			pNode->sgprivate->scenegraph->on_node_modified(pNode->sgprivate->scenegraph, pNode, NULL, NULL);
 		}
 #endif
 		return GF_OK;
 	}
-	
+
 	assert(pNode->sgprivate->parents==NULL);
 
 	if (pSG) {
@@ -800,7 +806,7 @@ static void ReplaceDEFNode(GF_Node *FromNode, GF_Node *node, GF_Node *newNode, B
 				goto exit;
 			}
 			break;
-			/*not a node, continue*/
+		/*not a node, continue*/
 		default:
 			continue;
 		}
@@ -821,7 +827,7 @@ exit:
 		break;
 	}
 #endif
-	
+
 	gf_node_changed(FromNode, &field);
 }
 
@@ -840,7 +846,7 @@ static void Replace_IRI(GF_SceneGraph *sg, GF_Node *old_node, GF_Node *newNode)
 				i--;
 				count--;
 			}
-		} 
+		}
 	}
 }
 
@@ -898,7 +904,7 @@ GF_Err gf_node_replace(GF_Node *node, GF_Node *new_node, Bool updateOrderedGroup
 #ifndef GPAC_DISABLE_VRML
 	replace_proto = 0;
 	if (node->sgprivate->scenegraph->pOwningProto
-		&& (gf_list_find(node->sgprivate->scenegraph->pOwningProto->node_code, node)>=0)) {
+	        && (gf_list_find(node->sgprivate->scenegraph->pOwningProto->node_code, node)>=0)) {
 		replace_proto = 1;
 	}
 #endif
@@ -977,7 +983,7 @@ static GFINLINE void insert_node_def(GF_SceneGraph *sg, GF_Node *def, u32 ID, co
 GF_EXPORT
 GF_Err gf_node_set_id(GF_Node *p, u32 ID, const char *name)
 {
-	GF_SceneGraph *pSG; 
+	GF_SceneGraph *pSG;
 	if (!ID || !p || !p->sgprivate->scenegraph) return GF_BAD_PARAM;
 
 	pSG = p->sgprivate->scenegraph;
@@ -990,7 +996,7 @@ GF_Err gf_node_set_id(GF_Node *p, u32 ID, const char *name)
 	if (!(p->sgprivate->flags & GF_NODE_IS_DEF) ) {
 		p->sgprivate->flags |= GF_NODE_IS_DEF;
 		insert_node_def(pSG, p, ID, name);
-	} 
+	}
 	/*reassigning ID, remove node def*/
 	else {
 		char *_name = gf_strdup(name);
@@ -1004,7 +1010,7 @@ GF_Err gf_node_set_id(GF_Node *p, u32 ID, const char *name)
 GF_EXPORT
 GF_Err gf_node_remove_id(GF_Node *p)
 {
-	GF_SceneGraph *pSG; 
+	GF_SceneGraph *pSG;
 	if (!p) return GF_BAD_PARAM;
 
 	pSG = p->sgprivate->scenegraph;
@@ -1018,7 +1024,7 @@ GF_Err gf_node_remove_id(GF_Node *p)
 		remove_node_id(pSG, p);
 		p->sgprivate->flags &= ~GF_NODE_IS_DEF;
 		return GF_OK;
-	} 
+	}
 	return GF_BAD_PARAM;
 }
 
@@ -1030,7 +1036,7 @@ void gf_node_traverse(GF_Node *node, void *renderStack)
 
 	if (node->sgprivate->flags & GF_NODE_IS_DEACTIVATED) return;
 
-	if (node->sgprivate->UserCallback) { 
+	if (node->sgprivate->UserCallback) {
 #ifdef GF_CYCLIC_TRAVERSE_ON
 		if (node->sgprivate->flags & GF_NODE_IN_TRAVERSE) return;
 		node->sgprivate->flags |= GF_NODE_IN_TRAVERSE;
@@ -1168,7 +1174,7 @@ GF_Node *gf_sg_find_node_by_name(GF_SceneGraph *sg, char *name)
 
 
 GF_EXPORT
-u32 gf_sg_get_next_available_node_id(GF_SceneGraph *sg) 
+u32 gf_sg_get_next_available_node_id(GF_SceneGraph *sg)
 {
 	u32 ID;
 	NodeIDedItem *reg_node;
@@ -1196,7 +1202,15 @@ u32 gf_sg_get_max_node_id(GF_SceneGraph *sg)
 
 void gf_node_setup(GF_Node *p, u32 tag)
 {
+	if (!p) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_SCENE, ("[SceneGraph] Failed to setup NULL node\n"));
+		return;
+	}
 	GF_SAFEALLOC(p->sgprivate, NodePriv);
+	if (!p->sgprivate) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_SCENE, ("[SceneGraph] Failed to allocate node scenegraph private handler\n"));
+		return;
+	}
 	p->sgprivate->tag = tag;
 	p->sgprivate->flags = GF_SG_NODE_DIRTY;
 }
@@ -1217,7 +1231,7 @@ GF_EXPORT
 u32 gf_node_get_id(GF_Node*p)
 {
 	NodeIDedItem *reg_node;
-	GF_SceneGraph *sg; 
+	GF_SceneGraph *sg;
 	assert(p);
 	if (!(p->sgprivate->flags & GF_NODE_IS_DEF)) return 0;
 	sg = p->sgprivate->scenegraph;
@@ -1237,7 +1251,7 @@ u32 gf_node_get_id(GF_Node*p)
 GF_EXPORT
 const char *gf_node_get_name(GF_Node*p)
 {
-	GF_SceneGraph *sg; 
+	GF_SceneGraph *sg;
 	NodeIDedItem *reg_node;
 	if (!p || !(p->sgprivate->flags & GF_NODE_IS_DEF)) return NULL;
 
@@ -1258,7 +1272,7 @@ const char *gf_node_get_name(GF_Node*p)
 GF_EXPORT
 const char *gf_node_get_name_and_id(GF_Node*p, u32 *id)
 {
-	GF_SceneGraph *sg; 
+	GF_SceneGraph *sg;
 	NodeIDedItem *reg_node;
 	assert(p);
 	if (!(p->sgprivate->flags & GF_NODE_IS_DEF)) {
@@ -1327,11 +1341,11 @@ GF_Err gf_node_list_insert_child(GF_ChildNodeItem **list, GF_Node *n, u32 pos)
 {
 	GF_ChildNodeItem *child, *cur, *prev;
 	u32 cur_pos = 0;
-	
+
 	assert(pos != (u32) -1);
 
 	child = *list;
-	
+
 	cur = (GF_ChildNodeItem*) gf_malloc(sizeof(GF_ChildNodeItem));
 	if (!cur) return GF_OUT_OF_MEM;
 	cur->node = n;
@@ -1351,6 +1365,34 @@ GF_Err gf_node_list_insert_child(GF_ChildNodeItem **list, GF_Node *n, u32 pos)
 	cur->next = child;
 	if (prev) prev->next = cur;
 	else *list = cur;
+	return GF_OK;
+}
+
+GF_EXPORT
+GF_Err gf_node_list_append_child(GF_ChildNodeItem **list, GF_ChildNodeItem **last_child, GF_Node *n)
+{
+	GF_ChildNodeItem *child, *cur;
+
+	child = *list;
+
+	cur = (GF_ChildNodeItem*) gf_malloc(sizeof(GF_ChildNodeItem));
+	if (!cur) return GF_OUT_OF_MEM;
+	cur->node = n;
+	cur->next = NULL;
+
+	if (!child) {
+		*list = cur;
+		*last_child = cur;
+	} else {
+		if (! *last_child) {
+			while (child->next) {
+				child = child->next;
+			}
+			*last_child = child;
+		}
+		(*last_child)->next = cur;
+		*last_child = cur;
+	}
 	return GF_OK;
 }
 
@@ -1385,7 +1427,7 @@ GF_Err gf_node_list_add_child(GF_ChildNodeItem **list, GF_Node *n)
 	GF_ChildNodeItem *child, *cur;
 
 	child = *list;
-	
+
 	cur = (GF_ChildNodeItem*) gf_malloc(sizeof(GF_ChildNodeItem));
 	if (!cur) return GF_OUT_OF_MEM;
 	cur->node = n;
@@ -1406,7 +1448,7 @@ GF_Err gf_node_list_add_child_last(GF_ChildNodeItem **list, GF_Node *n, GF_Child
 	GF_ChildNodeItem *child, *cur;
 
 	child = *list;
-	
+
 	cur = (GF_ChildNodeItem*) gf_malloc(sizeof(GF_ChildNodeItem));
 	if (!cur) return GF_OUT_OF_MEM;
 	cur->node = n;
@@ -1423,7 +1465,7 @@ GF_Err gf_node_list_add_child_last(GF_ChildNodeItem **list, GF_Node *n, GF_Child
 		}
 	} else {
 		*list = cur;
-		if (last_child) 
+		if (last_child)
 			*last_child = *list;
 	}
 	return GF_OK;
@@ -1441,7 +1483,7 @@ Bool gf_node_list_del_child(GF_ChildNodeItem **list, GF_Node *n)
 		gf_free(child);
 		return 1;
 	}
-	
+
 	while (child->next) {
 		if (child->next->node!=n) {
 			child = child->next;
@@ -1470,7 +1512,7 @@ GF_Node *gf_node_list_del_child_idx(GF_ChildNodeItem **list, u32 pos)
 		gf_free(child);
 		return ret;
 	}
-	
+
 	while (child->next) {
 		if (cur_pos+1 != pos) {
 			child = child->next;
@@ -1510,18 +1552,17 @@ void gf_node_free(GF_Node *node)
 
 	if (node->sgprivate->UserCallback) node->sgprivate->UserCallback(node, NULL, 1);
 
+	if (node->sgprivate->scenegraph && node->sgprivate->scenegraph->NodeCallback)
+		node->sgprivate->scenegraph->NodeCallback(node->sgprivate->scenegraph->userpriv, GF_SG_CALLBACK_NODE_DESTROY, node, NULL);
+
 	if (node->sgprivate->interact) {
 		if (node->sgprivate->interact->routes) {
 			gf_list_del(node->sgprivate->interact->routes);
 		}
 #ifndef GPAC_DISABLE_SVG
 		if (node->sgprivate->interact->dom_evt) {
-			while (gf_list_count(node->sgprivate->interact->dom_evt->evt_list)) {
-				GF_Node *n = gf_list_get(node->sgprivate->interact->dom_evt->evt_list, 0);
-				gf_dom_listener_del(n, node->sgprivate->interact->dom_evt);
-			}
-			gf_list_del(node->sgprivate->interact->dom_evt->evt_list);
-			gf_free(node->sgprivate->interact->dom_evt);
+			gf_dom_event_remove_all_listeners(node->sgprivate->interact->dom_evt);
+			gf_dom_event_target_del(node->sgprivate->interact->dom_evt);
 		}
 		if (node->sgprivate->interact->animations) {
 			gf_list_del(node->sgprivate->interact->animations);
@@ -1529,7 +1570,7 @@ void gf_node_free(GF_Node *node)
 #endif
 #ifdef GPAC_HAS_SPIDERMONKEY
 		if (node->sgprivate->interact->js_binding) {
-			if (node->sgprivate->scenegraph->on_node_modified)
+			if (node->sgprivate->scenegraph && node->sgprivate->scenegraph->on_node_modified)
 				node->sgprivate->scenegraph->on_node_modified(node->sgprivate->scenegraph, node, NULL, NULL);
 			gf_list_del(node->sgprivate->interact->js_binding->fields);
 			gf_free(node->sgprivate->interact->js_binding);
@@ -1547,7 +1588,10 @@ u32 gf_node_get_parent_count(GF_Node *node)
 {
 	u32 count = 0;
 	GF_ParentList *nlist = node->sgprivate->parents;
-	while (nlist) { count++; nlist = nlist->next; }
+	while (nlist) {
+		count++;
+		nlist = nlist->next;
+	}
 	return count;
 }
 
@@ -1559,11 +1603,14 @@ GF_Node *gf_node_get_parent(GF_Node *node, u32 idx)
 	/*break cyclic graphs*/
 	if (node->sgprivate->scenegraph->RootNode==node) return NULL;
 #ifndef GPAC_DISABLE_VRML
-	if (node->sgprivate->scenegraph->pOwningProto && node->sgprivate->scenegraph->pOwningProto->RenderingNode==node) 
+	if (node->sgprivate->scenegraph->pOwningProto && node->sgprivate->scenegraph->pOwningProto->RenderingNode==node)
 		return NULL;
 #endif
 	if (!nlist) return NULL;
-	while (idx) { nlist = nlist->next; idx--;}
+	while (idx) {
+		nlist = nlist->next;
+		idx--;
+	}
 	return nlist ? nlist->node : NULL;
 }
 
@@ -1572,7 +1619,7 @@ static void dirty_children(GF_Node *node)
 	u32 i, count;
 	GF_FieldInfo info;
 	if (!node) return;
-	
+
 	node->sgprivate->flags &= GF_NODE_INTERNAL_FLAGS;
 	if (node->sgprivate->tag>=GF_NODE_RANGE_LAST_VRML) {
 		GF_ChildNodeItem *child = ((GF_ParentNode*)node)->children;
@@ -1601,7 +1648,7 @@ static void dirty_parents(GF_Node *node)
 	GF_ParentList *nlist;
 #if defined GPAC_ANDROID
 	if ( !node || !node->sgprivate )
-	return;	
+		return;
 #else
 	if (!node) return;
 #endif
@@ -1647,7 +1694,7 @@ GF_EXPORT
 void gf_node_dirty_set(GF_Node *node, u32 flags, Bool and_dirty_parents)
 {
 	if (!node) return;
-	
+
 	if (flags) node->sgprivate->flags |= (flags & (~GF_NODE_INTERNAL_FLAGS) );
 	else node->sgprivate->flags |= GF_SG_NODE_DIRTY;
 
@@ -1684,8 +1731,10 @@ void gf_node_dirty_reset(GF_Node *node, Bool reset_children)
 		node->sgprivate->flags &= GF_NODE_INTERNAL_FLAGS;
 		if (reset_children) {
 			dirty_children(node);
+#ifndef GPAC_DISABLE_VRML
 		} else if (node->sgprivate->tag==TAG_MPEG4_Appearance) {
 			gf_node_dirty_reset( ((M_Appearance*)node)->material, 1);
+#endif
 		}
 	}
 }
@@ -1766,8 +1815,8 @@ void gf_node_changed(GF_Node *node, GF_FieldInfo *field)
 #ifndef GPAC_DISABLE_SVG
 	/* we should avoid dispatching a DOMSubtreeModified event on insertion of time values in begin/end fields
 	   because this retriggers begin/end events and reinsertion */
-	if ((field == NULL || ((field->fieldIndex != TAG_SVG_ATT_begin) && (field->fieldIndex != TAG_SVG_ATT_end))) && 
-		node->sgprivate->tag >= GF_NODE_RANGE_FIRST_SVG && node->sgprivate->tag <= GF_NODE_RANGE_LAST_SVG) {		
+	if ((field == NULL || ((field->fieldIndex != TAG_SVG_ATT_begin) && (field->fieldIndex != TAG_SVG_ATT_end))) &&
+	        node->sgprivate->tag >= GF_NODE_RANGE_FIRST_SVG && node->sgprivate->tag <= GF_NODE_RANGE_LAST_SVG) {
 		GF_DOM_Event evt;
 		evt.type = GF_EVENT_TREE_MODIFIED;
 		evt.bubbles = 0;
@@ -1785,7 +1834,7 @@ void gf_node_del(GF_Node *node)
 		if (t->textContent) gf_free(t->textContent);
 		gf_sg_parent_reset(node);
 		gf_node_free(node);
-	} 
+	}
 	else if (node->sgprivate->tag==TAG_DOMUpdates) {
 		u32 i, count;
 		GF_DOMUpdates *up = (GF_DOMUpdates *)node;
@@ -1798,7 +1847,7 @@ void gf_node_del(GF_Node *node)
 		gf_list_del(up->updates);
 		gf_sg_parent_reset(node);
 		gf_node_free(node);
-	} 
+	}
 	else if (node->sgprivate->tag == TAG_DOMFullNode) {
 		GF_DOMFullNode *n = (GF_DOMFullNode *)node;
 #ifndef GPAC_DISABLE_SVG
@@ -1871,7 +1920,7 @@ const char *gf_node_get_class_name(GF_Node *node)
 GF_EXPORT
 u32 gf_sg_node_get_tag_by_class_name(const char *name, u32 ns)
 {
-	u32 tag;
+	u32 tag = TAG_UndefinedNode;
 
 	/* TODO: handle name spaces */
 #ifndef GPAC_DISABLE_VRML
@@ -1879,7 +1928,7 @@ u32 gf_sg_node_get_tag_by_class_name(const char *name, u32 ns)
 	if (tag) return tag;
 
 #ifndef GPAC_DISABLE_X3D
-	tag = gf_node_x3d_type_by_class_name(name);	
+	tag = gf_node_x3d_type_by_class_name(name);
 	if (tag) return tag;
 #endif
 
@@ -1890,7 +1939,7 @@ u32 gf_sg_node_get_tag_by_class_name(const char *name, u32 ns)
 	if (tag != TAG_UndefinedNode) return tag;
 #endif
 
-	return 	TAG_UndefinedNode;
+	return 	tag;
 }
 
 GF_EXPORT
@@ -1954,12 +2003,12 @@ GF_Err gf_node_get_field(GF_Node *node, u32 FieldIndex, GF_FieldInfo *info)
 	if (node->sgprivate->tag==TAG_UndefinedNode) return GF_BAD_PARAM;
 #ifndef GPAC_DISABLE_VRML
 	else if (node->sgprivate->tag == TAG_ProtoNode) return gf_sg_proto_get_field(NULL, node, info);
-	else if (node->sgprivate->tag == TAG_MPEG4_Script
-#ifndef GPAC_DISABLE_X3D
-		|| (node->sgprivate->tag == TAG_X3D_Script) 
-#endif
-		)
+	else if (node->sgprivate->tag == TAG_MPEG4_Script)
 		return gf_sg_script_get_field(node, info);
+#ifndef GPAC_DISABLE_X3D
+	else if (node->sgprivate->tag == TAG_X3D_Script)
+		return gf_sg_script_get_field(node, info);
+#endif
 	else if (node->sgprivate->tag <= GF_NODE_RANGE_LAST_MPEG4) return gf_sg_mpeg4_node_get_field(node, info);
 #ifndef GPAC_DISABLE_X3D
 	else if (node->sgprivate->tag <= GF_NODE_RANGE_LAST_X3D) return gf_sg_x3d_node_get_field(node, info);
@@ -1983,7 +2032,7 @@ static GF_Err gf_node_get_field_by_name_enum(GF_Node *node, char *name, GF_Field
 	assert(node);
 	count = gf_node_get_field_count(node);
 	memset(field, 0, sizeof(GF_FieldInfo));
-	for (i=0; i<count;i++) {
+	for (i=0; i<count; i++) {
 		gf_node_get_field(node, i, field);
 		if (!strcmp(field->name, name)) return GF_OK;
 	}
@@ -2000,13 +2049,12 @@ GF_Err gf_node_get_field_by_name(GF_Node *node, char *name, GF_FieldInfo *field)
 	else if (node->sgprivate->tag == TAG_ProtoNode) {
 		res = gf_sg_proto_get_field_index_by_name(NULL, node, name);
 	}
-	else if (node->sgprivate->tag == TAG_MPEG4_Script) 
-#ifndef GPAC_DISABLE_X3D
-		|| (node->sgprivate->tag == TAG_X3D_Script) 
-#endif
-        {
+	else if (node->sgprivate->tag == TAG_MPEG4_Script)
 		return gf_node_get_field_by_name_enum(node, name, field);
-	}
+#ifndef GPAC_DISABLE_X3D
+	else if (node->sgprivate->tag == TAG_X3D_Script)
+		return gf_node_get_field_by_name_enum(node, name, field);
+#endif
 	else if (node->sgprivate->tag <= GF_NODE_RANGE_LAST_MPEG4) res = gf_sg_mpeg4_node_get_field_index_by_name(node, name);
 #ifndef GPAC_DISABLE_X3D
 	else if (node->sgprivate->tag <= GF_NODE_RANGE_LAST_X3D) res = gf_sg_x3d_node_get_field_index_by_name(node, name);
@@ -2020,9 +2068,9 @@ GF_Err gf_node_get_field_by_name(GF_Node *node, char *name, GF_FieldInfo *field)
 	return gf_node_get_field(node, (u32) res, field);
 }
 
-	
+
 static char log_node_name[2+16+1];
-const char *gf_node_get_log_name(GF_Node *anim) 
+const char *gf_node_get_log_name(GF_Node *anim)
 {
 	const char *name = gf_node_get_name(anim);
 	if (name) return name;
@@ -2042,7 +2090,7 @@ static GF_Err gf_node_deactivate_ex(GF_Node *node)
 	GF_ChildNodeItem *item;
 	if (node->sgprivate->tag<GF_NODE_FIRST_DOM_NODE_TAG) return GF_BAD_PARAM;
 	if (! (node->sgprivate->flags & GF_NODE_IS_DEACTIVATED)) {
-		
+
 		node->sgprivate->flags |= GF_NODE_IS_DEACTIVATED;
 
 		/*deactivate anmiations*/
@@ -2137,7 +2185,7 @@ GF_Node *gf_node_clone(GF_SceneGraph *inScene, GF_Node *orig, GF_Node *cloned_pa
 	return NULL;
 }
 
-u32 gf_xml_get_namespace_id(char *name)
+GF_NamespaceType gf_xml_get_namespace_id(char *name)
 {
 	if (!strcmp(name, "http://www.w3.org/XML/1998/namespace")) return GF_XMLNS_XML;
 	else if (!strcmp(name, "http://www.w3.org/2001/xml-events")) return GF_XMLNS_XMLEV;
@@ -2145,7 +2193,7 @@ u32 gf_xml_get_namespace_id(char *name)
 	else if (!strcmp(name, "http://www.w3.org/2000/svg")) return GF_XMLNS_SVG;
 	else if (!strcmp(name, "urn:mpeg:mpeg4:laser:2005")) return GF_XMLNS_LASER;
 	else if (!strcmp(name, "http://www.w3.org/ns/xbl")) return GF_XMLNS_XBL;
-	else if (!strcmp(name, "http://gpac.sourceforge.net/svg-extensions")) return GF_XMLNS_SVG_GPAC_EXTENSION;
+	else if (!strcmp(name, "http://gpac.io/svg-extensions")) return GF_XMLNS_SVG_GPAC_EXTENSION;
 	return GF_XMLNS_UNDEFINED;
 }
 
@@ -2161,6 +2209,8 @@ GF_Err gf_sg_add_namespace(GF_SceneGraph *sg, char *name, char *qname)
 	if (!sg->ns) sg->ns = gf_list_new();
 
 	GF_SAFEALLOC(ns, GF_XMLNS);
+	if (!ns) return GF_OUT_OF_MEM;
+	
 	ns->xmlns_id = id ? id : gf_crc_32(name, (u32) strlen(name));
 	ns->name = gf_strdup(name);
 
@@ -2176,9 +2226,9 @@ GF_Err gf_sg_remove_namespace(GF_SceneGraph *sg, char *ns_name, char *q_name)
 	for (i=0; i<count; i++) {
 		Bool ok=0;
 		GF_XMLNS *ns = gf_list_get(sg->ns, i);
-		if (!q_name && !ns->qname) 
+		if (!q_name && !ns->qname)
 			ok = 1;
-		else if (q_name && ns->qname && !strcmp(ns->qname, q_name) ) 
+		else if (q_name && ns->qname && !strcmp(ns->qname, q_name) )
 			ok = 1;
 
 		if (ok && ns->name && !strcmp(ns->name, ns_name)) {
@@ -2199,10 +2249,10 @@ u32 gf_sg_get_namespace_code(GF_SceneGraph *sg, char *qname)
 	count = sg->ns ? gf_list_count(sg->ns) : 0;
 	for (i=0; i<count; i++) {
 		ns = gf_list_get(sg->ns, i);
-		if (!ns->qname && !qname) 
+		if (!ns->qname && !qname)
 			return ns->xmlns_id;
-		
-		if (ns->qname && qname && !strcmp(ns->qname, qname)) 
+
+		if (ns->qname && qname && !strcmp(ns->qname, qname))
 			return ns->xmlns_id;
 	}
 	if (qname) {
@@ -2219,22 +2269,22 @@ u32 gf_sg_get_namespace_code_from_name(GF_SceneGraph *sg, char *name)
 	count = sg->ns ? gf_list_count(sg->ns) : 0;
 	for (i=0; i<count; i++) {
 		ns = gf_list_get(sg->ns, i);
-		if (ns->name && name && !strcmp(ns->name, name)) 
+		if (ns->name && name && !strcmp(ns->name, name))
 			return ns->xmlns_id;
-		if (!ns->name && !name) 
+		if (!ns->name && !name)
 			return ns->xmlns_id;
 	}
 	return GF_XMLNS_UNDEFINED;
 }
 
-const char *gf_sg_get_namespace_qname(GF_SceneGraph *sg, u32 xmlns_id)
+const char *gf_sg_get_namespace_qname(GF_SceneGraph *sg, GF_NamespaceType xmlns_id)
 {
 	GF_XMLNS *ns;
 	u32 i, count;
 	count = sg->ns ? gf_list_count(sg->ns) : 0;
 	for (i=0; i<count; i++) {
 		ns = gf_list_get(sg->ns, i);
-		if (ns->xmlns_id == xmlns_id) 
+		if (ns->xmlns_id == xmlns_id)
 			return ns->qname;
 	}
 	if (xmlns_id==GF_XMLNS_XML) return "xml";
@@ -2242,14 +2292,14 @@ const char *gf_sg_get_namespace_qname(GF_SceneGraph *sg, u32 xmlns_id)
 }
 
 
-const char *gf_sg_get_namespace(GF_SceneGraph *sg, u32 xmlns_id)
+const char *gf_sg_get_namespace(GF_SceneGraph *sg, GF_NamespaceType xmlns_id)
 {
 	GF_XMLNS *ns;
 	u32 i, count;
 	count = sg->ns ? gf_list_count(sg->ns) : 0;
 	for (i=0; i<count; i++) {
 		ns = gf_list_get(sg->ns, i);
-		if (ns->xmlns_id == xmlns_id) 
+		if (ns->xmlns_id == xmlns_id)
 			return ns->name;
 	}
 	return NULL;
@@ -2296,7 +2346,7 @@ GF_Err gf_node_replace_child(GF_Node *node, GF_ChildNodeItem **container, s32 po
 	if (newNode) {
 		child->node = newNode;
 #ifndef GPAC_DISABLE_VRML
-		if (tag==TAG_MPEG4_ColorTransform) 
+		if (tag==TAG_MPEG4_ColorTransform)
 			node->sgprivate->flags |= GF_SG_VRML_COLOR_DIRTY;
 #endif
 	} else {
@@ -2315,7 +2365,7 @@ Bool gf_node_parent_of(GF_Node *node, GF_Node *target)
 	GF_FieldInfo info;
 	if (!node) return 0;
 	if (node==target) return 1;
-	
+
 	if (node->sgprivate->tag>=GF_NODE_RANGE_LAST_VRML) {
 		GF_ChildNodeItem *child = ((GF_ParentNode*)node)->children;
 		while (child) {

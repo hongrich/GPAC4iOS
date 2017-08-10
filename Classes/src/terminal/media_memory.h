@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -37,15 +37,19 @@ enum
 {
 	/*AU is RAP*/
 	GF_DB_AU_RAP = 1,
-	/*special flag for systems streams: we may receive a CTS in a carousel, to indicate the 
+	/*special flag for systems streams: we may receive a CTS in a carousel, to indicate the
 	SFTime init time*/
 	GF_DB_AU_CTS_IN_PAST = 1<<1,
 	/*hack for some DMB streams not signaling TS for BIFS*/
-	GF_DB_AU_NO_TIMESTAMPS = 1<<2
+	GF_DB_AU_NO_TIMESTAMPS = 1<<2,
+	/*for debuging AU reassembly in scalable coding*/
+	GF_DB_AU_REAGGREGATED = 1<<3,
+	/*set for AUs that need dispatching but should not be displayed*/
+	GF_DB_AU_IS_SEEK = 1<<4,
 };
 
 /*compressed media unit*/
-typedef struct _decoding_buffer 
+typedef struct _decoding_buffer
 {
 	struct _decoding_buffer *next;
 
@@ -57,6 +61,7 @@ typedef struct _decoding_buffer
 	u8 flags;
 	/*amount of padding bits*/
 	u8 PaddingBits;
+	u64 sender_ntp;
 
 	u32 dataLength;
 	char *data;
@@ -93,14 +98,18 @@ typedef struct _composition_unit {
 
 	u32 dataLength;
 	char* data;
+
+	u64 sender_ntp;
+	
+	GF_MediaDecoderFrame *frame;
 } GF_CMUnit;
 
 
 /*composition buffer (circular buffer of CUs)*/
 struct _composition_memory
 {
-	/*input is used by the decoder to deliver CUs. 
-	if temporal scalability is enabled, this is the LAST DELIVERED CU 
+	/*input is used by the decoder to deliver CUs.
+	if temporal scalability is enabled, this is the LAST DELIVERED CU
 	otherwise this is the next available CU slot*/
 	GF_CMUnit *input;
 	/*output is the next available frme for rendering*/
@@ -128,6 +137,9 @@ struct _composition_memory
 	u32 LastRenderedTS;
 
 	u8 *pY, *pU, *pV;
+
+	u64 LastRenderedNTP;
+	s32 LastRenderedNTPDiff;
 };
 
 /*a composition buffer only has fixed-size unit*/
@@ -136,7 +148,7 @@ void gf_cm_del(GF_CompositionMemory *cb);
 /*re-inits complete cb*/
 void gf_cm_reinit(GF_CompositionMemory *cb, u32 UnitSize, u32 Capacity);
 
-/*locks available input for desired TS (needed for scalability) - return NULL if no 
+/*locks available input for desired TS (needed for scalability) - return NULL if no
 input is available (buffer full)*/
 GF_CMUnit *gf_cm_lock_input(GF_CompositionMemory *cb, u32 TS, Bool codec_reordering);
 /*dispatch data in input. If NbBytes is 0, no data is dispatched. TS is needed for re-ordering
@@ -147,9 +159,10 @@ void gf_cm_rewind_input(GF_CompositionMemory *cb);
 
 /*fetch output buffer, NULL if output is empty*/
 GF_CMUnit *gf_cm_get_output(GF_CompositionMemory *cb);
-/*release the output buffer once rendered - if renderedLength is not equal to dataLength the
-output is NOT droped*/
+/*release the output buffer once rendered */
 void gf_cm_drop_output(GF_CompositionMemory *cb);
+/*notifies the output has not been discarded: sets render length to 0 and check clock resume if needed*/
+void gf_cm_output_kept(GF_CompositionMemory *cb);
 
 /*reset the entire memory*/
 void gf_cm_reset(GF_CompositionMemory *cb);

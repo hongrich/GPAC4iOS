@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -60,16 +60,17 @@ GF_Err gf_term_init_scheduler(GF_Terminal *term, u32 threading_mode)
 
 	term->frame_duration = 33;
 	switch (threading_mode) {
-	case GF_TERM_THREAD_SINGLE: term->flags |= GF_TERM_SINGLE_THREAD;
+	case GF_TERM_THREAD_SINGLE:
+		term->flags |= GF_TERM_SINGLE_THREAD;
 		break;
-	case GF_TERM_THREAD_MULTI: 
+	case GF_TERM_THREAD_MULTI:
 		term->flags |= GF_TERM_MULTI_THREAD;
 		break;
 	default:
 		break;
 	}
 
-	if (term->user->init_flags & GF_TERM_NO_DECODER_THREAD) 
+	if (term->user->init_flags & GF_TERM_NO_DECODER_THREAD)
 		return GF_OK;
 
 	term->mm_thread = gf_th_new("MediaManager");
@@ -85,7 +86,7 @@ void gf_term_stop_scheduler(GF_Terminal *term)
 		u32 count, i;
 
 		term->flags &= ~GF_TERM_RUNNING;
-		while (!(term->flags & GF_TERM_DEAD) ) 
+		while (!(term->flags & GF_TERM_DEAD) )
 			gf_sleep(2);
 
 		count = gf_list_count(term->codecs);
@@ -120,7 +121,6 @@ static CodecEntry *mm_get_codec(GF_List *list, GF_Codec *codec)
 void gf_term_add_codec(GF_Terminal *term, GF_Codec *codec)
 {
 	u32 i, count;
-	Bool locked;
 	Bool threaded;
 	CodecEntry *cd;
 	CodecEntry *ptr, *next;
@@ -131,16 +131,20 @@ void gf_term_add_codec(GF_Terminal *term, GF_Codec *codec)
 
 	/*caution: the mutex can be grabbed by a decoder waiting for a mutex owned by the calling thread
 	this happens when several scene codecs are running concurently and triggering play/pause on media*/
-	locked = gf_mx_try_lock(term->mm_mx);
+	gf_mx_p(term->mm_mx);
 
 	cd = mm_get_codec(term->codecs, codec);
 	if (cd) goto exit;
 
 	GF_SAFEALLOC(cd, CodecEntry);
+	if (!cd) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_MEDIA, ("[Terminal] Failed to allocate decoder entry\n"));
+		return;
+	}
 	cd->dec = codec;
-	if (!cd->dec->Priority) 
+	if (!cd->dec->Priority)
 		cd->dec->Priority = 1;
-	
+
 	/*we force audio codecs to be threaded in free mode, so that we avoid waiting in the audio renderer if another decoder is locking the main mutex
 	this can happen when the audio decoder is running late*/
 	if (codec->type==GF_STREAM_AUDIO) {
@@ -151,7 +155,7 @@ void gf_term_add_codec(GF_Terminal *term, GF_Codec *codec)
 		gf_codec_get_capability(codec, &cap);
 		threaded = cap.cap.valueInt;
 	}
-	
+
 	if (threaded) cd->flags |= GF_MM_CE_REQ_THREAD;
 
 
@@ -160,9 +164,9 @@ void gf_term_add_codec(GF_Terminal *term, GF_Codec *codec)
 	} else if (term->flags & GF_TERM_SINGLE_THREAD) {
 		threaded = 0;
 	}
-	if (codec->flags & GF_ESM_CODEC_IS_RAW_MEDIA) 
+	if (codec->flags & GF_ESM_CODEC_IS_RAW_MEDIA)
 		threaded = 0;
-	
+
 	if (threaded) {
 		cd->thread = gf_th_new(cd->dec->decio->module_name);
 		cd->mx = gf_mx_new(cd->dec->decio->module_name);
@@ -220,7 +224,7 @@ void gf_term_add_codec(GF_Terminal *term, GF_Codec *codec)
 	gf_list_add(term->codecs, cd);
 
 exit:
-	if (locked) gf_mx_v(term->mm_mx);
+	gf_mx_v(term->mm_mx);
 	return;
 }
 
@@ -270,13 +274,8 @@ Bool gf_term_find_codec(GF_Terminal *term, GF_Codec *codec)
 	return 0;
 }
 
-static u32 MM_SimulationStep_Decoder(GF_Terminal *term)
+static void MM_handleServices(GF_Terminal *term)
 {
-	CodecEntry *ce;
-	GF_Err e;
-	u32 count, remain;
-	u32 time_taken, time_slice, time_left;
-	
 #ifndef GF_DISABLE_LOG
 	term->compositor->networks_time = gf_sys_clock();
 #endif
@@ -288,6 +287,15 @@ static u32 MM_SimulationStep_Decoder(GF_Terminal *term)
 	term->compositor->networks_time = gf_sys_clock() - term->compositor->networks_time;
 #endif
 
+}
+
+static u32 MM_SimulationStep_Decoder(GF_Terminal *term, u32 *nb_active_decs)
+{
+	CodecEntry *ce;
+	GF_Err e;
+	u32 count, remain;
+	u32 time_taken, time_slice, time_left;
+
 #ifndef GF_DISABLE_LOG
 	term->compositor->decoders_time = gf_sys_clock();
 #endif
@@ -295,10 +303,10 @@ static u32 MM_SimulationStep_Decoder(GF_Terminal *term)
 
 	count = gf_list_count(term->codecs);
 	time_left = term->frame_duration;
+	*nb_active_decs = 0;
 
 	if (term->last_codec >= count) term->last_codec = 0;
 	remain = count;
-	time_taken = 0;
 	/*this is ultra basic a nice scheduling system would be much better*/
 	while (remain) {
 		ce = (CodecEntry*)gf_list_get(term->codecs, term->last_codec);
@@ -313,7 +321,7 @@ static u32 MM_SimulationStep_Decoder(GF_Terminal *term)
 		time_slice = ce->dec->Priority * time_left / term->cumulated_priority;
 		if (ce->dec->PriorityBoost) time_slice *= 2;
 		time_taken = gf_sys_clock();
-
+		(*nb_active_decs) ++;
 		e = gf_codec_process(ce->dec, time_slice);
 		time_taken = gf_sys_clock() - time_taken;
 		/*avoid signaling errors too often...*/
@@ -358,29 +366,43 @@ u32 MM_Loop(void *par)
 	Bool do_scene = (term->flags & GF_TERM_NO_VISUAL_THREAD) ? 1 : 0;
 	Bool do_codec = (term->flags & GF_TERM_NO_DECODER_THREAD) ? 0 : 1;
 	Bool do_regulate = (term->user->init_flags & GF_TERM_NO_REGULATION) ? 0 : 1;
+	Bool no_compositor_thread = (term->user->init_flags & GF_TERM_NO_COMPOSITOR_THREAD) ? 1 : 0;
 
 	gf_th_set_priority(term->mm_thread, term->priority);
 	GF_LOG(GF_LOG_DEBUG, GF_LOG_CORE, ("[MediaManager] Entering thread ID %d\n", gf_th_id() ));
 //	GF_LOG(GF_LOG_DEBUG, GF_LOG_RTI, ("(RTI] Terminal Cycle Log\tServices\tDecoders\tCompositor\tSleep\n"));
 
 	while (term->flags & GF_TERM_RUNNING) {
+		u32 nb_decs = 0;
 		u32 left = 0;
-		if (do_codec) left = MM_SimulationStep_Decoder(term);
+
+		if (!no_compositor_thread) 
+			MM_handleServices(term);
+
+		if (do_codec) left = MM_SimulationStep_Decoder(term, &nb_decs);
 		else left = term->frame_duration;
-		
+
 		if (do_scene) {
+			s32 ms_until_next=0;
 			u32 time_taken = gf_sys_clock();
-			gf_sc_draw_frame(term->compositor);
+			gf_sc_draw_frame(term->compositor, 0, &ms_until_next);
 			time_taken = gf_sys_clock() - time_taken;
-			if (left>time_taken) 
+			if (ms_until_next< (s32) term->frame_duration/2) {
+				left = 0;
+			} else if (left>time_taken)
 				left -= time_taken;
 			else
 				left = 0;
 		}
-
 		if (do_regulate) {
-			if (left==term->frame_duration) {
-				gf_sleep(term->frame_duration);
+			if (term->bench_mode) {
+				gf_sleep(0);
+			} else {
+				if (left==term->frame_duration) {
+					//if nothing was done during this pass but we have active decoder, just yield. We don't want to sleep since
+					//composition memory could be released at any time. We should have a signal here, rather than a wait
+					gf_sleep(nb_decs ? 0 : term->frame_duration/2);
+				}
 			}
 		}
 	}
@@ -391,49 +413,47 @@ u32 MM_Loop(void *par)
 u32 RunSingleDec(void *ptr)
 {
 	GF_Err e;
-	u32 time_left;
+	u64 time_taken;
 	CodecEntry *ce = (CodecEntry *) ptr;
 
 	GF_LOG(GF_LOG_DEBUG, GF_LOG_CORE, ("[MediaDecoder %d] Entering thread ID %d\n", ce->dec->odm->OD->objectDescriptorID, gf_th_id() ));
 
 	while (ce->flags & GF_MM_CE_RUNNING) {
-		time_left = gf_sys_clock();
+		time_taken = gf_sys_clock_high_res();
 		if (!ce->dec->force_cb_resize) {
 			gf_mx_p(ce->mx);
 			e = gf_codec_process(ce->dec, ce->dec->odm->term->frame_duration);
 			if (e) gf_term_message(ce->dec->odm->term, ce->dec->odm->net_service->url, "Decoding Error", e);
 			gf_mx_v(ce->mx);
 		}
-		time_left = gf_sys_clock() - time_left;
+		time_taken = gf_sys_clock_high_res() - time_taken;
 
 
-		/*no priority boost this way for systems codecs, priority is dynamically set by not releasing the 
+		/*no priority boost this way for systems codecs, priority is dynamically set by not releasing the
 		graph when late and moving on*/
-		if (!ce->dec->CB || (ce->dec->CB->UnitCount == ce->dec->CB->Capacity)) 
+		if (!ce->dec->CB || (ce->dec->CB->UnitCount == ce->dec->CB->Capacity))
 			ce->dec->PriorityBoost = 0;
 
 		/*while on don't sleep*/
 		if (ce->dec->PriorityBoost) continue;
 
-		if (time_left) {
-			while (time_left > ce->dec->odm->term->frame_duration) time_left -= ce->dec->odm->term->frame_duration;
-			gf_sleep(time_left);
-		} else {
-			gf_sleep(ce->dec->odm->term->frame_duration);
+		if (time_taken<20) {
+			gf_sleep(1);
 		}
 	}
 	ce->flags |= GF_MM_CE_DEAD;
 	return 0;
 }
 
-/*NOTE: when starting/stoping a decoder we only lock the decoder mutex, NOT the media manager. This
-avoids deadlocking in case a system codec waits for the scene graph and the compositor requests 
+/*NOTE: when starting/stopping a decoder we only lock the decoder mutex, NOT the media manager. This
+avoids deadlocking in case a system codec waits for the scene graph and the compositor requests
 a stop/start on a media*/
 void gf_term_start_codec(GF_Codec *codec, Bool is_resume)
 {
 	GF_CodecCapability cap;
 	CodecEntry *ce;
 	GF_Terminal *term = codec->odm->term;
+	if (!gf_list_count(codec->odm->channels)) return;
 	ce = mm_get_codec(term->codecs, codec);
 	if (!ce) return;
 
@@ -441,7 +461,7 @@ void gf_term_start_codec(GF_Codec *codec, Bool is_resume)
 	if (ce->mx) gf_mx_p(ce->mx);
 
 	/*clean decoder memory and wait for RAP*/
-	if (codec->CB) gf_cm_reset(codec->CB);
+	if (!is_resume && codec->CB) gf_cm_reset(codec->CB);
 
 	if (!is_resume) {
 		cap.CapCode = GF_CODEC_WAIT_RAP;
@@ -466,12 +486,13 @@ void gf_term_start_codec(GF_Codec *codec, Bool is_resume)
 		}
 	}
 
+
 	/*unlock dec*/
 	if (ce->mx)
 		gf_mx_v(ce->mx);
 }
 
-void gf_term_stop_codec(GF_Codec *codec, Bool is_pause)
+void gf_term_stop_codec(GF_Codec *codec, u32 reason)
 {
 	GF_CodecCapability cap;
 	Bool locked = 0;
@@ -482,7 +503,7 @@ void gf_term_stop_codec(GF_Codec *codec, Bool is_pause)
 
 	if (ce->mx) gf_mx_p(ce->mx);
 	/*We must make sure:
-		1- media codecs are synchrounously stop otherwise we could destroy the composition memory while 
+		1- media codecs are synchrounously stop otherwise we could destroy the composition memory while
 	the codec writes to it
 		2- prevent deadlock for other codecs waiting for the scene graph
 	*/
@@ -493,11 +514,32 @@ void gf_term_stop_codec(GF_Codec *codec, Bool is_pause)
 		locked = gf_mx_try_lock(term->mm_mx);
 	}
 
-	if (!is_pause) {
+	/*for audio codec force CB to stop state to discard any pending AU. Not doing so would lead to a wrong estimation of the clock drift
+	when resuming the object*/
+	if (codec->type==GF_STREAM_AUDIO) {
+		if (reason != 2) {
+			gf_codec_set_status(codec, GF_ESM_CODEC_STOP);
+		}
+	}
+	//if video is in a dynamic scene, reset the CB if user stop (eg codec was not in EOS). Otherwise (bifs,svg) we may want to keep the last decoded image
+	else if ((codec->Status<GF_ESM_CODEC_EOS) && codec->odm && codec->odm->parentscene && codec->odm->parentscene->is_dynamic_scene && codec->CB && (codec->CB->Capacity>1)) {
+		gf_codec_set_status(codec, GF_ESM_CODEC_STOP);
+	}
+	/*otherwise set status directly and don't touch CB state*/
+	else {
+		codec->Status = GF_ESM_CODEC_STOP;
+	}
+
+	if ((reason==2) && codec->CB) {
+		gf_cm_set_eos(codec->CB);
+	}
+
+	/*signal the codec we stopped*/
+	if (reason == 0) {
 		cap.CapCode = GF_CODEC_ABORT;
 		cap.cap.valueInt = 0;
 		gf_codec_set_capability(codec, cap);
-		
+
 		if (codec->decio && codec->odm->mo && (codec->odm->mo->flags & GF_MO_DISPLAY_REMOVE) ) {
 			cap.CapCode = GF_CODEC_SHOW_SCENE;
 			cap.cap.valueInt = 0;
@@ -506,14 +548,13 @@ void gf_term_stop_codec(GF_Codec *codec, Bool is_pause)
 		}
 	}
 
-	/*set status directly and don't touch CB state*/
-	codec->Status = GF_ESM_CODEC_STOP;
 	/*don't wait for end of thread since this can be triggered within the decoding thread*/
 	if (ce->flags & GF_MM_CE_RUNNING) {
 		ce->flags &= ~GF_MM_CE_RUNNING;
-		if (!ce->thread) 
+		if (!ce->thread)
 			term->cumulated_priority -= codec->Priority+1;
 	}
+	if (codec->CB) gf_cm_abort_buffering(codec->CB);
 
 	if (ce->mx) gf_mx_v(ce->mx);
 	/*cf note above*/
@@ -527,12 +568,12 @@ void gf_term_set_threading(GF_Terminal *term, u32 mode)
 	CodecEntry *ce;
 
 	switch (mode) {
-	case GF_TERM_THREAD_SINGLE: 
+	case GF_TERM_THREAD_SINGLE:
 		if (term->flags & GF_TERM_SINGLE_THREAD) return;
 		term->flags &= ~GF_TERM_MULTI_THREAD;
 		term->flags |= GF_TERM_SINGLE_THREAD;
 		break;
-	case GF_TERM_THREAD_MULTI: 
+	case GF_TERM_THREAD_MULTI:
 		if (term->flags & GF_TERM_MULTI_THREAD) return;
 		term->flags &= ~GF_TERM_SINGLE_THREAD;
 		term->flags |= GF_TERM_MULTI_THREAD;
@@ -647,27 +688,36 @@ void gf_term_set_priority(GF_Terminal *term, s32 Priority)
 GF_EXPORT
 u32 gf_term_process_step(GF_Terminal *term)
 {
-	u32 time_taken = gf_sys_clock();
+	u32 nb_decs=0;
+	u32 sleep_time=0;
+	u32 dec_time = 0, step_start_time = gf_sys_clock();
+
+	MM_handleServices(term);
 
 	if (term->flags & GF_TERM_NO_DECODER_THREAD) {
-		MM_SimulationStep_Decoder(term);
-	} 
+		MM_SimulationStep_Decoder(term, &nb_decs);
+		dec_time = gf_sys_clock() - step_start_time;
+	}
 
 	if (term->flags & GF_TERM_NO_COMPOSITOR_THREAD) {
-		gf_sc_draw_frame(term->compositor);
-	}
-	time_taken = gf_sys_clock() - time_taken;
-	if (time_taken > term->compositor->frame_duration) {
-		time_taken = 0;
+		s32 ms_until_next;
+		gf_sc_draw_frame(term->compositor, 0, &ms_until_next);
+		if ((ms_until_next>=0) && ((u32) ms_until_next > dec_time)) {
+			sleep_time = ms_until_next - dec_time;
+		}
 	} else {
-		time_taken = term->compositor->frame_duration - time_taken;
+		if (dec_time < term->frame_duration) {
+			sleep_time = term->frame_duration - dec_time;
+		}
 	}
-	if (term->user->init_flags & GF_TERM_NO_REGULATION) return time_taken;
 
-	if (2*time_taken >= term->compositor->frame_duration) {
-		gf_sleep(time_taken);
-	}
-	return time_taken;
+	if (term->bench_mode || (term->user->init_flags & GF_TERM_NO_REGULATION)) return sleep_time;
+
+	assert((s32) sleep_time >= 0);
+	if (sleep_time>33) sleep_time = 33;
+
+	gf_sleep(sleep_time);
+	return sleep_time;
 }
 
 GF_EXPORT
@@ -675,13 +725,14 @@ GF_Err gf_term_process_flush(GF_Terminal *term)
 {
 	u32 i;
 	CodecEntry *ce;
+	u32 diff, now = gf_sys_clock();
 	if (!(term->flags & GF_TERM_NO_COMPOSITOR_THREAD) ) return GF_BAD_PARAM;
 
 	/*update till frame mature*/
 	while (1) {
-		
+
+		gf_term_handle_services(term);
 		if (term->flags & GF_TERM_NO_DECODER_THREAD) {
-			gf_term_handle_services(term);
 			gf_mx_p(term->mm_mx);
 			i=0;
 			while ((ce = (CodecEntry*)gf_list_enum(term->codecs, &i))) {
@@ -690,8 +741,28 @@ GF_Err gf_term_process_flush(GF_Terminal *term)
 			gf_mx_v(term->mm_mx);
 		}
 
-		if (!gf_sc_draw_frame(term->compositor))
-			break;
+		if (!gf_sc_draw_frame(term->compositor, 1, NULL)) {
+			if (!term->root_scene || !term->root_scene->root_od)
+				break;
+
+			if (gf_list_count(term->media_queue) )
+				continue;
+
+			//wait for audio to be flushed
+			if (gf_sc_check_audio_pending(term->compositor) )
+				continue;
+
+			//force end of buffer
+			if (gf_scene_check_clocks(term->root_scene->root_od->net_service, term->root_scene, 1))
+				break;
+
+			//consider timeout after 30 s
+			diff = gf_sys_clock() - now;
+			if (diff>30000) {
+				GF_LOG(GF_LOG_ERROR, GF_LOG_MEDIA, ("[Terminal] Waited more than %d ms to flush frame - aborting\n", diff));
+				return GF_IP_UDP_TIMEOUT;
+			}
+		}
 
 		if (! (term->user->init_flags & GF_TERM_NO_REGULATION))
 			break;
@@ -699,3 +770,10 @@ GF_Err gf_term_process_flush(GF_Terminal *term)
 	return GF_OK;
 }
 
+GF_EXPORT
+GF_Err gf_term_process_flush_video(GF_Terminal *term)
+{
+	if (!(term->flags & GF_TERM_NO_COMPOSITOR_THREAD) ) return GF_BAD_PARAM;
+	gf_sc_flush_video(term->compositor);
+	return GF_OK;
+}

@@ -11,22 +11,24 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
 #include <gpac/scene_manager.h>
 #include <gpac/constants.h>
+#include <gpac/internal/isomedia_dev.h>
 #include <gpac/media_tools.h>
 #include <gpac/bifs.h>
+#include <gpac/network.h>
 #ifndef GPAC_DISABLE_LASER
 #include <gpac/laser.h>
 #include <gpac/nodes_svg.h>
@@ -36,6 +38,7 @@
 
 #ifndef GPAC_DISABLE_SCENE_ENCODER
 
+#ifndef GPAC_DISABLE_MEDIA_IMPORT
 static void gf_sm_remove_mux_info(GF_ESD *src)
 {
 	u32 i;
@@ -49,11 +52,12 @@ static void gf_sm_remove_mux_info(GF_ESD *src)
 		}
 	}
 }
+#endif
 
 
 static void gf_sm_finalize_mux(GF_ISOFile *mp4, GF_ESD *src, u32 offset_ts)
 {
-#if !defined (GPAC_DISABLE_ISOM) && !defined(GPAC_DISABLE_ISOM_WRITE) 
+#if !defined (GPAC_DISABLE_ISOM) && !defined(GPAC_DISABLE_ISOM_WRITE)
 	u32 track, mts, ts;
 	GF_MuxInfo *mux = gf_sm_get_mux_info(src);
 	if (!mux && !offset_ts) return;
@@ -73,14 +77,17 @@ static void gf_sm_finalize_mux(GF_ISOFile *mp4, GF_ESD *src, u32 offset_ts)
 	}
 	/*set track interleaving ID*/
 	if (mux) {
-		if (mux->GroupID) gf_isom_set_track_group(mp4, track, mux->GroupID);
+		if (mux->GroupID) gf_isom_set_track_interleaving_group(mp4, track, mux->GroupID);
 #ifndef GPAC_DISABLE_MEDIA_IMPORT
-		if (mux->import_flags & GF_IMPORT_USE_COMPACT_SIZE) 
+		if (mux->import_flags & GF_IMPORT_USE_COMPACT_SIZE)
 			gf_isom_use_compact_size(mp4, track, 1);
 #endif
 	}
 #endif
 }
+
+
+#ifndef GPAC_DISABLE_MEDIA_IMPORT
 
 static GF_Err gf_sm_import_ui_stream(GF_ISOFile *mp4, GF_ESD *src, Bool rewrite_esd_only)
 {
@@ -113,8 +120,6 @@ static GF_Err gf_sm_import_ui_stream(GF_ISOFile *mp4, GF_ESD *src, Bool rewrite_
 #endif
 }
 
-
-#ifndef GPAC_DISABLE_MEDIA_IMPORT
 
 static GF_Err gf_sm_import_stream(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_ESD *src, Double imp_time, char *mediaSource, Bool od_sample_rap)
 {
@@ -186,7 +191,7 @@ static GF_Err gf_sm_import_stream(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_ESD 
 	/*special streams*/
 	if (src->decoderConfig) {
 		/*InputSensor*/
-		if (src->decoderConfig->decoderSpecificInfo && (src->decoderConfig->decoderSpecificInfo->tag == GF_ODF_UI_CFG_TAG)) 
+		if (src->decoderConfig->decoderSpecificInfo && (src->decoderConfig->decoderSpecificInfo->tag == GF_ODF_UI_CFG_TAG))
 			src->decoderConfig->streamType = GF_STREAM_INTERACT;
 		if (src->decoderConfig->streamType == GF_STREAM_INTERACT) return gf_sm_import_ui_stream(mp4, src, 0);
 	}
@@ -202,7 +207,7 @@ static GF_Err gf_sm_import_stream(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_ESD 
 		src->slConfig->predefined = 2;
 		e = gf_isom_new_mpeg4_description(mp4, track, src, NULL, NULL, &di);
 		if (e) return e;
-		if (mux && mux->duration) 
+		if (mux && mux->duration)
 			e = gf_isom_set_edit_segment(mp4, track, 0, mux->duration * gf_isom_get_timescale(mp4) / 1000, 0, GF_ISOM_EDIT_NORMAL);
 		return e;
 	}
@@ -228,8 +233,14 @@ static GF_Err gf_sm_import_stream(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_ESD 
 	if (!mux->file_name) return GF_OK;
 
 	memset(&import, 0, sizeof(GF_MediaImporter));
-	strcpy(szName, mux->file_name);
-	ext = strrchr(szName, '.');	
+	if (mux->src_url) {
+		ext = gf_url_concatenate(mux->src_url, mux->file_name);
+		strcpy(szName, ext ? ext : mux->file_name);
+		if (ext) gf_free(ext);
+	} else {
+		strcpy(szName, mux->file_name);
+	}
+	ext = strrchr(szName, '.');
 
 	/*get track types for AVI*/
 	if (ext && !strnicmp(ext, ".avi", 4)) {
@@ -276,7 +287,7 @@ static GF_Err gf_sm_import_stream(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_ESD 
 	i=0;
 	while ((d = gf_list_enum(src->extensionDescriptors, &i))) {
 		if (d->tag == GF_ODF_AUX_VIDEO_DATA) {
-			gf_isom_add_user_data(mp4, gf_isom_get_track_by_id(mp4, import.final_trackID), GF_4CC('A','U','X','V'), 0, NULL, 0);
+			gf_isom_add_user_data(mp4, gf_isom_get_track_by_id(mp4, import.final_trackID), GF_ISOM_BOX_TYPE_AUXV, 0, NULL, 0);
 			gf_list_rem(src->extensionDescriptors, i-1);
 			gf_odf_desc_del(d);
 		}
@@ -291,13 +302,20 @@ static GF_Err gf_sm_import_stream_special(GF_SceneManager *ctx, GF_ESD *esd)
 	GF_Err e;
 	GF_MuxInfo *mux = gf_sm_get_mux_info(esd);
 	if (!mux || !mux->file_name) return GF_OK;
-	
+
 	if (esd->decoderConfig && esd->decoderConfig->decoderSpecificInfo
-		&& (esd->decoderConfig->decoderSpecificInfo->tag==GF_ODF_TEXT_CFG_TAG)) return GF_OK;
+	        && (esd->decoderConfig->decoderSpecificInfo->tag==GF_ODF_TEXT_CFG_TAG)) return GF_OK;
 
 	e = GF_OK;
 	/*SRT/SUB BIFS import if text node unspecified*/
 	if (mux->textNode) {
+		if (mux->src_url) {
+			char *src = gf_url_concatenate(mux->src_url, mux->file_name);
+			if (src) {
+				gf_free(mux->file_name);
+				mux->file_name = src;
+			}
+		}
 		e = gf_sm_import_bifs_subtitle(ctx, esd, mux);
 		gf_sm_remove_mux_info(esd);
 	}
@@ -334,7 +352,7 @@ static GF_Err gf_sm_import_specials(GF_SceneManager *ctx)
 						}
 					}
 				}
-					break;
+				break;
 				case GF_ODF_ESD_UPDATE_TAG:
 				{
 					GF_ESD *imp_esd;
@@ -345,7 +363,7 @@ static GF_Err gf_sm_import_specials(GF_SceneManager *ctx)
 						if (e != GF_OK) return e;
 					}
 				}
-					break;
+				break;
 				}
 			}
 		}
@@ -386,7 +404,7 @@ static GF_ESD *gf_sm_locate_esd(GF_SceneManager *ctx, u16 ES_ID)
 						}
 					}
 				}
-					break;
+				break;
 				case GF_ODF_ESD_UPDATE_TAG:
 				{
 					GF_ESD *imp_esd;
@@ -396,7 +414,7 @@ static GF_ESD *gf_sm_locate_esd(GF_SceneManager *ctx, u16 ES_ID)
 						if (imp_esd->ESID == ES_ID) return imp_esd;
 					}
 				}
-					break;
+				break;
 				}
 			}
 		}
@@ -493,11 +511,12 @@ static GF_Err gf_sm_encode_scene(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_SMEnc
 			is_in_iod = 1;
 			goto force_scene_rap;
 		}
+		gf_bifs_encoder_set_source_url(bifs_enc, opts->src_url);
 #else
 		return GF_NOT_SUPPORTED;
 #endif
 	}
-	
+
 	if (scene_type==1) {
 #ifndef GPAC_DISABLE_LASER
 		lsr_enc = gf_laser_encoder_new(ctx->scene_graph);
@@ -560,7 +579,7 @@ static GF_Err gf_sm_encode_scene(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_SMEnc
 				if ((com->tag == GF_SG_SCENE_REPLACE) && !com->node && !gf_list_count(com->new_proto_list))
 					au = NULL;
 			}
-		} 
+		}
 
 		/*sanity check: remove first command if it is REPLACE SCENE BY NULL*/
 		if (au && !au->timing && !au->timing_sec && (gf_list_count(au->commands) > 1)) {
@@ -574,7 +593,7 @@ static GF_Err gf_sm_encode_scene(GF_SceneManager *ctx, GF_ISOFile *mp4, GF_SMEnc
 		}
 #endif
 
-		if (!au && !esd->URLString) {
+		if (!au && esd && !esd->URLString) {
 			/*if not in IOD, the stream will be imported when encoding the OD stream*/
 			if (!is_in_iod) continue;
 #ifndef GPAC_DISABLE_MEDIA_IMPORT
@@ -597,7 +616,7 @@ force_scene_rap:
 			esd->ESID = sc ? sc->ESID : 1;
 			esd->decoderConfig->streamType = GF_STREAM_SCENE;
 		}
-		
+
 		if (!esd->slConfig) esd->slConfig = (GF_SLConfig *) gf_odf_desc_new(GF_ODF_SLC_TAG);
 		if (sc && sc->timeScale) esd->slConfig->timestampResolution = sc->timeScale;
 		if (!esd->slConfig->timestampResolution) esd->slConfig->timestampResolution = 1000;
@@ -660,9 +679,9 @@ force_scene_rap:
 			gf_bifs_encoder_get_config(bifs_enc, esd->ESID, &data, &data_len);
 			esd->decoderConfig->decoderSpecificInfo->data = data;
 			esd->decoderConfig->decoderSpecificInfo->dataLength = data_len;
-			esd->decoderConfig->objectTypeIndication = gf_bifs_encoder_get_version(bifs_enc, esd->ESID);		
+			esd->decoderConfig->objectTypeIndication = gf_bifs_encoder_get_version(bifs_enc, esd->ESID);
 #endif
-		} 
+		}
 		/*LASeR setup*/
 #ifndef GPAC_DISABLE_LASER
 		if (scene_type==1) {
@@ -696,7 +715,7 @@ force_scene_rap:
 
 			esd->decoderConfig->decoderSpecificInfo->data = data;
 			esd->decoderConfig->decoderSpecificInfo->dataLength = data_len;
-			esd->decoderConfig->objectTypeIndication = 0x09;
+			esd->decoderConfig->objectTypeIndication = GPAC_OTI_SCENE_LASER;
 		}
 #endif
 		/*create stream description*/
@@ -710,8 +729,8 @@ force_scene_rap:
 
 		if (!sc) {
 			samp = gf_isom_sample_new();
-			samp->IsRAP = 1;
-		
+			samp->IsRAP = RAP;
+
 #ifndef GPAC_DISABLE_BIFS_ENC
 			if (bifs_enc)
 				e = gf_bifs_encoder_get_rap(bifs_enc, &samp->data, &samp->dataLength);
@@ -788,9 +807,9 @@ force_scene_rap:
 					if (lsr_enc)
 						e = gf_laser_encoder_get_rap(lsr_enc, &rap_sample->data, &rap_sample->dataLength);
 #endif
-				
+
 					rap_sample->DTS = last_rap + rap_delay;
-					rap_sample->IsRAP = 1;
+					rap_sample->IsRAP = RAP;
 					last_rap = rap_sample->DTS;
 
 
@@ -807,7 +826,7 @@ force_scene_rap:
 				}
 
 				/*apply commands */
-				if (samp->DTS > last_rap + rap_delay) { 
+				if (samp->DTS > last_rap + rap_delay) {
 					e = gf_sg_command_apply_list(ctx->scene_graph, au->commands, 0);
 				}
 			}
@@ -817,18 +836,22 @@ force_scene_rap:
 				if (samp->DTS - last_rap > rap_delay) {
 					GF_ISOSample *car_samp = gf_isom_sample_new();
 					u64 r_dts = samp->DTS;
-				
+
 					/*then get RAP*/
 #ifndef GPAC_DISABLE_BIFS_ENC
-					if (bifs_enc)
+					if (bifs_enc) {
 						e = gf_bifs_encoder_get_rap(bifs_enc, &car_samp->data, &car_samp->dataLength);
+						if (e) goto exit;
+					}
 #endif
 
 #ifndef GPAC_DISABLE_LASER
-					if (lsr_enc)
+					if (lsr_enc) {
 						e = gf_laser_encoder_get_rap(lsr_enc, &car_samp->data, &car_samp->dataLength);
+						if (e) goto exit;
+					}
 #endif
-					car_samp->IsRAP = 2;					
+					car_samp->IsRAP = RAP_REDUNDANT;
 					while (1) {
 						car_samp->DTS = last_rap+rap_delay;
 						if (car_samp->DTS==prev_dts) car_samp->DTS++;
@@ -838,8 +861,12 @@ force_scene_rap:
 						if (last_rap + rap_delay >= r_dts) break;
 					}
 					gf_isom_sample_del(&car_samp);
+					if (e) goto exit;
 				}
-				if (!e && samp->dataLength) e = gf_isom_add_sample(mp4, track, di, samp);
+				if (samp->dataLength) {
+					e = gf_isom_add_sample(mp4, track, di, samp);
+					if (e) goto exit;
+				}
 				/*accumulate commmands*/
 				e = gf_sg_command_apply_list(ctx->scene_graph, au->commands, 0);
 			} else {
@@ -856,7 +883,7 @@ force_scene_rap:
 				rate = 0;
 				time_slice = samp->DTS;
 			}
-					
+
 			prev_dts = samp->DTS;
 			gf_isom_sample_del(&samp);
 			if (e) goto exit;
@@ -885,7 +912,7 @@ force_scene_rap:
 
 				samp = gf_isom_sample_new();
 				last_rap = samp->DTS = au->timing - init_offset;
-				samp->IsRAP = 1;
+				samp->IsRAP = RAP;
 				/*RAP generation*/
 #ifndef GPAC_DISABLE_BIFS_ENC
 				if (bifs_enc)
@@ -960,7 +987,6 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 
 
 	rap_inband = rap_shadow = 0;
-	rap_delay = 0;
 	if (opts && opts->rap_freq) {
 		if (opts->flags & GF_SM_ENCODE_RAP_INBAND) {
 			rap_inband = 1;
@@ -974,7 +1000,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 	delete_desc = 0;
 
 	i=0;
-	while ((sc = (GF_StreamContext*)gf_list_enum(ctx->streams, &i))){
+	while ((sc = (GF_StreamContext*)gf_list_enum(ctx->streams, &i))) {
 		if (sc->streamType != GF_STREAM_OD) continue;
 
 		delete_desc = 0;
@@ -984,7 +1010,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 			is_in_iod = 0;
 			j=0;
 			while ((esd = (GF_ESD*)gf_list_enum(iod->ESDescriptors, &j))) {
-				if (esd->decoderConfig->streamType != GF_STREAM_OD){
+				if (esd->decoderConfig->streamType != GF_STREAM_OD) {
 					esd = NULL;
 					continue;
 				}
@@ -1000,7 +1026,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 			delete_desc = 1;
 			esd = gf_odf_desc_esd_new(2);
 			esd->ESID = sc->ESID;
-			esd->decoderConfig->objectTypeIndication = 1;
+			esd->decoderConfig->objectTypeIndication = GPAC_OTI_OD_V1;
 			esd->decoderConfig->streamType = GF_STREAM_OD;
 		}
 
@@ -1010,7 +1036,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 		if (!esd->slConfig->timestampResolution) esd->slConfig->timestampResolution = 1000;
 		track = gf_isom_new_track(mp4, sc->ESID, GF_ISOM_MEDIA_OD, esd->slConfig->timestampResolution);
 		if (!sc->ESID) sc->ESID = gf_isom_get_track_id(mp4, track);
-		if (!esd->decoderConfig->objectTypeIndication) esd->decoderConfig->objectTypeIndication = 1;
+		if (!esd->decoderConfig->objectTypeIndication) esd->decoderConfig->objectTypeIndication = GPAC_OTI_OD_V1;
 		gf_isom_set_track_enabled(mp4, track, 1);
 		/*no DSI required*/
 		/*create stream description*/
@@ -1022,9 +1048,8 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 
 		if (rap_inband || rap_shadow) {
 			rap_codec = gf_odf_codec_new();
-			rap_delay = opts->rap_freq * esd->slConfig->timestampResolution / 1000;
 		}
-		
+
 
 		dur = avg_rate = 0;
 		esd->decoderConfig->bufferSizeDB = 0;
@@ -1067,7 +1092,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 								switch (imp_esd->decoderConfig->streamType) {
 								case GF_STREAM_SCENE:
 									/*import AFX streams, but not others*/
-									if (imp_esd->decoderConfig->objectTypeIndication==GPAC_OTI_SCENE_AFX) 
+									if (imp_esd->decoderConfig->objectTypeIndication==GPAC_OTI_SCENE_AFX)
 										break;
 									continue;
 								case GF_STREAM_OD:
@@ -1102,7 +1127,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 						}
 					}
 				}
-					break;
+				break;
 				case GF_ODF_ESD_UPDATE_TAG:
 				{
 					GF_ESD *imp_esd;
@@ -1134,7 +1159,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 						}
 					}
 				}
-					break;
+				break;
 				}
 
 				/*add to codec*/
@@ -1164,7 +1189,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 				while (samp->DTS >= rap_delay + last_rap) {
 					GF_ISOSample *rap_sample = gf_isom_sample_new();
 					rap_sample->DTS = last_rap + rap_delay;
-					rap_sample->IsRAP = 1;
+					rap_sample->IsRAP = RAP;
 
 					if (samp->DTS == last_rap + rap_delay) {
 						GF_ODCom *com;
@@ -1228,7 +1253,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 				samp->dataLength = 0;
 				e = gf_odf_codec_get_au(rap_codec, &samp->data, &samp->dataLength);
 				if (e) goto err_exit;
-				samp->IsRAP = 1;
+				samp->IsRAP = RAP;
 				e = gf_isom_add_sample_shadow(mp4, track, samp);
 				if (e) goto err_exit;
 
@@ -1263,7 +1288,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 			if (last_not_shadow && rap_shadow) {
 				samp = gf_isom_sample_new();
 				samp->DTS = last_not_shadow;
-				samp->IsRAP = 1;
+				samp->IsRAP = RAP;
 				e = gf_odf_codec_encode(rap_codec, 2);
 				if (!e) e = gf_odf_codec_get_au(rap_codec, &samp->data, &samp->dataLength);
 				if (!e) e = gf_isom_add_sample_shadow(mp4, track, samp);
@@ -1276,7 +1301,7 @@ static GF_Err gf_sm_encode_od(GF_SceneManager *ctx, GF_ISOFile *mp4, char *media
 		}
 	}
 	e = gf_isom_set_pl_indication(mp4, GF_ISOM_PL_OD, 1);
-	
+
 err_exit:
 	if (codec) gf_odf_codec_del(codec);
 	if (rap_codec) gf_odf_codec_del(rap_codec);

@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -32,19 +32,21 @@ extern "C" {
 
 /*!
  *	\file <gpac/base_coding.h>
- *	\brief Base coding functions.
+ *	\brief Base 16 and 64 coding.
  */
 
 /*!
- *	\addtogroup bascod_grp base coding
+ *	\addtogroup bascod_grp Base coding
  *	\ingroup utils_grp
- *	\brief Base Coding functions
+ *	\brief Base 16 and 64 coding
  *
  *	This section documents the base encoding and decoding functions of the GPAC framework.
  *	@{
  */
 
 #include <gpac/tools.h>
+
+#ifndef GPAC_DISABLE_CORE_TOOLS
 
 /*!
  *\brief base64 encoder
@@ -57,7 +59,7 @@ extern "C" {
  *\return size of the encoded Base64 buffer
  *\note the encoded data buffer is not NULL-terminated.
  */
-u32 gf_base64_encode(char *in_buffer, u32 in_buffer_size, char *out_buffer, u32 out_buffer_size);
+u32 gf_base64_encode(const char *in_buffer, u32 in_buffer_size, char *out_buffer, u32 out_buffer_size);
 /*!
  *\brief base64 decoder
  *
@@ -101,6 +103,6 @@ u32 gf_base16_decode(char *in_buffer, u32 in_buffer_size, char *out_buffer, u32 
 }
 #endif
 
+#endif /*GPAC_DISABLE_CORE_TOOLS*/
 
 #endif		/*_GF_BASE_CODING_H_*/
-

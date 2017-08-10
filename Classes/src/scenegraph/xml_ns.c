@@ -15,7 +15,7 @@
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY, TYPE, 0 }, without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Lesser General Public License for more details.	
+ *  GNU Lesser General Public License for more details.
  *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library, TYPE, 0 }, see the file COPYING.  If not, write to
@@ -46,7 +46,13 @@ enum
 	GF_SVG_ATTOPT_FILTER = 5,
 } GF_SVGAttOption;
 
-static const struct xml_att_def { const char *name; u32 tag; u32 type; u32 opts; u32 xmlns; } xml_attributes [] = 
+static const struct xml_att_def {
+	const char *name;
+	u32 tag;
+	u32 type;
+	u32 opts;
+	u32 xmlns;
+} xml_attributes [] =
 {
 	/*XML base*/
 	{ "id", TAG_XML_ATT_id, SVG_ID_datatype, 0, GF_XMLNS_XML } ,
@@ -72,7 +78,7 @@ static const struct xml_att_def { const char *name; u32 tag; u32 type; u32 opts;
 	{ "target", TAG_XMLEV_ATT_target, XML_IDREF_datatype, 0, GF_XMLNS_XMLEV },
 	{ "handler", TAG_XMLEV_ATT_handler, XMLRI_datatype, 0, GF_XMLNS_XMLEV },
 
-	
+
 	{ "id", TAG_SVG_ATT_id, SVG_ID_datatype, 0, GF_XMLNS_SVG } ,
 	{ "class", TAG_SVG_ATT__class, DOM_String_datatype, 0, GF_XMLNS_SVG },
 	{ "requiredFeatures", TAG_SVG_ATT_requiredFeatures, XMLRI_List_datatype, 0, GF_XMLNS_SVG },
@@ -130,7 +136,7 @@ static const struct xml_att_def { const char *name; u32 tag; u32 type; u32 opts;
 	{ "nav-down-left", TAG_SVG_ATT_nav_down_left, SVG_Focus_datatype, 0, GF_XMLNS_SVG },
 	{ "nav-left", TAG_SVG_ATT_nav_left, SVG_Focus_datatype, 0, GF_XMLNS_SVG },
 	{ "nav-up-left", TAG_SVG_ATT_nav_up_left, SVG_Focus_datatype, 0, GF_XMLNS_SVG },
-	{ "transform", TAG_SVG_ATT_transform, SVG_Transform_datatype, 0, GF_XMLNS_SVG },	
+	{ "transform", TAG_SVG_ATT_transform, SVG_Transform_datatype, 0, GF_XMLNS_SVG },
 	{ "target", TAG_SVG_ATT_target, DOM_String_datatype, 0, GF_XMLNS_SVG },
 	{ "attributeName", TAG_SVG_ATT_attributeName, SMIL_AttributeName_datatype, 0, GF_XMLNS_SVG },
 	{ "attributeType", TAG_SVG_ATT_attributeType, SMIL_AttributeType_datatype, 0, GF_XMLNS_SVG },
@@ -265,7 +271,7 @@ static const struct xml_att_def { const char *name; u32 tag; u32 type; u32 opts;
 	{ "y", TAG_SVG_ATT_text_y, SVG_Coordinates_datatype, GF_SVG_ATTOPT_TEXT, GF_XMLNS_SVG },
 	/*regular y position*/
 	{ "y", TAG_SVG_ATT_y, SVG_Coordinate_datatype, 0, GF_XMLNS_SVG },
-	
+
 	/*filters*/
 	{ "tableValues", TAG_SVG_ATT_filter_table_values, SVG_Numbers_datatype, 0, GF_XMLNS_SVG },
 	{ "intercept", TAG_SVG_ATT_filter_intercept, SVG_Number_datatype, 0, GF_XMLNS_SVG },
@@ -383,7 +389,6 @@ u32 gf_xml_get_attribute_tag(GF_Node *elt, char *attribute_name, u32 ns)
 
 	if (!ns) {
 		ns_sep = strchr(attribute_name, ':');
-		ns = GF_XMLNS_UNDEFINED;
 		if (ns_sep) {
 			ns_sep[0] = 0;
 			ns = gf_sg_get_namespace_code(elt->sgprivate->scenegraph, attribute_name);
@@ -505,7 +510,11 @@ GF_DOMAttribute *gf_xml_create_attribute(GF_Node *node, u32 tag)
 	return gf_node_create_attribute_from_datatype(type, tag);
 }
 
-static const struct xml_elt_def { const char *name; u32 tag; u32 xmlns; } xml_elements [] = 
+static const struct xml_elt_def {
+	const char *name;
+	u32 tag;
+	u32 xmlns;
+} xml_elements [] =
 {
 	{ "listener", TAG_SVG_listener, GF_XMLNS_XMLEV},
 	/*SVG*/
@@ -631,9 +640,9 @@ const char *gf_xml_get_element_name(GF_Node *n)
 	ns = n ? gf_sg_get_namespace_code(n->sgprivate->scenegraph, NULL) : 0;
 	count = sizeof(xml_elements) / sizeof(struct xml_elt_def);
 	for (i=0; i<count; i++) {
-		if (n->sgprivate->tag==xml_elements[i].tag) {
+		if (n && n->sgprivate && (n->sgprivate->tag==xml_elements[i].tag)) {
 			char *xmlns;
-			if (!n || (ns == xml_elements[i].xmlns)) 
+			if (!n || (ns == xml_elements[i].xmlns))
 				return xml_elements[i].name;
 
 			xmlns = (char *) gf_sg_get_namespace_qname(n->sgprivate->scenegraph, xml_elements[i].xmlns);
@@ -647,7 +656,7 @@ const char *gf_xml_get_element_name(GF_Node *n)
 	return "UndefinedNode";
 }
 
-u32 gf_xml_get_element_namespace(GF_Node *n)
+GF_NamespaceType gf_xml_get_element_namespace(GF_Node *n)
 {
 	u32 i, count;
 	if (n->sgprivate->tag==TAG_DOMFullNode) {
@@ -662,7 +671,6 @@ u32 gf_xml_get_element_namespace(GF_Node *n)
 	return GF_XMLNS_UNDEFINED;
 }
 
-
 u32 gf_node_get_attribute_count(GF_Node *node)
 {
 	u32 count = 0;
@@ -675,7 +683,7 @@ u32 gf_node_get_attribute_count(GF_Node *node)
 	return count;
 }
 
-GF_Err gf_node_get_attribute_info(GF_Node *node, GF_FieldInfo *info) 
+GF_Err gf_node_get_attribute_info(GF_Node *node, GF_FieldInfo *info)
 {
 	GF_DOMNode *dom = (GF_DOMNode *)node;
 	GF_DOMAttribute *atts = dom->attributes;
@@ -713,6 +721,7 @@ SVGAttribute *gf_node_create_attribute_from_datatype(u32 data_type, u32 attribut
 	if (!data_type) return NULL;
 
 	GF_SAFEALLOC(att, SVGAttribute);
+	if (!att) return NULL;
 	att->data_type = (u16) data_type;
 	att->tag = (u16) attribute_tag;
 	att->data = gf_svg_create_attribute_value(att->data_type);
@@ -732,9 +741,9 @@ GF_Err gf_node_get_attribute_by_name(GF_Node *node, char *name, u32 xmlns_code, 
 		if (ns) len = (u32) strlen(ns);
 
 		while (att) {
-			if (((u32) att->tag == TAG_DOM_ATT_any) && 
-				((!ns && !strcmp(name, att->name)) || (ns && !strncmp(att->name, ns, len) && !strcmp(att->name+len+1, name)))
-			) {
+			if (((u32) att->tag == TAG_DOM_ATT_any) &&
+			        ((!ns && !strcmp(name, att->name)) || (ns && !strncmp(att->name, ns, len) && !strcmp(att->name+len+1, name)))
+			   ) {
 				field->fieldIndex = att->tag;
 				field->fieldType = att->data_type;
 				field->far_ptr = att->data;
@@ -745,6 +754,7 @@ GF_Err gf_node_get_attribute_by_name(GF_Node *node, char *name, u32 xmlns_code, 
 		}
 		if (create_if_not_found) {
 			GF_SAFEALLOC(att, GF_DOMFullAttribute);
+			if (!att) return GF_OUT_OF_MEM;
 			att->data_type = (u16) DOM_String_datatype;
 			att->tag = (u16) TAG_DOM_ATT_any;
 			att->data = gf_svg_create_attribute_value(att->data_type);
@@ -796,9 +806,9 @@ static void attributes_set_default_value(GF_Node *node, SVGAttribute *att)
 		}
 		break;
 	case TAG_SVG_ATT_dur:
-		if (node_tag == TAG_SVG_video || 
-			node_tag == TAG_SVG_audio ||
-			node_tag == TAG_SVG_animation)
+		if (node_tag == TAG_SVG_video ||
+		        node_tag == TAG_SVG_audio ||
+		        node_tag == TAG_SVG_animation)
 		{
 			((SMIL_Duration *)att->data)->type = SMIL_DURATION_MEDIA;
 		} else {
@@ -874,18 +884,18 @@ static void attributes_set_default_value(GF_Node *node, SVGAttribute *att)
 	case TAG_SVG_ATT_zoomAndPan:
 		*((SVG_ZoomAndPan *)att->data) = SVG_ZOOMANDPAN_MAGNIFY;
 		break;
-	case TAG_SVG_ATT_stroke_linecap: 
-		*(SVG_StrokeLineCap*)att->data = SVG_STROKELINECAP_INHERIT; 
+	case TAG_SVG_ATT_stroke_linecap:
+		*(SVG_StrokeLineCap*)att->data = SVG_STROKELINECAP_INHERIT;
 		break;
-	case TAG_SVG_ATT_stroke_linejoin: 
-		*(SVG_StrokeLineJoin*)att->data = SVG_STROKELINEJOIN_INHERIT; 
+	case TAG_SVG_ATT_stroke_linejoin:
+		*(SVG_StrokeLineJoin*)att->data = SVG_STROKELINEJOIN_INHERIT;
 		break;
 
-	case TAG_SVG_ATT_transform: 
+	case TAG_SVG_ATT_transform:
 		gf_mx2d_init(((SVG_Transform*)att->data)->mat);
 		break;
 
-		
+
 	/*all default=0 values (don't need init)*/
 	case TAG_SVG_ATT_font_family:
 	case TAG_SVG_ATT_font_style:
@@ -927,7 +937,7 @@ GF_Err gf_node_get_attribute_by_tag(GF_Node *node, u32 attribute_tag, Bool creat
 			field->fieldType = att->data_type;
 			field->fieldIndex = att->tag;
 			/* attribute name should not be called, if needed use gf_svg_get_attribute_name(att->tag);*/
-			field->name = NULL; 
+			field->name = NULL;
 			if (set_default) attributes_set_default_value(node, att);
 			return GF_OK;
 		}
@@ -972,8 +982,8 @@ GF_Node *gf_xml_node_clone(GF_SceneGraph *inScene, GF_Node *orig, GF_Node *clone
 			n_dst = (GF_DOMFullNode *)clone;
 			n_dst->ns = n_src->ns;
 			n_dst->name = gf_strdup(n_dst->name);
-		} 
-		
+		}
+
 		att = ((GF_DOMNode *)orig)->attributes;
 		while (att) {
 			GF_FieldInfo dst, src;
@@ -996,7 +1006,7 @@ GF_Node *gf_xml_node_clone(GF_SceneGraph *inScene, GF_Node *orig, GF_Node *clone
 				}
 			}
 			att = att->next;
-		}	
+		}
 	}
 	if (cloned_parent) {
 		gf_node_list_add_child( & ((GF_ParentNode*)cloned_parent)->children, clone);
@@ -1023,31 +1033,32 @@ static u32 check_existing_file(char *base_file, char *ext, char *data, u32 data_
 	char szFile[GF_MAX_PATH];
 	u64 fsize;
 	FILE *f;
-	
+
 	sprintf(szFile, "%s%04X%s", base_file, idx, ext);
-	
-	f = gf_f64_open(szFile, "rb");
+
+	f = gf_fopen(szFile, "rb");
 	if (!f) return 0;
 
-	gf_f64_seek(f, 0, SEEK_END);
-	fsize = gf_f64_tell(f);
+	gf_fseek(f, 0, SEEK_END);
+	fsize = gf_ftell(f);
 	if (fsize==data_size) {
 		u32 offset=0;
 		char cache[1024];
-		gf_f64_seek(f, 0, SEEK_SET);
+		gf_fseek(f, 0, SEEK_SET);
 		while (fsize) {
 			u32 read = (u32) fread(cache, 1, 1024, f);
+			if ((s32) read < 0) return 0;
 			fsize -= read;
 			if (memcmp(cache, data+offset, sizeof(char)*read)) break;
 			offset+=read;
 		}
-		fclose(f);
+		gf_fclose(f);
 		f = NULL;
 		/*same file*/
 		if (!fsize) return 2;
 	}
 	if (f)
-	  fclose(f);
+		gf_fclose(f);
 	return 1;
 }
 
@@ -1107,9 +1118,9 @@ GF_Err gf_node_store_embedded_data(XMLRI *iri, const char *cache_dir, const char
 		data_size = gf_base16_decode(sep, (u32) strlen(sep), data, data_size);
 	}
 	if (!data_size) return GF_OK;
-	
+
 	iri->type = XMLRI_STRING;
-	
+
 	existing = 0;
 	idx = 0;
 	while (1) {
@@ -1126,7 +1137,7 @@ GF_Err gf_node_store_embedded_data(XMLRI *iri, const char *cache_dir, const char
 	strcat(szFile, ext);
 
 	if (!existing) {
-		f = gf_f64_open(szFile, "wb");
+		f = gf_fopen(szFile, "wb");
 		if (!f) {
 			gf_free(data);
 			gf_free(iri->string);
@@ -1134,7 +1145,7 @@ GF_Err gf_node_store_embedded_data(XMLRI *iri, const char *cache_dir, const char
 			return GF_IO_ERR;
 		}
 		gf_fwrite(data, data_size, 1, f);
-		fclose(f);
+		gf_fclose(f);
 	}
 	gf_free(data);
 	gf_free(iri->string);

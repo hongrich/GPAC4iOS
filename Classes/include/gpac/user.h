@@ -1,7 +1,7 @@
 /*
  *			GPAC - Multimedia Framework C SDK
  *
- *			Authors: Jean Le Feuvre 
+ *			Authors: Jean Le Feuvre
  *			Copyright (c) Telecom ParisTech 2000-2012
  *					All rights reserved
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -32,14 +32,31 @@
 extern "C" {
 #endif
 
-//#include <gpac/math.h>
+
+/*!
+ *	\file <gpac/user.h>
+ *	\brief GPAC terminal <-> user API.
+ */
+	
+/*!
+ *\addtogroup termuser_grp Terminal User
+ *\ingroup playback_grp
+ *\brief GPAC terminal <-> user API.
+ *
+ *This section documents the user-level API of the GPAC media player.
+ *	@{
+ */
+	
+
+
+
 #include <gpac/events.h>
 #include <gpac/module.h>
 
 /*GPAC client terminal*/
 typedef struct _tag_terminal GF_Terminal;
 typedef struct _tag_user GF_User;
-	
+
 
 enum
 {
@@ -47,14 +64,14 @@ enum
 	GF_TERM_INIT_HIDE = 1,
 	/*no audio renderer will be created*/
 	GF_TERM_NO_AUDIO = 1<<1,
-	/*terminal is used without visual threading: 
+	/*terminal is used without visual threading:
 		* media codecs are not threaded
 		* all composition memories are filled before rendering
 		* rendering is done after media decoding
 		* the user is responsible for updating the terminal
 	*/
 	GF_TERM_NO_DECODER_THREAD = 1<<2,
-	
+
 	/*works with no visual thread for the composition - compositor is driven by the media manager
 		if GF_TERM_NO_DECODER_THREAD, equivalent to GF_TERM_NO_COMPOSITOR_THREAD
 	*/
@@ -65,16 +82,23 @@ enum
 
 	/*disables frame-rate regulation (used when dumping content)*/
 	GF_TERM_NO_REGULATION = 1<<5,
+
+	/*uses audio hardware clock rather than system clock. The clock is increased at the rate of audio sample consumption. This should only be used for extraction
+	purposes, as it may result in non-smooth visual playback (time is not continuously increasing)*/
+	GF_TERM_USE_AUDIO_HW_CLOCK = 1<<6,
+
 	/*works without window thread*/
-	GF_TERM_WINDOW_NO_THREAD = 1<<6,
+	GF_TERM_WINDOW_NO_THREAD = 1<<10,
 	/*lets the main user handle window events (needed for browser plugins)*/
-	GF_TERM_NO_WINDOWPROC_OVERRIDE = 1<<7,
+	GF_TERM_NO_WINDOWPROC_OVERRIDE = 1<<11,
 	/*works without title bar*/
-	GF_TERM_WINDOW_NO_DECORATION = 1<<8,
+	GF_TERM_WINDOW_NO_DECORATION = 1<<12,
+
+
 	/*framebuffer works in 32 bit alpha mode - experimental, only supported on Win32*/
-	GF_TERM_WINDOW_TRANSPARENT = 1<<9,
+	GF_TERM_WINDOW_TRANSPARENT = 1<<20,
 	/*works in windowless mode - experimental, only supported on Win32*/
-	GF_TERM_WINDOWLESS = 1<<10,
+	GF_TERM_WINDOWLESS = 1<<21,
 };
 
 /*user object for all callbacks*/
@@ -91,7 +115,7 @@ struct _tag_user
 	GF_Config *config;
 	/*modules manager - cannot be NULL - owned by the user (to allow selection of module directory)*/
 	GF_ModuleManager *modules;
-	/*optional os window handler (HWND on win32/winCE, XWindow for X11) 
+	/*optional os window handler (HWND on win32/winCE, XWindow for X11)
 	if not set the video outut will create and manage the display window.*/
 	void *os_window_handler;
 	/*for now, only used by X11 (indicates display the window is on)*/
@@ -101,6 +125,7 @@ struct _tag_user
 	u32 init_flags;
 };
 
+/*! @} */
 
 #ifdef __cplusplus
 }

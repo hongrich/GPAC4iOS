@@ -11,39 +11,44 @@
  *  it under the terms of the GNU Lesser General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  GPAC is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
 
 #include "media_control.h"
 #include <gpac/constants.h>
+#include <gpac/internal/compositor_dev.h>
 
 #ifndef GPAC_DISABLE_VRML
 
 /*render : setup media sensor and update timing in case of inline scenes*/
 void RenderMediaSensor(GF_Node *node, void *rs, Bool is_destroy)
 {
+	GF_TraverseState *tr_state = (GF_TraverseState *)rs;
 	GF_Clock *ck;
+	Bool do_update_clock = 1;
 	MediaSensorStack *st = (MediaSensorStack *)gf_node_get_private(node);
 
 	if (is_destroy) {
 		/*unlink from OD*/
-		if (st->stream && st->stream->odm) 
+		if (st->stream && st->stream->odm)
 			gf_list_del_item(st->stream->odm->ms_stack, st);
 
 		gf_list_del(st->seg);
 		gf_free(st);
 		return;
 	}
+	//we need to disable culling otherwise we may never be called back again ...
+	tr_state->disable_cull = 1;
 
 	if (!st->stream) st->stream = gf_mo_register(node, &st->sensor->url, 0, 0);
 	if (!st->stream || !st->stream->odm) return;
@@ -53,7 +58,7 @@ void RenderMediaSensor(GF_Node *node, void *rs, Bool is_destroy)
 		gf_odm_init_segments(st->stream->odm, st->seg, &st->sensor->url);
 		st->is_init = 1;
 		st->active_seg = 0;
-		
+
 	}
 	/*media sensor bound to natural media (audio, video) is updated when fetching the stream
 	data for rendering.*/
@@ -65,17 +70,24 @@ void RenderMediaSensor(GF_Node *node, void *rs, Bool is_destroy)
 		if (st->stream->odm->subscene->scene_codec) ck = st->stream->odm->subscene->scene_codec->ck;
 		/*dynamic scene*/
 		else ck = st->stream->odm->subscene->dyn_ck;
-		/*since audio may be used alone through an inline scene, we need to refresh the graph*/
-		if (ck && !ck->has_seen_eos && st->stream->odm->state) gf_term_invalidate_compositor(st->stream->odm->term);
+		if (st->stream->odm->subscene->is_dynamic_scene) do_update_clock = 0;
 	}
 	/*check anim streams*/
 	else if (st->stream->odm->codec && (st->stream->odm->codec->type==GF_STREAM_SCENE)) ck = st->stream->odm->codec->ck;
 	/*check OCR streams*/
 	else if (st->stream->odm->ocr_codec) ck = st->stream->odm->ocr_codec->ck;
 
-	if (ck && gf_clock_is_started(ck) ) {
-		st->stream->odm->current_time = gf_clock_time(ck);
+	if (ck && ck->clock_init ) {
+		if (do_update_clock)
+			st->stream->odm->media_current_time = gf_clock_media_time(ck);
 		mediasensor_update_timing(st->stream->odm, 0);
+	}
+	//if main addon is VoD , fire a timeshift update
+	else if (st->stream->odm->subscene && st->stream->odm->subscene->sys_clock_at_main_activation) {
+		GF_Event evt;
+		memset(&evt, 0, sizeof(evt));
+		evt.type = GF_EVENT_TIMESHIFT_UPDATE;
+		gf_term_send_event(st->stream->odm->term, &evt);
 	}
 }
 
@@ -83,6 +95,10 @@ void InitMediaSensor(GF_Scene *scene, GF_Node *node)
 {
 	MediaSensorStack *st;
 	GF_SAFEALLOC(st, MediaSensorStack);
+	if (!st) {
+		GF_LOG(GF_LOG_ERROR, GF_LOG_MEDIA, ("[Terminal] Failed to allocate media sensor stack\n"));
+		return;
+	}
 
 	st->parent = scene;
 	st->sensor = (M_MediaSensor *)node;
@@ -97,12 +113,12 @@ void MS_Modified(GF_Node *node)
 {
 	MediaSensorStack *st = (MediaSensorStack *)gf_node_get_private(node);
 	if (!st) return;
-	
+
 	while (gf_list_count(st->seg)) gf_list_rem(st->seg, 0);
 
 	if (st->stream) {
 		/*unlink from OD*/
-		if (st->stream->odm && st->stream->odm->ms_stack) 
+		if (st->stream->odm && st->stream->odm->ms_stack)
 			gf_list_del_item(st->stream->odm->ms_stack, st);
 
 		gf_mo_unregister(node, st->stream);
@@ -117,7 +133,7 @@ void MS_Modified(GF_Node *node)
 }
 
 
-static void media_sensor_activate(MediaSensorStack *media_sens, GF_Segment *desc)
+static void media_sensor_activate_segment(MediaSensorStack *media_sens, GF_Segment *desc)
 {
 	media_sens->sensor->isActive = 1;
 	gf_node_event_out((GF_Node *) media_sens->sensor, 4/*"isActive"*/);
@@ -141,8 +157,8 @@ void mediasensor_update_timing(GF_ObjectManager *odm, Bool is_eos)
 	Double time;
 	ms_count = gf_list_count(odm->ms_stack);
 	if (!ms_count) return;
-	
-	time = odm->current_time / 1000.0;
+
+	time = odm->media_current_time / 1000.0;
 	//dirty hack to get timing of frame when very late (openhevc debug)
 	if (odm->subscene && odm->subscene->dyn_ck && odm->subscene->dyn_ck->last_TS_rendered)
 		time = odm->subscene->dyn_ck->last_TS_rendered / 1000.0;
@@ -151,7 +167,7 @@ void mediasensor_update_timing(GF_ObjectManager *odm, Bool is_eos)
 		MediaSensorStack *media_sens = (MediaSensorStack *)gf_list_get(odm->ms_stack, j);
 		if (!media_sens->is_init) continue;
 		count = gf_list_count(media_sens->seg);
-		
+
 		/*full object controled*/
 		if (!media_sens->active_seg && !count) {
 			/*check for end of scene (MediaSensor on inline)*/
@@ -232,7 +248,7 @@ void mediasensor_update_timing(GF_ObjectManager *odm, Bool is_eos)
 			}
 
 			if (!media_sens->sensor->isActive) {
-				media_sensor_activate(media_sens, desc);
+				media_sensor_activate_segment(media_sens, desc);
 
 				GF_LOG(GF_LOG_DEBUG, GF_LOG_INTERACT, ("[ODM%d] Activating media sensor time %g - segment %s\n", odm->OD->objectDescriptorID, time, desc->SegmentName));
 			}
