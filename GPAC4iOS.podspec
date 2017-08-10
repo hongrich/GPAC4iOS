@@ -21,5 +21,4 @@ Pod::Spec.new do |s|
   
   s.header_mappings_dir = 'Classes/include'
   s.source_files = 'Classes/**/*.{h,cpp,c}'
-  s.xcconfig = {'CLANG_ENABLE_MODULES' => 'NO' }
 end
